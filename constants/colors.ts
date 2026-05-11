@@ -6,4 +6,8 @@ export const COLORS = {
   white: "#FFFFFF",
   gray: "#888888",
   border: "#222222",
+  labelRed: "#e5003c",
+  amber: "#E8A020",
+  purple: "#9B59B6",
+  dotInactive: "rgba(255,255,255,0.18)",
 };
