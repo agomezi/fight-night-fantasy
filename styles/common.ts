@@ -81,4 +81,18 @@ export const commonStyles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 8,
   },
+
+  cardWrapper: {
+    position: "relative",
+  },
+  square: {
+    flex: 1,
+    aspectRatio: 1,
+    borderWidth: 1,
+    borderColor: "#333333",
+    borderRadius: 8,
+    backgroundColor: "#111111",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

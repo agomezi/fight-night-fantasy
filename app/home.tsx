@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatBox, StatBoxRow } from "../components/StatBox";
 import SwipeableCards from "../components/SwipeableCards";
 import { commonStyles } from "../styles/common";
 
@@ -10,6 +11,7 @@ export default function Home() {
     >
       <Text style={commonStyles.headerLogo}>PFP Fight Night BELL</Text>
       <View style={commonStyles.divider} />
+
       <SwipeableCards
         cards={[
           {
@@ -18,6 +20,13 @@ export default function Home() {
             title: "UFC 300",
             subtitle: "PEREIRA VS HILL",
             aspectRatio: 1.2,
+            footer: (
+              <StatBoxRow>
+                <StatBox value="02" label="DAYS" />
+                <StatBox value="14" label="HOURS" />
+                <StatBox value="45" label="MINS" />
+              </StatBoxRow>
+            ),
           },
           {
             tag: "YOUR LEAGUE",
@@ -28,24 +37,6 @@ export default function Home() {
           },
         ]}
       />
-
-      {/* <View style={[commonStyles.homeCard, { aspectRatio: 1.2 }]}>
-        <Text style={[commonStyles.label, { color: "#e5003c" }]}>
-          NEXT EVENT
-        </Text>
-        <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
-          UFC 300
-        </Text>
-
-        <Text
-          style={[
-            commonStyles.cardSubtitle,
-            { textAlign: "left", fontWeight: "500", fontSize: 16 },
-          ]}
-        >
-          PEREIRA VS HILL
-        </Text>
-      </View> */}
     </SafeAreaView>
   );
 }

@@ -14,6 +14,7 @@ interface Card {
   title: string;
   subtitle: string;
   aspectRatio?: number;
+  footer?: React.ReactNode;
 }
 
 const SwipeableCards = ({ cards }: { cards: Card[] }) => {
@@ -75,6 +76,7 @@ const SwipeableCards = ({ cards }: { cards: Card[] }) => {
         <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
           {card.subtitle}
         </Text>
+        {card.footer}
       </View>
     </Animated.View>
   );
