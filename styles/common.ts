@@ -84,6 +84,9 @@ export const commonStyles = StyleSheet.create({
 
   cardWrapper: {
     position: "relative",
+    marginTop: 24,
+    flexDirection: "row",
+    justifyContent: "space-around",
   },
   square: {
     flex: 1,
