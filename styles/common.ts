@@ -98,4 +98,41 @@ export const commonStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
+  infoCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "flex-start",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 4,
+  },
+  infoCardTitle: {
+    flexShrink: 1,
+    textAlign: "left",
+    marginBottom: 0,
+  },
+
+  titleUnit: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.gray,
+    alignSelf: "flex-end",
+    marginBottom: 8,
+  },
+  deltaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  deltaText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  deltaPositive: {
+    color: "#00C853",
+  },
+  deltaNegative: {
+    color: "#E8003D",
+  },
 });

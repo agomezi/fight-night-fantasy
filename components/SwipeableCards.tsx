@@ -57,9 +57,6 @@ const SwipeableCards = ({ cards }: { cards: Card[] }) => {
           if (!done) {
             return;
           }
-
-          // Do not pass a function to setState through runOnJS — only pass
-          // primitives so the updater runs correctly on the JS thread.
           runOnJS(advanceIndex)(direction);
           translateX.value = incomingStart;
           translateX.value = withTiming(0, { duration: 220 });
