@@ -6,6 +6,7 @@ import { commonStyles } from "../styles/common";
 export interface Card {
   tag?: string;
   tagColor?: string;
+  tagSize?: number;
   title?: string;
   titleSize?: number;
   titleUnit?: string;
@@ -25,7 +26,12 @@ export function InfoCards({ cards }: { cards: Card[] }) {
           key={i}
           style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio }]}
         >
-          <Text style={[commonStyles.label, { color: card.tagColor }]}>
+          <Text
+            style={[
+              commonStyles.label,
+              { color: card.tagColor, fontSize: card.tagSize },
+            ]}
+          >
             {card.tag}
           </Text>
           <View style={commonStyles.infoCardTitleRow}>

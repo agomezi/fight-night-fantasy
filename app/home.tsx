@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoCards from "../components/InfoCards";
@@ -122,7 +123,150 @@ export default function Home() {
               ),
             },
             {
-              tag: "",
+              tag: "UFC 299 Recap",
+              tagColor: "#FFFFFF",
+              tagSize: 22,
+              footer: (
+                <View style={{ gap: 10, marginTop: 12 }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "#0f0f0f",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: "#222224",
+                      padding: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 10,
+                        backgroundColor: "#111111",
+                        borderWidth: 1,
+                        borderColor: "#333333",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: "#00C853",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Ionicons name="checkmark" size={20} color="#fff" />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                      <Text
+                        style={[
+                          commonStyles.cardTitle,
+                          {
+                            fontSize: 16,
+                            textAlign: "left",
+                            marginBottom: 2,
+                          },
+                        ]}
+                      >
+                        O&apos;Malley (W)
+                      </Text>
+                      <Text
+                        style={[
+                          commonStyles.cardSubtitle,
+                          { textAlign: "left", marginBottom: 0 },
+                        ]}
+                      >
+                        Method: KO/TKO
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: "#fff",
+                      }}
+                    >
+                      +120 PTS
+                    </Text>
+                  </View>
+
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: "#0f0f0f",
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: "#222224",
+                      padding: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 10,
+                        backgroundColor: "#111111",
+                        borderWidth: 1,
+                        borderColor: "#333333",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <View
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: "#E8003D",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Ionicons name="close" size={20} color="#fff" />
+                      </View>
+                    </View>
+                    <View style={{ flex: 1, marginHorizontal: 12 }}>
+                      <Text
+                        style={[
+                          commonStyles.cardTitle,
+                          {
+                            fontSize: 16,
+                            textAlign: "left",
+                            marginBottom: 2,
+                          },
+                        ]}
+                      >
+                        Poirier (L)
+                      </Text>
+                      <Text
+                        style={[
+                          commonStyles.cardSubtitle,
+                          { textAlign: "left", marginBottom: 0 },
+                        ]}
+                      >
+                        Method: Dec
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: "#fff",
+                      }}
+                    >
+                      -10 PTS
+                    </Text>
+                  </View>
+                </View>
+              ),
             },
           ]}
         />
