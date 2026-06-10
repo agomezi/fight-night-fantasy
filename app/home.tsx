@@ -270,6 +270,35 @@ export default function Home() {
             },
           ]}
         />
+        <View
+          style={[
+            commonStyles.cardWrapper,
+            { marginBottom: 9, justifyContent: "space-between" },
+          ]}
+        >
+          <Text
+            style={[
+              commonStyles.cardTitle,
+              { textAlign: "left", paddingLeft: 3 },
+            ]}
+          >
+            Actions
+          </Text>
+        </View>
+        {/* make an action button button */}
+        <View style={[commonStyles.homeCard, { backgroundColor: "#C70034" }]}>
+          <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
+            MAKE YOUR PICKS
+          </Text>
+          <Text
+            style={[
+              commonStyles.cardSubtitle,
+              { textAlign: "left", color: "#e4e4ff" },
+            ]}
+          >
+            Picks opens in 12 hours. Set your lineup for UFC 300.
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
