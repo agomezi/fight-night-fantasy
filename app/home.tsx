@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, Text, View } from "react-native";
+import { useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { Circle, Path, Svg } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
@@ -7,12 +9,34 @@ import SwipeableCards from "../components/SwipeableCards";
 import { commonStyles } from "../styles/common";
 
 export default function Home() {
+  const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
+  const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
+
+  const fullCardFights = [
+    { matchup: "Pereira vs Hill", division: "TITLE FIGHT" },
+    { matchup: "Holloway vs Gaethje", division: "Lightweight" },
+    { matchup: "Poatan vs Ankalaev", division: "Light HW" },
+  ];
   return (
     <SafeAreaView
       style={[commonStyles.container, { backgroundColor: "#0A0A0A" }]}
     >
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Text style={commonStyles.headerLogo}>PFP Fight Night BELL</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <Svg width={36} height={36} viewBox="0 0 120 120">
+            <Circle cx="60" cy="60" r="60" fill="#1a0a0a" />
+            <Circle cx="60" cy="60" r="59" fill="none" stroke="#E8003D" strokeWidth="2" />
+            <Circle cx="60" cy="47" r="20" fill="#E8003D" fillOpacity="0.85" />
+            <Path d="M20 108C20 84.8 37.9 68 60 68C82.1 68 100 84.8 100 108" fill="#E8003D" fillOpacity="0.85" />
+          </Svg>
+          <Text style={commonStyles.headerLogo}>Fight Night</Text>
+          <Svg width={36} height={36} viewBox="0 0 120 120">
+            <Path d="M60 20C51.16 20 44 27.16 44 36V40.5C34.6 44.8 28 54.2 28 65V82L20 92V96H100V92L92 82V65C92 54.2 85.4 44.8 76 40.5V36C76 27.16 68.84 20 60 20Z" fill="#E8003D" />
+            <Path d="M48 100C48 106.6 53.4 112 60 112C66.6 112 72 106.6 72 100H48Z" fill="#E8003D" />
+            <Circle cx="88" cy="32" r="10" fill="#E8003D" />
+            <Circle cx="88" cy="32" r="10" fill="none" stroke="#0A0A0A" strokeWidth="2" />
+          </Svg>
+        </View>
         <View style={commonStyles.divider} />
 
         <SwipeableCards
@@ -265,6 +289,410 @@ export default function Home() {
                       -10 PTS
                     </Text>
                   </View>
+                </View>
+              ),
+            },
+          ]}
+        />
+        <View
+          style={[
+            commonStyles.cardWrapper,
+            { marginBottom: 9, justifyContent: "space-between" },
+          ]}
+        >
+          <Text
+            style={[
+              commonStyles.cardTitle,
+              { textAlign: "left", paddingLeft: 3 },
+            ]}
+          >
+            Actions
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <View
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: 4,
+                backgroundColor: "#e5003c",
+              }}
+            />
+            <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
+              Locks in 14h
+            </Text>
+          </View>
+        </View>
+
+        <View style={commonStyles.homeCard}>
+          {/* Tabs */}
+          <View
+            style={{
+              flexDirection: "row",
+              borderBottomWidth: 1,
+              borderBottomColor: "#222224",
+              marginBottom: 16,
+              marginHorizontal: -24,
+              paddingHorizontal: 24,
+            }}
+          >
+            {(["quick", "full"] as const).map((tab) => {
+              const label = tab === "quick" ? "QUICK PICK" : "FULL CARD (12)";
+              const active = picksTab === tab;
+              return (
+                <Pressable
+                  key={tab}
+                  onPress={() => setPicksTab(tab)}
+                  style={{
+                    flex: 1,
+                    paddingBottom: 12,
+                    alignItems: "center",
+                    borderBottomWidth: 2,
+                    borderBottomColor: active ? "#e5003c" : "transparent",
+                    marginBottom: -1,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "700",
+                      letterSpacing: 1,
+                      color: active ? "#fff" : "#555",
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {picksTab === "quick" ? (
+            <View>
+              <Text
+                style={[
+                  commonStyles.label,
+                  { color: "#555", marginBottom: 20 },
+                ]}
+              >
+                UFC 300 · MAIN EVENT —{" "}
+                <Text style={{ color: "#e5003c" }}>LHW TITLE</Text>
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 20,
+                }}
+              >
+                <View style={{ alignItems: "center", flex: 1 }}>
+                  <View
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 26,
+                      backgroundColor: "#1a1a1a",
+                      borderWidth: 1,
+                      borderColor: "#333",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: "700" }}>AP</Text>
+                  </View>
+                  <Text
+                    style={[
+                      commonStyles.cardTitle,
+                      { fontSize: 16, marginBottom: 2 },
+                    ]}
+                  >
+                    PEREIRA
+                  </Text>
+                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+                    29-9 · C
+                  </Text>
+                </View>
+                <Text style={{ color: "#555", fontWeight: "700", fontSize: 13 }}>
+                  VS
+                </Text>
+                <View style={{ alignItems: "center", flex: 1 }}>
+                  <View
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 26,
+                      backgroundColor: "#1a1a1a",
+                      borderWidth: 1,
+                      borderColor: "#333",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: "700" }}>JH</Text>
+                  </View>
+                  <Text
+                    style={[
+                      commonStyles.cardTitle,
+                      { fontSize: 16, marginBottom: 2 },
+                    ]}
+                  >
+                    HILL
+                  </Text>
+                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+                    12-1 · #1
+                  </Text>
+                </View>
+              </View>
+
+              {/* Pick % bar */}
+              <View style={{ marginBottom: 20 }}>
+                <View
+                  style={{
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: "#222",
+                    overflow: "hidden",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: "61%",
+                      height: "100%",
+                      backgroundColor: "#e5003c",
+                      borderRadius: 2,
+                    }}
+                  />
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginTop: 6,
+                  }}
+                >
+                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+                    61% picking Pereira
+                  </Text>
+                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+                    39% Hill
+                  </Text>
+                </View>
+              </View>
+
+              <Pressable
+                style={{
+                  borderWidth: 1,
+                  borderColor: "#333",
+                  borderRadius: 10,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: "#555",
+                    fontWeight: "700",
+                    fontSize: 13,
+                    letterSpacing: 2,
+                  }}
+                >
+                  SELECT A FIGHTER TO PICK
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={{ gap: 0 }}>
+              {fullCardFights.map((fight, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingVertical: 14,
+                    borderBottomWidth: i < fullCardFights.length - 1 ? 1 : 0,
+                    borderBottomColor: "#222224",
+                  }}
+                >
+                  <View>
+                    <Text
+                      style={[
+                        commonStyles.cardTitle,
+                        { fontSize: 15, textAlign: "left", marginBottom: 2 },
+                      ]}
+                    >
+                      {fight.matchup}
+                    </Text>
+                    <Text
+                      style={[
+                        commonStyles.label,
+                        { color: "#e5003c", marginBottom: 0 },
+                      ]}
+                    >
+                      {fight.division}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={{
+                      backgroundColor: "#e5003c",
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontWeight: "700",
+                        fontSize: 12,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      PICK
+                    </Text>
+                  </Pressable>
+                </View>
+              ))}
+              <Pressable style={{ marginTop: 8, alignItems: "center" }}>
+                <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
+                  + 9 more fights →
+                </Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+
+        <View style={[commonStyles.cardWrapper, { marginBottom: 9 }]}>
+          <Text
+            style={[
+              commonStyles.cardTitle,
+              { textAlign: "left", paddingLeft: 3 },
+            ]}
+          >
+            Community
+          </Text>
+        </View>
+        <InfoCards
+          cards={[
+            {
+              tag: "TODAY'S CALL",
+              tagColor: "#e5003c",
+              title: "DOES PEREIRA FINISH HILL INSIDE 2 ROUNDS?",
+              subtitle: "UFC 300 main event · Sat night",
+              footer: (
+                <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
+                  {(["yes", "no"] as const).map((option) => (
+                    <Pressable
+                      key={option}
+                      onPress={() => setHotTakeVote(option)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 14,
+                        borderRadius: 10,
+                        alignItems: "center",
+                        borderWidth: 1,
+                        borderColor:
+                          hotTakeVote === option ? "#e5003c" : "#333333",
+                        backgroundColor:
+                          hotTakeVote === option ? "#e5003c" : "#111111",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "700",
+                          color: "#fff",
+                          letterSpacing: 2,
+                        }}
+                      >
+                        {option.toUpperCase()}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ),
+            },
+            {
+              tag: "FIGHTER SPOTLIGHT",
+              tagColor: "#707079",
+              footer: (
+                <View>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 14,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 10,
+                        backgroundColor: "#1a1a1a",
+                        borderWidth: 1,
+                        borderColor: "#333333",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "700",
+                          color: "#fff",
+                        }}
+                      >
+                        AP
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          commonStyles.cardTitle,
+                          { textAlign: "left", fontSize: 20, marginBottom: 2 },
+                        ]}
+                      >
+                        ALEX PEREIRA
+                      </Text>
+                      <Text
+                        style={[
+                          commonStyles.cardSubtitle,
+                          { textAlign: "left", marginBottom: 0 },
+                        ]}
+                      >
+                        Light Heavyweight · 29-3
+                      </Text>
+                    </View>
+                  </View>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: "#ccc",
+                      marginBottom: 16,
+                      lineHeight: 18,
+                    }}
+                  >
+                    <Text style={{ fontWeight: "700" }}>
+                      Finishes 80% of his wins.
+                    </Text>{" "}
+                    9 of his last 12 victories ended by knockout — he rarely
+                    leaves it to the judges.
+                  </Text>
+                  <StatBoxRow inline>
+                    <StatBox value="80%" label="FINISH RATE" accent />
+                    <StatBox value="4" label="WIN STREAK" />
+                    <StatBox value='79"' label="REACH" />
+                  </StatBoxRow>
                 </View>
               ),
             },
