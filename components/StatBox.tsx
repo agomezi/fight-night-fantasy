@@ -8,8 +8,8 @@ type StatBoxProps = {
   icon?: React.ReactNode;
 };
 
-export function StatBoxRow({ children }: { children: React.ReactNode }) {
-  return <View style={styles.row}>{children}</View>;
+export function StatBoxRow({ children, inline }: { children: React.ReactNode; inline?: boolean }) {
+  return <View style={inline ? styles.rowInline : styles.row}>{children}</View>;
 }
 
 export function StatBox({
@@ -76,6 +76,10 @@ const styles = StyleSheet.create({
     bottom: 16,
     left: 16,
     right: 16,
+    flexDirection: "row",
+    gap: 12,
+  },
+  rowInline: {
     flexDirection: "row",
     gap: 12,
   },
