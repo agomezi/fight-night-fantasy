@@ -1,8 +1,10 @@
+import { useRouter } from "expo-router";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { COLORS } from "../constants/colors";
 import { styles } from "../styles/login";
 
 export default function LoginScreen() {
+  const router = useRouter();
   return (
     <View style={styles.container}>
       <Text style={styles.title}>FIGHT NIGHT</Text>
@@ -30,7 +32,10 @@ export default function LoginScreen() {
           keyboardType="ascii-capable"
           secureTextEntry
         />
-        <TouchableOpacity style={styles.mainButton}>
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={() => router.replace("/home")}
+        >
           <Text style={styles.mainButtonText}>ENTER ARENA</Text>
         </TouchableOpacity>
         <View style={styles.orRow}>
