@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useMemo, useRef, useState } from "react";
+import { Animated, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
 import { Circle, Path, Svg } from "react-native-svg";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import { COLORS } from "../constants/colors";
 import { commonStyles } from "../styles/common";
+import { styles } from "../styles/picks";
 
 type Fighter = { id: string; name: string; initials: string; record: string };
 type Fight = {
@@ -51,6 +52,35 @@ const UNDERCARD: Fight[] = [
 
 const METHODS = ["KO/TKO", "SUB", "DEC"] as const;
 const ROUNDS = [1, 2, 3, 4, 5] as const;
+
+// ---- Lock-deadline logic --------------------------------------------------
+// Picks become permanently locked LOCK_LEAD_MS before the main card starts.
+// EVENT_START is mock data for now; it will come from the event API later.
+const EVENT_START = new Date(Date.now() + (3 * 24 + 14) * 60 * 60 * 1000); // ~3d 14h out
+const LOCK_LEAD_MS = 10 * 60 * 1000; // 10 minutes
+
+/** True while the user is still allowed to change their picks. */
+function canEditPicks(now: Date = new Date()) {
+  return now.getTime() < EVENT_START.getTime() - LOCK_LEAD_MS;
+}
+
+/** "3d 14h" / "14h 5m" / "23m" style countdown to the main card. */
+function countdownLabel(now: Date = new Date()) {
+  let ms = EVENT_START.getTime() - now.getTime();
+  if (ms <= 0) return "Live now";
+  const d = Math.floor(ms / 86400000);
+  const h = Math.floor((ms % 86400000) / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+// ---------------------------------------------------------------------------
+
+/** "PEREIRA" -> "Pereira" for the summary card. */
+function titleCase(s: string) {
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
 
 type PickMap = Record<string, string>; // fightId -> fighterId
 type MethodMap = Record<string, string>; // fightId -> method
@@ -172,21 +202,107 @@ export default function Picks() {
   const [rounds, setRounds] = useState<RoundMap>({});
   // Which fight cards are open. Main event starts open.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ main: true });
+  // Lock-in flow: once locked, picks are read-only until the user taps
+  // CHANGE PICKS (allowed only while canEditPicks() is true).
+  const [lockedIn, setLockedIn] = useState(false);
+  const [showLockedModal, setShowLockedModal] = useState(false);
 
   const setPick = (fightId: string, fighterId: string) => {
+    if (lockedIn) return;
     setPicks((p) => ({ ...p, [fightId]: fighterId }));
     // Picking a fighter opens that fight so you can set method/round right away.
     setExpanded((p) => ({ ...p, [fightId]: true }));
   };
-  const setMethod = (fightId: string, m: string) =>
-    setMethods((p) => ({ ...p, [fightId]: m }));
-  const setRound = (fightId: string, r: number) =>
-    setRounds((p) => ({ ...p, [fightId]: r }));
+  // Method and round are optional extras — tapping the active one deselects it.
+  const setMethod = (fightId: string, m: string) => {
+    if (lockedIn) return;
+    setMethods((p) => {
+      if (p[fightId] === m) {
+        const { [fightId]: _, ...rest } = p;
+        return rest;
+      }
+      return { ...p, [fightId]: m };
+    });
+  };
+  const setRound = (fightId: string, r: number) => {
+    if (lockedIn) return;
+    setRounds((p) => {
+      if (p[fightId] === r) {
+        const { [fightId]: _, ...rest } = p;
+        return rest;
+      }
+      return { ...p, [fightId]: r };
+    });
+  };
   const toggle = (fightId: string) =>
     setExpanded((p) => ({ ...p, [fightId]: !p[fightId] }));
 
   const totalFights = 1 + UNDERCARD.length;
   const madePicks = useMemo(() => Object.keys(picks).length, [picks]);
+
+  const allFights = useMemo(() => [MAIN_EVENT, ...UNDERCARD], []);
+
+  // "Pereira def. Hill" rows for the Locked In summary, in card order.
+  const summary = useMemo(
+    () =>
+      allFights
+        .filter((f) => picks[f.id])
+        .map((f) => {
+          const winner = picks[f.id] === f.a.id ? f.a : f.b;
+          const loser = picks[f.id] === f.a.id ? f.b : f.a;
+          const method = methods[f.id];
+          const round = rounds[f.id];
+          const detail =
+            method && method !== "DEC" && round
+              ? `${method === "KO/TKO" ? "KO" : "Sub"} · Round ${round}`
+              : method === "DEC"
+                ? "Decision"
+                : undefined;
+          return {
+            id: f.id,
+            winner: titleCase(winner.name),
+            loser: titleCase(loser.name),
+            detail,
+          };
+        }),
+    [allFights, picks, methods, rounds]
+  );
+
+  // Horizontal shake for the lock button when the card is incomplete.
+  const shakeX = useRef(new Animated.Value(0)).current;
+  const shake = () => {
+    shakeX.setValue(0);
+    Animated.sequence(
+      [10, -10, 8, -8, 5, -5, 0].map((to) =>
+        Animated.timing(shakeX, { toValue: to, duration: 50, useNativeDriver: true })
+      )
+    ).start();
+  };
+
+  const lockIn = () => {
+    // A winner for every fight is required; method/round stay optional.
+    if (madePicks < totalFights) {
+      shake();
+      return;
+    }
+    setLockedIn(true);
+    setShowLockedModal(true);
+  };
+
+  const changePicks = () => {
+    // Guarded by the 10-minutes-before-event deadline. Once that passes,
+    // picks are final — the button is hidden and this is a no-op.
+    if (!canEditPicks()) return;
+    setLockedIn(false);
+    setShowLockedModal(false);
+  };
+
+  const shareCard = () => {
+    const lines = summary
+      .map((s) => `${s.winner} def. ${s.loser}${s.detail ? ` (${s.detail})` : ""}`)
+      .join("\n");
+    Share.share({ message: `My UFC 300 picks 🥊\n\n${lines}` }).catch(() => {});
+  };
 
   return (
     <SafeAreaView
@@ -343,190 +459,136 @@ export default function Picks() {
       {/* Bottom bar: lock button stacked above the tab nav, in normal flow */}
       <View style={styles.bottomBar}>
         <View style={styles.lockWrap}>
-          <Pressable style={styles.lockBtn}>
-            <Ionicons name="lock-closed" size={18} color="#fff" />
-            <Text style={styles.lockText}>LOCK IN PICKS</Text>
-            <Text style={styles.lockCount}>
-              {madePicks}/{totalFights}
-            </Text>
-          </Pressable>
+          {lockedIn ? (
+            <View style={styles.lockedRow}>
+              <View style={styles.lockedPill}>
+                <Ionicons name="lock-closed" size={16} color={COLORS.red} />
+                <Text style={styles.lockedPillText}>PICKS LOCKED</Text>
+              </View>
+              {canEditPicks() && (
+                <Pressable style={styles.changeBtn} onPress={changePicks}>
+                  <Text style={styles.changeBtnText}>CHANGE PICKS</Text>
+                </Pressable>
+              )}
+            </View>
+          ) : (
+            <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
+              <Pressable
+                style={[styles.lockBtn, madePicks < totalFights && styles.lockBtnDisabled]}
+                onPress={lockIn}
+              >
+                <Ionicons name="lock-closed" size={18} color="#fff" />
+                <Text style={styles.lockText}>LOCK IN PICKS</Text>
+                <Text style={styles.lockCount}>
+                  {madePicks}/{totalFights}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          )}
         </View>
         <View style={{ paddingBottom: insets.bottom }}>
           <BottomNav active="picks" />
         </View>
       </View>
+
+      {/* Locked In confirmation modal */}
+      <Modal
+        visible={showLockedModal}
+        transparent
+        statusBarTranslucent
+        animationType="fade"
+        onRequestClose={() => setShowLockedModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Pressable
+              style={styles.modalClose}
+              onPress={() => setShowLockedModal(false)}
+              hitSlop={10}
+            >
+              <Ionicons name="close" size={22} color="#888" />
+            </Pressable>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Lock badge */}
+              <View style={styles.badgeWrap}>
+                <View style={styles.badge}>
+                  <Ionicons name="lock-closed" size={26} color="#fff" />
+                </View>
+                <View style={styles.badgeCheck}>
+                  <Ionicons name="checkmark" size={12} color="#0A0A0A" />
+                </View>
+              </View>
+
+              <Text style={styles.modalTitle}>LOCKED IN</Text>
+              <Text style={styles.modalSub}>Your picks for UFC 300 are locked.</Text>
+
+              <View style={styles.countdownChip}>
+                <Ionicons name="time-outline" size={14} color="#ccc" />
+                <Text style={styles.countdownText}>
+                  Main card starts in {countdownLabel()}
+                </Text>
+              </View>
+
+              {/* Picks summary */}
+              <Text style={styles.groupLabel}>YOUR PICKS</Text>
+              <View style={styles.summaryCard}>
+                {summary.map((s, i) => (
+                  <View
+                    key={s.id}
+                    style={[styles.summaryRow, i > 0 && styles.summaryRowBorder]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.summaryText}>
+                        {s.winner} <Text style={styles.summaryDef}>def.</Text> {s.loser}
+                      </Text>
+                      {s.detail && <Text style={styles.summaryDetail}>{s.detail}</Text>}
+                    </View>
+                    <Ionicons name="checkmark" size={16} color="#2ecc71" />
+                  </View>
+                ))}
+              </View>
+
+              {/* Social proof */}
+              <View style={styles.proof}>
+                <View style={styles.proofAvatars}>
+                  {["#E8A020", "#9B59B6", "#3a7bd5"].map((c, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.proofDot,
+                        { backgroundColor: c, marginLeft: i === 0 ? 0 : -8 },
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.proofText}>
+                  Vince and 6 others in Fight Night Crew are locked in
+                </Text>
+              </View>
+
+              {/* Actions */}
+              <Pressable style={styles.shareBtn} onPress={shareCard}>
+                <Ionicons name="share-social" size={18} color="#fff" />
+                <Text style={styles.lockText}>SHARE YOUR CARD</Text>
+              </Pressable>
+              <Pressable
+                style={styles.backBtn}
+                onPress={() => setShowLockedModal(false)}
+              >
+                <Text style={styles.backBtnText}>BACK TO PICKS</Text>
+              </Pressable>
+              {canEditPicks() && (
+                <Pressable style={styles.editLink} onPress={changePicks}>
+                  <Text style={styles.editLinkText}>
+                    Changed your mind? Edit picks
+                  </Text>
+                </Pressable>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  eventTitle: {
-    fontFamily: "BebasNeue",
-    fontSize: 46,
-    color: "#fff",
-    letterSpacing: 1,
-  },
-  eventSub: {
-    fontSize: 14,
-    color: COLORS.gray,
-    marginTop: -2,
-    marginBottom: 22,
-  },
-
-  mainCard: {
-    backgroundColor: "#111111",
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#222224",
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  mainHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#161616",
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-  },
-  mainHeaderText: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    color: "#888",
-  },
-
-  fighterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  fighterCol: { alignItems: "center", flex: 1 },
-  fighterName: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 18,
-    letterSpacing: 1,
-    marginTop: 12,
-  },
-  vs: { color: "#555", fontWeight: "700", fontSize: 16, paddingHorizontal: 8 },
-
-  groupLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    color: "#666",
-    marginTop: 18,
-    marginBottom: 10,
-  },
-  segRow: { flexDirection: "row", gap: 10 },
-  seg: {
-    flex: 1,
-    paddingVertical: 16,
-    borderRadius: 10,
-    backgroundColor: "#181818",
-    borderWidth: 1,
-    borderColor: "#262626",
-    alignItems: "center",
-  },
-  roundBox: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 10,
-    backgroundColor: "#181818",
-    borderWidth: 1,
-    borderColor: "#262626",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segActive: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  segText: { color: "#aaa", fontWeight: "700", fontSize: 15, letterSpacing: 1 },
-  segTextActive: { color: "#fff" },
-
-  proof: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 20,
-    backgroundColor: "#161616",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#242424",
-    padding: 14,
-  },
-  proofAvatars: { flexDirection: "row" },
-  proofDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: "#161616",
-  },
-  proofText: { color: "#ccc", fontSize: 13, flex: 1 },
-
-  rowCard: {
-    backgroundColor: "#111111",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#222224",
-    padding: 12,
-    marginBottom: 12,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  rowFighter: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  rowName: { color: "#fff", fontWeight: "700", fontSize: 14, letterSpacing: 0.5, flexShrink: 1 },
-  rowNamePicked: { color: COLORS.red },
-  rowCenter: { alignItems: "center", justifyContent: "center", width: 84, gap: 3 },
-  rowDivision: {
-    fontSize: 9,
-    fontWeight: "700",
-    letterSpacing: 1,
-    color: "#666",
-  },
-  vsSmall: { color: "#555", fontWeight: "700", fontSize: 12 },
-  rowBody: {
-    marginTop: 12,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: "#222224",
-  },
-
-  bottomBar: {
-    paddingTop: 10,
-    backgroundColor: "#0d0d0d",
-    borderTopColor: "#222224",
-    borderTopWidth: 1,
-  },
-  lockWrap: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomColor: "#1a1a1a",
-    borderBottomWidth: 1,
-  },
-  lockBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    backgroundColor: COLORS.red,
-    borderRadius: 12,
-    paddingVertical: 16,
-  },
-  lockText: { color: "#fff", fontWeight: "700", fontSize: 15, letterSpacing: 1.5 },
-  lockCount: {
-    color: "rgba(255,255,255,0.8)",
-    fontWeight: "700",
-    fontSize: 13,
-    marginLeft: 4,
-  },
-});
