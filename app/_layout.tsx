@@ -23,6 +23,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" />
         <Stack.Screen name="home" />
         <Stack.Screen name="picks" />
+        <Stack.Screen name="profile" />
       </Stack>
       <StatusBar style="light" />
     </GestureHandlerRootView>

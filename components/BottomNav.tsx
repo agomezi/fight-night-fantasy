@@ -43,7 +43,7 @@ export default function BottomNav({ active }: { active: TabKey }) {
             key={tab.key}
             onPress={() => {
               if (isActive) return;
-              if (tab.key === "home" || tab.key === "picks") {
+              if (tab.key === "home" || tab.key === "picks" || tab.key === "profile") {
                 router.navigate(tab.route as never);
               }
             }}
