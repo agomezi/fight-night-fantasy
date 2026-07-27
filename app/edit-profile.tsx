@@ -13,7 +13,7 @@ export default function EditProfile() {
 
   const [username, setUsername] = useState("ELITE_STRIKER");
   const [specialist, setSpecialist] = useState("Tactical Specialist");
-  const [division, setDivision] = useState("Heavyweight");
+  const [favDivision, setFavDivision] = useState("Heavyweight");
   const [bio, setBio] = useState("Never missed a main event. Locked in since UFC 280.");
 
   const save = () => {
@@ -52,7 +52,7 @@ export default function EditProfile() {
           style={styles.input}
           value={username}
           onChangeText={setUsername}
-          autoCapitalize="characters"
+          autoCapitalize="sentences"
           placeholder="Username"
           placeholderTextColor={c.textFaint}
         />
@@ -66,12 +66,12 @@ export default function EditProfile() {
           placeholderTextColor={c.textFaint}
         />
 
-        <Text style={styles.fieldLabel}>DIVISION</Text>
+        <Text style={styles.fieldLabel}>FAVORITE DIVISION</Text>
         <TextInput
           style={styles.input}
-          value={division}
-          onChangeText={setDivision}
-          placeholder="Division"
+          value={favDivision}
+          onChangeText={setFavDivision}
+          placeholder="e.g. Lightweight"
           placeholderTextColor={c.textFaint}
         />
 

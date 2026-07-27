@@ -16,7 +16,6 @@ export default function Settings() {
   const styles = useThemedStyles(makeSettingsStyles);
 
   const [pushEnabled, setPushEnabled] = useState(true);
-  const [marketing, setMarketing] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
 
@@ -89,16 +88,12 @@ export default function Settings() {
           </View>
           <View style={[styles.row, styles.rowBorder]}>
             <View style={styles.rowIcon}>
-              <Ionicons name="mail-outline" size={20} color={c.text2} />
-            </View>
-            <Text style={styles.rowLabel}>Marketing Emails</Text>
-            <Switch value={marketing} onValueChange={setMarketing} {...switchColors} />
-          </View>
-          <View style={[styles.row, styles.rowBorder]}>
-            <View style={styles.rowIcon}>
               <Ionicons name="bar-chart-outline" size={20} color={c.text2} />
             </View>
-            <Text style={styles.rowLabel}>Analytics</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Analytics</Text>
+              <Text style={styles.rowSub}>Anonymous usage & crash data to improve the app</Text>
+            </View>
             <Switch value={analytics} onValueChange={setAnalytics} {...switchColors} />
           </View>
         </View>
