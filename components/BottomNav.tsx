@@ -4,9 +4,6 @@ import { Pressable, Text, View } from "react-native";
 import { Path, Svg } from "react-native-svg";
 import { COLORS } from "../constants/colors";
 
-// The persistent bottom bar from the mocks. It's a plain presentational
-// component (not an Expo Router Tabs navigator) so the app keeps its flat
-// screen layout — each tab just router.push()es to a screen.
 type TabKey = "home" | "picks" | "leagues" | "profile";
 
 const TABS: { key: TabKey; label: string; route: string }[] = [
@@ -20,7 +17,6 @@ function TabIcon({ tab, color }: { tab: TabKey; color: string }) {
   if (tab === "home") return <Ionicons name="home-outline" size={22} color={color} />;
   if (tab === "leagues") return <Ionicons name="medal-outline" size={22} color={color} />;
   if (tab === "profile") return <Ionicons name="person-outline" size={22} color={color} />;
-  // picks: a target/crosshair to match the mock
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path
@@ -45,12 +41,9 @@ export default function BottomNav({ active }: { active: TabKey }) {
         return (
           <Pressable
             key={tab.key}
-            // Only Events + Picks exist so far; Leagues/Profile are placeholders.
             onPress={() => {
               if (isActive) return;
               if (tab.key === "home" || tab.key === "picks") {
-                // navigate() reuses the screen if it's already in the stack
-                // (tab-like), instead of push() stacking a duplicate.
                 router.navigate(tab.route as never);
               }
             }}

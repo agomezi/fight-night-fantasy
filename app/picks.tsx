@@ -53,18 +53,13 @@ const UNDERCARD: Fight[] = [
 const METHODS = ["KO/TKO", "SUB", "DEC"] as const;
 const ROUNDS = [1, 2, 3, 4, 5] as const;
 
-// ---- Lock-deadline logic --------------------------------------------------
-// Picks become permanently locked LOCK_LEAD_MS before the main card starts.
-// EVENT_START is mock data for now; it will come from the event API later.
-const EVENT_START = new Date(Date.now() + (3 * 24 + 14) * 60 * 60 * 1000); // ~3d 14h out
-const LOCK_LEAD_MS = 10 * 60 * 1000; // 10 minutes
+const EVENT_START = new Date(Date.now() + (3 * 24 + 14) * 60 * 60 * 1000);
+const LOCK_LEAD_MS = 10 * 60 * 1000;
 
-/** True while the user is still allowed to change their picks. */
 function canEditPicks(now: Date = new Date()) {
   return now.getTime() < EVENT_START.getTime() - LOCK_LEAD_MS;
 }
 
-/** "3d 14h" / "14h 5m" / "23m" style countdown to the main card. */
 function countdownLabel(now: Date = new Date()) {
   let ms = EVENT_START.getTime() - now.getTime();
   if (ms <= 0) return "Live now";
@@ -75,16 +70,14 @@ function countdownLabel(now: Date = new Date()) {
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
 }
-// ---------------------------------------------------------------------------
 
-/** "PEREIRA" -> "Pereira" for the summary card. */
 function titleCase(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
-type PickMap = Record<string, string>; // fightId -> fighterId
-type MethodMap = Record<string, string>; // fightId -> method
-type RoundMap = Record<string, number>; // fightId -> round
+type PickMap = Record<string, string>;
+type MethodMap = Record<string, string>;
+type RoundMap = Record<string, number>;
 
 function Avatar({
   initials,
@@ -115,7 +108,6 @@ function Avatar({
   );
 }
 
-// Method-of-victory + round + community line. Shared by every fight when it's expanded.
 function FightControls({
   method,
   round,
@@ -131,7 +123,6 @@ function FightControls({
 }) {
   return (
     <>
-      {/* Method of victory */}
       <Text style={styles.groupLabel}>METHOD OF VICTORY</Text>
       <View style={styles.segRow}>
         {METHODS.map((m) => {
@@ -148,7 +139,6 @@ function FightControls({
         })}
       </View>
 
-      {/* Round — a decision goes the distance, so there's no round to pick. */}
       {method !== "DEC" && (
         <>
           <Text style={styles.groupLabel}>ROUND</Text>
@@ -169,7 +159,6 @@ function FightControls({
         </>
       )}
 
-      {/* Community / social proof */}
       {proof && (
         <View style={styles.proof}>
           <View style={styles.proofAvatars}>
@@ -192,28 +181,21 @@ function FightControls({
 
 export default function Picks() {
   const insets = useSafeAreaInsets();
-  // If we arrived from the home Quick Pick, that fighter is already chosen for
-  // the main event so the user lands with it selected and can set method/round.
   const { fighter } = useLocalSearchParams<{ fighter?: string }>();
   const [picks, setPicks] = useState<PickMap>(
     fighter ? { [MAIN_EVENT.id]: fighter } : {}
   );
   const [methods, setMethods] = useState<MethodMap>({});
   const [rounds, setRounds] = useState<RoundMap>({});
-  // Which fight cards are open. Main event starts open.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ main: true });
-  // Lock-in flow: once locked, picks are read-only until the user taps
-  // CHANGE PICKS (allowed only while canEditPicks() is true).
   const [lockedIn, setLockedIn] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
 
   const setPick = (fightId: string, fighterId: string) => {
     if (lockedIn) return;
     setPicks((p) => ({ ...p, [fightId]: fighterId }));
-    // Picking a fighter opens that fight so you can set method/round right away.
     setExpanded((p) => ({ ...p, [fightId]: true }));
   };
-  // Method and round are optional extras — tapping the active one deselects it.
   const setMethod = (fightId: string, m: string) => {
     if (lockedIn) return;
     setMethods((p) => {
@@ -242,7 +224,6 @@ export default function Picks() {
 
   const allFights = useMemo(() => [MAIN_EVENT, ...UNDERCARD], []);
 
-  // "Pereira def. Hill" rows for the Locked In summary, in card order.
   const summary = useMemo(
     () =>
       allFights
@@ -268,7 +249,6 @@ export default function Picks() {
     [allFights, picks, methods, rounds]
   );
 
-  // Horizontal shake for the lock button when the card is incomplete.
   const shakeX = useRef(new Animated.Value(0)).current;
   const shake = () => {
     shakeX.setValue(0);
@@ -280,7 +260,6 @@ export default function Picks() {
   };
 
   const lockIn = () => {
-    // A winner for every fight is required; method/round stay optional.
     if (madePicks < totalFights) {
       shake();
       return;
@@ -290,8 +269,6 @@ export default function Picks() {
   };
 
   const changePicks = () => {
-    // Guarded by the 10-minutes-before-event deadline. Once that passes,
-    // picks are final — the button is hidden and this is a no-op.
     if (!canEditPicks()) return;
     setLockedIn(false);
     setShowLockedModal(false);
@@ -314,7 +291,6 @@ export default function Picks() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 20 }}
       >
-        {/* Header — matches home.tsx */}
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Svg width={36} height={36} viewBox="0 0 120 120">
             <Circle cx="60" cy="60" r="60" fill="#1a0a0a" />
@@ -332,11 +308,9 @@ export default function Picks() {
         </View>
         <View style={commonStyles.divider} />
 
-        {/* Title */}
         <Text style={styles.eventTitle}>UFC 300</Text>
         <Text style={styles.eventSub}>Make your picks. Lock them in.</Text>
 
-        {/* Main event card */}
         <View style={styles.mainCard}>
           <Pressable style={styles.mainHeader} onPress={() => toggle(MAIN_EVENT.id)}>
             <Text style={styles.mainHeaderText}>
@@ -352,7 +326,6 @@ export default function Picks() {
 
           {expanded[MAIN_EVENT.id] && (
             <View style={{ padding: 18, paddingTop: 4 }}>
-              {/* Fighters */}
               <View style={styles.fighterRow}>
                 <Pressable
                   style={styles.fighterCol}
@@ -388,13 +361,11 @@ export default function Picks() {
           )}
         </View>
 
-        {/* Undercard rows */}
         {UNDERCARD.map((fight) => {
           const picked = picks[fight.id];
           const isOpen = expanded[fight.id];
           return (
             <View key={fight.id} style={styles.rowCard}>
-              {/* Compact header row (also the expand/collapse toggle) */}
               <View style={styles.row}>
                 <Pressable
                   style={styles.rowFighter}
@@ -439,7 +410,6 @@ export default function Picks() {
                 </Pressable>
               </View>
 
-              {/* Expanded controls */}
               {isOpen && (
                 <View style={styles.rowBody}>
                   <FightControls
@@ -456,7 +426,6 @@ export default function Picks() {
         })}
       </ScrollView>
 
-      {/* Bottom bar: lock button stacked above the tab nav, in normal flow */}
       <View style={styles.bottomBar}>
         <View style={styles.lockWrap}>
           {lockedIn ? (
@@ -491,7 +460,6 @@ export default function Picks() {
         </View>
       </View>
 
-      {/* Locked In confirmation modal */}
       <Modal
         visible={showLockedModal}
         transparent
@@ -510,7 +478,6 @@ export default function Picks() {
             </Pressable>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Lock badge */}
               <View style={styles.badgeWrap}>
                 <View style={styles.badge}>
                   <Ionicons name="lock-closed" size={26} color="#fff" />
@@ -530,7 +497,6 @@ export default function Picks() {
                 </Text>
               </View>
 
-              {/* Picks summary */}
               <Text style={styles.groupLabel}>YOUR PICKS</Text>
               <View style={styles.summaryCard}>
                 {summary.map((s, i) => (
@@ -549,7 +515,6 @@ export default function Picks() {
                 ))}
               </View>
 
-              {/* Social proof */}
               <View style={styles.proof}>
                 <View style={styles.proofAvatars}>
                   {["#E8A020", "#9B59B6", "#3a7bd5"].map((c, i) => (
@@ -567,7 +532,6 @@ export default function Picks() {
                 </Text>
               </View>
 
-              {/* Actions */}
               <Pressable style={styles.shareBtn} onPress={shareCard}>
                 <Ionicons name="share-social" size={18} color="#fff" />
                 <Text style={styles.lockText}>SHARE YOUR CARD</Text>

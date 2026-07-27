@@ -340,7 +340,6 @@ export default function Home() {
         </View>
 
         <View style={commonStyles.homeCard}>
-          {/* Tabs */}
           <View
             style={{
               flexDirection: "row",
@@ -470,7 +469,6 @@ export default function Home() {
                 </Pressable>
               </View>
 
-              {/* Pick % bar */}
               <View style={{ marginBottom: 20 }}>
                 <View
                   style={{
@@ -735,8 +733,6 @@ export default function Home() {
         />
       </ScrollView>
 
-      {/* Bottom tab bar — sits below the ScrollView in normal flow so it
-          never overlaps content and every tab is reliably tappable. */}
       <View
         style={{
           backgroundColor: "#0d0d0d",

@@ -189,7 +189,6 @@ export const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  // Locked bottom-bar state
   lockedRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   lockedPill: {
     flex: 1,
@@ -226,7 +225,6 @@ export const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
 
-  // Locked In modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.92)",
