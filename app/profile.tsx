@@ -4,6 +4,7 @@ import { Pressable, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 import { makeProfileStyles } from "../styles/profile";
@@ -41,10 +42,11 @@ export default function Profile() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeProfileStyles);
+  const { profile } = useProfile();
 
   const shareProfile = () => {
     Share.share({
-      message: "ELITE_STRIKER · Level 84 · 14,280 pts on Fight Night 🥊",
+      message: `${profile.username} · Level 84 · 14,280 pts on Fight Night 🥊`,
     }).catch(() => {});
   };
 
@@ -86,13 +88,13 @@ export default function Profile() {
 
         <View style={styles.heroCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>ES</Text>
+            <Text style={styles.avatarText}>{getInitials(profile.username)}</Text>
           </View>
-          <Text style={styles.username}>ELITE_STRIKER</Text>
+          <Text style={styles.username}>{profile.username}</Text>
           <View style={styles.levelPill}>
             <Text style={styles.levelPillText}>LEVEL 84</Text>
           </View>
-          <Text style={styles.memberLine}>Member since UFC 280 · Tactical Specialist</Text>
+          <Text style={styles.memberLine}>Member since UFC 280 · {profile.title}</Text>
         </View>
 
         <View style={styles.statGrid}>
@@ -115,7 +117,7 @@ export default function Profile() {
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>LEAGUE RANK</Text>
             <Text style={[styles.statValue, styles.statValueRed]}>#4</Text>
-            <Text style={styles.statSub}>HEAVYWEIGHT DIV</Text>
+            <Text style={styles.statSub}>{profile.favDivision.toUpperCase()} DIV</Text>
           </View>
 
           <View style={styles.statCard}>

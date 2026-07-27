@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -49,13 +50,15 @@ export default function EditProfile() {
   const router = useRouter();
   const { c } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
+  const { profile, updateProfile } = useProfile();
 
-  const [username, setUsername] = useState("ELITE_STRIKER");
-  const [specialist, setSpecialist] = useState("Tactical Specialist");
-  const [favDivision, setFavDivision] = useState("Heavyweight");
-  const [bio, setBio] = useState("Never missed a main event. Locked in since UFC 280.");
+  const [username, setUsername] = useState(profile.username);
+  const [specialist, setSpecialist] = useState(profile.title);
+  const [favDivision, setFavDivision] = useState(profile.favDivision);
+  const [bio, setBio] = useState(profile.bio);
 
   const save = () => {
+    updateProfile({ username, title: specialist, favDivision, bio });
     router.back();
   };
 
@@ -79,7 +82,7 @@ export default function EditProfile() {
       >
         <View style={styles.avatarWrap}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>ES</Text>
+            <Text style={styles.avatarText}>{getInitials(username)}</Text>
           </View>
           <Pressable onPress={() => Alert.alert("Change Photo", "Photo upload coming soon.")}>
             <Text style={styles.changePhoto}>Change Photo</Text>
