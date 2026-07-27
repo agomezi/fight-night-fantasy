@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 import { Path, Svg } from "react-native-svg";
-import { COLORS } from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 
 type TabKey = "home" | "picks" | "leagues" | "profile";
 
@@ -33,11 +33,12 @@ function TabIcon({ tab, color }: { tab: TabKey; color: string }) {
 
 export default function BottomNav({ active }: { active: TabKey }) {
   const router = useRouter();
+  const { c } = useTheme();
   return (
     <View style={{ flexDirection: "row", paddingTop: 10 }}>
       {TABS.map((tab) => {
         const isActive = tab.key === active;
-        const color = isActive ? COLORS.red : "#6b6b6b";
+        const color = isActive ? c.red : c.textFaint;
         return (
           <Pressable
             key={tab.key}

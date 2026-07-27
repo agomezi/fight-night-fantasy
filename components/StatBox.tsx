@@ -1,4 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
+import { Palette } from "../constants/palette";
+import { useThemedStyles } from "../context/ThemeContext";
 
 type StatBoxProps = {
   value?: string;
@@ -9,6 +11,7 @@ type StatBoxProps = {
 };
 
 export function StatBoxRow({ children, inline }: { children: React.ReactNode; inline?: boolean }) {
+  const styles = useThemedStyles(makeStyles);
   return <View style={inline ? styles.rowInline : styles.row}>{children}</View>;
 }
 
@@ -19,6 +22,7 @@ export function StatBox({
   highlighted,
   icon,
 }: StatBoxProps) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.box, highlighted && styles.boxHighlighted]}>
       {icon ? (
@@ -33,56 +37,57 @@ export function StatBox({
   );
 }
 
-const styles = StyleSheet.create({
-  box: {
-    flex: 1,
-    aspectRatio: 1,
-    borderWidth: 1,
-    borderColor: "#333333",
-    borderRadius: 8,
-    backgroundColor: "#111111",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+const makeStyles = (c: Palette) =>
+  StyleSheet.create({
+    box: {
+      flex: 1,
+      aspectRatio: 1,
+      borderWidth: 1,
+      borderColor: c.borderStrong,
+      borderRadius: 8,
+      backgroundColor: c.card,
+      alignItems: "center",
+      justifyContent: "center",
+    },
 
-  boxHighlighted: {
-    backgroundColor: "#E8003D",
-    borderColor: "#E8003D",
-  },
+    boxHighlighted: {
+      backgroundColor: c.red,
+      borderColor: c.red,
+    },
 
-  iconWrapper: {
-    marginBottom: 4,
-  },
+    iconWrapper: {
+      marginBottom: 4,
+    },
 
-  value: {
-    fontSize: 36,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
+    value: {
+      fontSize: 36,
+      fontWeight: "bold",
+      color: c.text,
+    },
 
-  valueAccent: {
-    color: "#E8003D",
-  },
+    valueAccent: {
+      color: c.red,
+    },
 
-  label: {
-    fontSize: 11,
-    color: "#888888",
-    letterSpacing: 1.5,
-    marginTop: 2,
-  },
+    label: {
+      fontSize: 11,
+      color: c.textMuted,
+      letterSpacing: 1.5,
+      marginTop: 2,
+    },
 
-  row: {
-    position: "absolute",
-    bottom: 16,
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    gap: 12,
-  },
-  rowInline: {
-    flexDirection: "row",
-    gap: 12,
-  },
-});
+    row: {
+      position: "absolute",
+      bottom: 16,
+      left: 16,
+      right: 16,
+      flexDirection: "row",
+      gap: 12,
+    },
+    rowInline: {
+      flexDirection: "row",
+      gap: 12,
+    },
+  });
 
 export default StatBox;

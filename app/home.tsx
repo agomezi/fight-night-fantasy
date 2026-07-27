@@ -8,11 +8,14 @@ import BottomNav from "../components/BottomNav";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import SwipeableCards from "../components/SwipeableCards";
-import { commonStyles } from "../styles/common";
+import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { makeCommonStyles } from "../styles/common";
 
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { c } = useTheme();
+  const commonStyles = useThemedStyles(makeCommonStyles);
   const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
   const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
   const [quickPick, setQuickPick] = useState<"pereira" | "hill" | null>(null);
@@ -24,7 +27,7 @@ export default function Home() {
   ];
   return (
     <SafeAreaView
-      style={[commonStyles.container, { backgroundColor: "#0A0A0A", padding: 0 }]}
+      style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
       edges={["top", "left", "right"]}
     >
       <ScrollView
@@ -44,7 +47,7 @@ export default function Home() {
             <Path d="M60 20C51.16 20 44 27.16 44 36V40.5C34.6 44.8 28 54.2 28 65V82L20 92V96H100V92L92 82V65C92 54.2 85.4 44.8 76 40.5V36C76 27.16 68.84 20 60 20Z" fill="#E8003D" />
             <Path d="M48 100C48 106.6 53.4 112 60 112C66.6 112 72 106.6 72 100H48Z" fill="#E8003D" />
             <Circle cx="88" cy="32" r="10" fill="#E8003D" />
-            <Circle cx="88" cy="32" r="10" fill="none" stroke="#0A0A0A" strokeWidth="2" />
+            <Circle cx="88" cy="32" r="10" fill="none" stroke={c.bg} strokeWidth="2" />
           </Svg>
         </View>
         <View style={commonStyles.divider} />
@@ -53,7 +56,7 @@ export default function Home() {
           cards={[
             {
               tag: "NEXT EVENT",
-              tagColor: "#e5003c",
+              tagColor: c.red,
               title: "UFC 300",
               subtitle: "PEREIRA VS HILL",
               aspectRatio: 1.2,
@@ -101,7 +104,7 @@ export default function Home() {
           cards={[
             {
               tag: "CURRENT LEAGUE RANK",
-              tagColor: "#707079",
+              tagColor: c.textMuted,
               title: "#4",
               titleSize: 50,
               footer: (
@@ -114,7 +117,7 @@ export default function Home() {
             },
             {
               tag: "LAST EVENT POINTS",
-              tagColor: "#707079",
+              tagColor: c.textMuted,
               title: "842",
               titleUnit: "PTS",
               titleSize: 50,
@@ -158,7 +161,7 @@ export default function Home() {
             },
             {
               tag: "UFC 299 Recap",
-              tagColor: "#FFFFFF",
+              tagColor: c.text,
               tagSize: 22,
               footer: (
                 <View style={{ gap: 10, marginTop: 12 }}>
@@ -166,10 +169,10 @@ export default function Home() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      backgroundColor: "#0f0f0f",
+                      backgroundColor: c.inset,
                       borderRadius: 12,
                       borderWidth: 1,
-                      borderColor: "#222224",
+                      borderColor: c.border,
                       padding: 12,
                     }}
                   >
@@ -178,9 +181,9 @@ export default function Home() {
                         width: 52,
                         height: 52,
                         borderRadius: 10,
-                        backgroundColor: "#111111",
+                        backgroundColor: c.card,
                         borderWidth: 1,
-                        borderColor: "#333333",
+                        borderColor: c.borderStrong,
                         alignItems: "center",
                         justifyContent: "center",
                       }}
@@ -190,7 +193,7 @@ export default function Home() {
                           width: 32,
                           height: 32,
                           borderRadius: 16,
-                          backgroundColor: "#00C853",
+                          backgroundColor: c.green,
                           alignItems: "center",
                           justifyContent: "center",
                         }}
@@ -224,7 +227,7 @@ export default function Home() {
                       style={{
                         fontSize: 14,
                         fontWeight: "700",
-                        color: "#fff",
+                        color: c.text,
                       }}
                     >
                       +120 PTS
@@ -235,10 +238,10 @@ export default function Home() {
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      backgroundColor: "#0f0f0f",
+                      backgroundColor: c.inset,
                       borderRadius: 12,
                       borderWidth: 1,
-                      borderColor: "#222224",
+                      borderColor: c.border,
                       padding: 12,
                     }}
                   >
@@ -247,9 +250,9 @@ export default function Home() {
                         width: 52,
                         height: 52,
                         borderRadius: 10,
-                        backgroundColor: "#111111",
+                        backgroundColor: c.card,
                         borderWidth: 1,
-                        borderColor: "#333333",
+                        borderColor: c.borderStrong,
                         alignItems: "center",
                         justifyContent: "center",
                       }}
@@ -259,7 +262,7 @@ export default function Home() {
                           width: 32,
                           height: 32,
                           borderRadius: 16,
-                          backgroundColor: "#E8003D",
+                          backgroundColor: c.red,
                           alignItems: "center",
                           justifyContent: "center",
                         }}
@@ -293,7 +296,7 @@ export default function Home() {
                       style={{
                         fontSize: 14,
                         fontWeight: "700",
-                        color: "#fff",
+                        color: c.text,
                       }}
                     >
                       -10 PTS
@@ -330,7 +333,7 @@ export default function Home() {
                 width: 7,
                 height: 7,
                 borderRadius: 4,
-                backgroundColor: "#e5003c",
+                backgroundColor: c.red,
               }}
             />
             <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
@@ -344,7 +347,7 @@ export default function Home() {
             style={{
               flexDirection: "row",
               borderBottomWidth: 1,
-              borderBottomColor: "#222224",
+              borderBottomColor: c.border,
               marginBottom: 16,
               marginHorizontal: -24,
               paddingHorizontal: 24,
@@ -362,7 +365,7 @@ export default function Home() {
                     paddingBottom: 12,
                     alignItems: "center",
                     borderBottomWidth: 2,
-                    borderBottomColor: active ? "#e5003c" : "transparent",
+                    borderBottomColor: active ? c.red : "transparent",
                     marginBottom: -1,
                   }}
                 >
@@ -371,7 +374,7 @@ export default function Home() {
                       fontSize: 13,
                       fontWeight: "700",
                       letterSpacing: 1,
-                      color: active ? "#fff" : "#555",
+                      color: active ? c.text : c.textFaint,
                     }}
                   >
                     {label}
@@ -386,11 +389,11 @@ export default function Home() {
               <Text
                 style={[
                   commonStyles.label,
-                  { color: "#555", marginBottom: 20 },
+                  { color: c.textFaint, marginBottom: 20 },
                 ]}
               >
                 UFC 300 · MAIN EVENT —{" "}
-                <Text style={{ color: "#e5003c" }}>LHW TITLE</Text>
+                <Text style={{ color: c.red }}>LHW TITLE</Text>
               </Text>
               <View
                 style={{
@@ -409,21 +412,21 @@ export default function Home() {
                       width: 52,
                       height: 52,
                       borderRadius: 26,
-                      backgroundColor: "#1a1a1a",
+                      backgroundColor: c.input,
                       borderWidth: quickPick === "pereira" ? 2 : 1,
-                      borderColor: quickPick === "pereira" ? "#e5003c" : "#333",
+                      borderColor: quickPick === "pereira" ? c.red : c.borderStrong,
                       alignItems: "center",
                       justifyContent: "center",
                       marginBottom: 8,
                     }}
                   >
-                    <Text style={{ color: "#fff", fontWeight: "700" }}>AP</Text>
+                    <Text style={{ color: c.text, fontWeight: "700" }}>AP</Text>
                   </View>
                   <Text
                     style={[
                       commonStyles.cardTitle,
                       { fontSize: 16, marginBottom: 2 },
-                      quickPick === "pereira" && { color: "#e5003c" },
+                      quickPick === "pereira" && { color: c.red },
                     ]}
                   >
                     PEREIRA
@@ -432,7 +435,7 @@ export default function Home() {
                     29-9 · C
                   </Text>
                 </Pressable>
-                <Text style={{ color: "#555", fontWeight: "700", fontSize: 13 }}>
+                <Text style={{ color: c.textFaint, fontWeight: "700", fontSize: 13 }}>
                   VS
                 </Text>
                 <Pressable
@@ -444,21 +447,21 @@ export default function Home() {
                       width: 52,
                       height: 52,
                       borderRadius: 26,
-                      backgroundColor: "#1a1a1a",
+                      backgroundColor: c.input,
                       borderWidth: quickPick === "hill" ? 2 : 1,
-                      borderColor: quickPick === "hill" ? "#e5003c" : "#333",
+                      borderColor: quickPick === "hill" ? c.red : c.borderStrong,
                       alignItems: "center",
                       justifyContent: "center",
                       marginBottom: 8,
                     }}
                   >
-                    <Text style={{ color: "#fff", fontWeight: "700" }}>JH</Text>
+                    <Text style={{ color: c.text, fontWeight: "700" }}>JH</Text>
                   </View>
                   <Text
                     style={[
                       commonStyles.cardTitle,
                       { fontSize: 16, marginBottom: 2 },
-                      quickPick === "hill" && { color: "#e5003c" },
+                      quickPick === "hill" && { color: c.red },
                     ]}
                   >
                     HILL
@@ -474,7 +477,7 @@ export default function Home() {
                   style={{
                     height: 4,
                     borderRadius: 2,
-                    backgroundColor: "#222",
+                    backgroundColor: c.borderStrong,
                     overflow: "hidden",
                   }}
                 >
@@ -482,7 +485,7 @@ export default function Home() {
                     style={{
                       width: "61%",
                       height: "100%",
-                      backgroundColor: "#e5003c",
+                      backgroundColor: c.red,
                       borderRadius: 2,
                     }}
                   />
@@ -513,8 +516,8 @@ export default function Home() {
                 }
                 style={{
                   borderWidth: 1,
-                  borderColor: quickPick ? "#e5003c" : "#333",
-                  backgroundColor: quickPick ? "#e5003c" : "transparent",
+                  borderColor: quickPick ? c.red : c.borderStrong,
+                  backgroundColor: quickPick ? c.red : "transparent",
                   borderRadius: 10,
                   paddingVertical: 14,
                   alignItems: "center",
@@ -522,7 +525,7 @@ export default function Home() {
               >
                 <Text
                   style={{
-                    color: quickPick ? "#fff" : "#555",
+                    color: quickPick ? "#fff" : c.textFaint,
                     fontWeight: "700",
                     fontSize: 13,
                     letterSpacing: 2,
@@ -543,7 +546,7 @@ export default function Home() {
                     justifyContent: "space-between",
                     paddingVertical: 14,
                     borderBottomWidth: i < fullCardFights.length - 1 ? 1 : 0,
-                    borderBottomColor: "#222224",
+                    borderBottomColor: c.border,
                   }}
                 >
                   <View>
@@ -558,7 +561,7 @@ export default function Home() {
                     <Text
                       style={[
                         commonStyles.label,
-                        { color: "#e5003c", marginBottom: 0 },
+                        { color: c.red, marginBottom: 0 },
                       ]}
                     >
                       {fight.division}
@@ -567,7 +570,7 @@ export default function Home() {
                   <Pressable
                     onPress={() => router.push("/picks")}
                     style={{
-                      backgroundColor: "#e5003c",
+                      backgroundColor: c.red,
                       paddingHorizontal: 16,
                       paddingVertical: 8,
                       borderRadius: 8,
@@ -617,7 +620,7 @@ export default function Home() {
           cards={[
             {
               tag: "TODAY'S CALL",
-              tagColor: "#e5003c",
+              tagColor: c.red,
               title: "DOES PEREIRA FINISH HILL INSIDE 2 ROUNDS?",
               subtitle: "UFC 300 main event · Sat night",
               footer: (
@@ -633,16 +636,16 @@ export default function Home() {
                         alignItems: "center",
                         borderWidth: 1,
                         borderColor:
-                          hotTakeVote === option ? "#e5003c" : "#333333",
+                          hotTakeVote === option ? c.red : c.borderStrong,
                         backgroundColor:
-                          hotTakeVote === option ? "#e5003c" : "#111111",
+                          hotTakeVote === option ? c.red : c.card,
                       }}
                     >
                       <Text
                         style={{
                           fontSize: 16,
                           fontWeight: "700",
-                          color: "#fff",
+                          color: hotTakeVote === option ? "#fff" : c.text,
                           letterSpacing: 2,
                         }}
                       >
@@ -655,7 +658,7 @@ export default function Home() {
             },
             {
               tag: "FIGHTER SPOTLIGHT",
-              tagColor: "#707079",
+              tagColor: c.textMuted,
               footer: (
                 <View>
                   <View
@@ -671,9 +674,9 @@ export default function Home() {
                         width: 52,
                         height: 52,
                         borderRadius: 10,
-                        backgroundColor: "#1a1a1a",
+                        backgroundColor: c.input,
                         borderWidth: 1,
-                        borderColor: "#333333",
+                        borderColor: c.borderStrong,
                         alignItems: "center",
                         justifyContent: "center",
                       }}
@@ -682,7 +685,7 @@ export default function Home() {
                         style={{
                           fontSize: 16,
                           fontWeight: "700",
-                          color: "#fff",
+                          color: c.text,
                         }}
                       >
                         AP
@@ -710,7 +713,7 @@ export default function Home() {
                   <Text
                     style={{
                       fontSize: 13,
-                      color: "#ccc",
+                      color: c.text2,
                       marginBottom: 16,
                       lineHeight: 18,
                     }}
@@ -735,8 +738,8 @@ export default function Home() {
 
       <View
         style={{
-          backgroundColor: "#0d0d0d",
-          borderTopColor: "#222224",
+          backgroundColor: c.navBar,
+          borderTopColor: c.border,
           borderTopWidth: 1,
           paddingBottom: insets.bottom,
         }}

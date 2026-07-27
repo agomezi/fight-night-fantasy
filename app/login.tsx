@@ -1,10 +1,12 @@
 import { useRouter } from "expo-router";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
-import { COLORS } from "../constants/colors";
-import { styles } from "../styles/login";
+import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { makeLoginStyles } from "../styles/login";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { c } = useTheme();
+  const styles = useThemedStyles(makeLoginStyles);
   return (
     <View style={styles.container}>
       <Text style={styles.title}>FIGHT NIGHT</Text>
@@ -17,7 +19,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="fighter@example.com"
-          placeholderTextColor={COLORS.gray}
+          placeholderTextColor={c.textMuted}
           keyboardType="email-address"
           autoCapitalize="none"
         />
@@ -28,7 +30,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="••••••••"
-          placeholderTextColor={COLORS.gray}
+          placeholderTextColor={c.textMuted}
           keyboardType="ascii-capable"
           secureTextEntry
         />
@@ -52,7 +54,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
       </View>
       <Text style={styles.signupText}>
-        Don't have an account? <Text style={styles.signupLink}>Sign Up</Text>
+        Don&apos;t have an account? <Text style={styles.signupLink}>Sign Up</Text>
       </Text>
     </View>
   );

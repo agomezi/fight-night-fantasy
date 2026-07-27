@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Text, View } from "react-native";
-import { commonStyles } from "../styles/common";
+import { useThemedStyles } from "../context/ThemeContext";
+import { makeCommonStyles } from "../styles/common";
 
 export interface Card {
   tag?: string;
@@ -17,6 +18,7 @@ export interface Card {
 }
 
 export function InfoCards({ cards }: { cards: Card[] }) {
+  const commonStyles = useThemedStyles(makeCommonStyles);
   if (cards.length === 0) return null;
 
   return (

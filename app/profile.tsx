@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Pressable, ScrollView, Share, Text, View } from "react-native";
 import { Circle, Path, Svg } from "react-native-svg";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
-import { COLORS } from "../constants/colors";
-import { commonStyles } from "../styles/common";
-import { styles } from "../styles/profile";
+import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { makeCommonStyles } from "../styles/common";
+import { makeProfileStyles } from "../styles/profile";
 
 type Pick = {
   id: string;
@@ -36,10 +37,39 @@ const ACHIEVEMENTS: Achievement[] = [
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { c } = useTheme();
+  const commonStyles = useThemedStyles(makeCommonStyles);
+  const styles = useThemedStyles(makeProfileStyles);
+
+  const shareProfile = () => {
+    Share.share({
+      message: "ELITE_STRIKER · Level 84 · 14,280 pts on Fight Night 🥊",
+    }).catch(() => {});
+  };
+
+  const MENU: {
+    id: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    label: string;
+    onPress: () => void;
+    danger?: boolean;
+  }[] = [
+    { id: "edit", icon: "create-outline", label: "Edit Profile", onPress: () => router.push("/edit-profile") },
+    { id: "share", icon: "share-social-outline", label: "Share Profile", onPress: shareProfile },
+    { id: "settings", icon: "settings-outline", label: "Settings", onPress: () => router.push("/settings") },
+    {
+      id: "signout",
+      icon: "log-out-outline",
+      label: "Sign Out",
+      onPress: () => router.replace("/login"),
+      danger: true,
+    },
+  ];
 
   return (
     <SafeAreaView
-      style={[commonStyles.container, { backgroundColor: "#0A0A0A", padding: 0 }]}
+      style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
       edges={["top", "left", "right"]}
     >
       <ScrollView
@@ -81,7 +111,7 @@ export default function Profile() {
             <Text style={styles.statLabel}>TOTAL POINTS</Text>
             <Text style={styles.statValue}>14,280</Text>
             <View style={styles.statDelta}>
-              <Ionicons name="trending-up" size={12} color="#00C853" />
+              <Ionicons name="trending-up" size={12} color={c.green} />
               <Text style={styles.statDeltaText}>+420 THIS WEEK</Text>
             </View>
           </View>
@@ -115,7 +145,7 @@ export default function Profile() {
         {RECENT_PICKS.map((pick) => (
           <View key={pick.id} style={styles.pickRow}>
             <View style={styles.pickThumb}>
-              <Ionicons name="person" size={22} color="#555" />
+              <Ionicons name="person" size={22} color={c.textFaint} />
             </View>
             <View style={styles.pickInfo}>
               <Text style={styles.pickName}>{pick.name}</Text>
@@ -161,7 +191,7 @@ export default function Profile() {
                 a.locked ? styles.achievementIconLocked : styles.achievementIconActive,
               ]}
             >
-              <Ionicons name={a.icon} size={20} color={a.locked ? "#666" : COLORS.red} />
+              <Ionicons name={a.icon} size={20} color={a.locked ? c.textFaint : c.red} />
             </View>
             <View style={styles.achievementInfo}>
               <Text
@@ -174,12 +204,34 @@ export default function Profile() {
               </Text>
               <Text style={styles.achievementSub}>{a.sub}</Text>
             </View>
-            {a.locked && <Ionicons name="lock-closed" size={16} color="#555" />}
+            {a.locked && <Ionicons name="lock-closed" size={16} color={c.textFaint} />}
           </View>
         ))}
 
-        <View style={styles.unlockBtn}>
-          <Text style={styles.unlockBtnText}>UNLOCK MORE</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>ACCOUNT</Text>
+        </View>
+
+        <View style={styles.menuCard}>
+          {MENU.map((item, i) => (
+            <Pressable
+              key={item.id}
+              onPress={item.onPress}
+              style={[styles.menuRow, i > 0 && styles.menuRowBorder]}
+            >
+              <Ionicons
+                name={item.icon}
+                size={20}
+                color={item.danger ? c.red : c.text2}
+              />
+              <Text style={[styles.menuLabel, item.danger && styles.menuLabelDanger]}>
+                {item.label}
+              </Text>
+              {!item.danger && (
+                <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+              )}
+            </Pressable>
+          ))}
         </View>
       </ScrollView>
 

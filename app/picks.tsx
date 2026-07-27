@@ -5,9 +5,9 @@ import { Animated, Modal, Pressable, ScrollView, Share, Text, View } from "react
 import { Circle, Path, Svg } from "react-native-svg";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
-import { COLORS } from "../constants/colors";
-import { commonStyles } from "../styles/common";
-import { styles } from "../styles/picks";
+import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { makeCommonStyles } from "../styles/common";
+import { makePicksStyles } from "../styles/picks";
 
 type Fighter = { id: string; name: string; initials: string; record: string };
 type Fight = {
@@ -88,20 +88,21 @@ function Avatar({
   selected?: boolean;
   size?: number;
 }) {
+  const { c } = useTheme();
   return (
     <View
       style={{
         width: size,
         height: size,
         borderRadius: 14,
-        backgroundColor: "#171717",
+        backgroundColor: c.input,
         borderWidth: selected ? 2 : 1,
-        borderColor: selected ? COLORS.red : "#2a2a2a",
+        borderColor: selected ? c.red : c.borderStrong,
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Text style={{ color: "#fff", fontWeight: "700", fontSize: size / 3 }}>
+      <Text style={{ color: c.text, fontWeight: "700", fontSize: size / 3 }}>
         {initials}
       </Text>
     </View>
@@ -121,6 +122,7 @@ function FightControls({
   onMethod: (m: string) => void;
   onRound: (r: number) => void;
 }) {
+  const styles = useThemedStyles(makePicksStyles);
   return (
     <>
       <Text style={styles.groupLabel}>METHOD OF VICTORY</Text>
@@ -181,6 +183,9 @@ function FightControls({
 
 export default function Picks() {
   const insets = useSafeAreaInsets();
+  const { c } = useTheme();
+  const commonStyles = useThemedStyles(makeCommonStyles);
+  const styles = useThemedStyles(makePicksStyles);
   const { fighter } = useLocalSearchParams<{ fighter?: string }>();
   const [picks, setPicks] = useState<PickMap>(
     fighter ? { [MAIN_EVENT.id]: fighter } : {}
@@ -283,7 +288,7 @@ export default function Picks() {
 
   return (
     <SafeAreaView
-      style={[commonStyles.container, { backgroundColor: "#0A0A0A", padding: 0 }]}
+      style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
       edges={["top", "left", "right"]}
     >
       <ScrollView
@@ -315,12 +320,12 @@ export default function Picks() {
           <Pressable style={styles.mainHeader} onPress={() => toggle(MAIN_EVENT.id)}>
             <Text style={styles.mainHeaderText}>
               MAIN EVENT{"  "}
-              <Text style={{ color: COLORS.red }}>{MAIN_EVENT.division}</Text>
+              <Text style={{ color: c.red }}>{MAIN_EVENT.division}</Text>
             </Text>
             <Ionicons
               name={expanded[MAIN_EVENT.id] ? "chevron-up" : "chevron-down"}
               size={18}
-              color="#777"
+              color={c.textMuted}
             />
           </Pressable>
 
@@ -382,14 +387,14 @@ export default function Picks() {
                 <Pressable style={styles.rowCenter} onPress={() => toggle(fight.id)}>
                   <Text style={styles.rowDivision}>{fight.division}</Text>
                   {picked ? (
-                    <Ionicons name="checkmark-circle" size={16} color={COLORS.red} />
+                    <Ionicons name="checkmark-circle" size={16} color={c.red} />
                   ) : (
                     <Text style={styles.vsSmall}>VS</Text>
                   )}
                   <Ionicons
                     name={isOpen ? "chevron-up" : "chevron-down"}
                     size={14}
-                    color="#666"
+                    color={c.textFaint}
                   />
                 </Pressable>
 
@@ -431,7 +436,7 @@ export default function Picks() {
           {lockedIn ? (
             <View style={styles.lockedRow}>
               <View style={styles.lockedPill}>
-                <Ionicons name="lock-closed" size={16} color={COLORS.red} />
+                <Ionicons name="lock-closed" size={16} color={c.red} />
                 <Text style={styles.lockedPillText}>PICKS LOCKED</Text>
               </View>
               {canEditPicks() && (
@@ -474,7 +479,7 @@ export default function Picks() {
               onPress={() => setShowLockedModal(false)}
               hitSlop={10}
             >
-              <Ionicons name="close" size={22} color="#888" />
+              <Ionicons name="close" size={22} color={c.textMuted} />
             </Pressable>
 
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -491,7 +496,7 @@ export default function Picks() {
               <Text style={styles.modalSub}>Your picks for UFC 300 are locked.</Text>
 
               <View style={styles.countdownChip}>
-                <Ionicons name="time-outline" size={14} color="#ccc" />
+                <Ionicons name="time-outline" size={14} color={c.text2} />
                 <Text style={styles.countdownText}>
                   Main card starts in {countdownLabel()}
                 </Text>
@@ -510,7 +515,7 @@ export default function Picks() {
                       </Text>
                       {s.detail && <Text style={styles.summaryDetail}>{s.detail}</Text>}
                     </View>
-                    <Ionicons name="checkmark" size={16} color="#2ecc71" />
+                    <Ionicons name="checkmark" size={16} color={c.green} />
                   </View>
                 ))}
               </View>
