@@ -1,10 +1,49 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  TextInputProps,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
+
+type ClearableInputProps = TextInputProps & {
+  value: string;
+  onChangeText: (text: string) => void;
+};
+
+function ClearableInput({ value, onChangeText, multiline, style, ...rest }: ClearableInputProps) {
+  const { c } = useTheme();
+  const styles = useThemedStyles(makeSettingsStyles);
+  return (
+    <View style={styles.inputWrap}>
+      <TextInput
+        style={[styles.input, multiline && styles.textArea, { paddingRight: 38 }, style]}
+        value={value}
+        onChangeText={onChangeText}
+        multiline={multiline}
+        placeholderTextColor={c.textFaint}
+        {...rest}
+      />
+      {value.length > 0 && (
+        <Pressable
+          style={multiline ? styles.clearBtnMultiline : styles.clearBtn}
+          onPress={() => onChangeText("")}
+          hitSlop={8}
+        >
+          <Ionicons name="close-circle" size={18} color={c.textFaint} />
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
 export default function EditProfile() {
   const router = useRouter();
@@ -48,41 +87,33 @@ export default function EditProfile() {
         </View>
 
         <Text style={styles.fieldLabel}>USERNAME</Text>
-        <TextInput
-          style={styles.input}
+        <ClearableInput
           value={username}
           onChangeText={setUsername}
           autoCapitalize="sentences"
           placeholder="Username"
-          placeholderTextColor={c.textFaint}
         />
 
         <Text style={styles.fieldLabel}>TITLE</Text>
-        <TextInput
-          style={styles.input}
+        <ClearableInput
           value={specialist}
           onChangeText={setSpecialist}
           placeholder="e.g. Tactical Specialist"
-          placeholderTextColor={c.textFaint}
         />
 
         <Text style={styles.fieldLabel}>FAVORITE DIVISION</Text>
-        <TextInput
-          style={styles.input}
+        <ClearableInput
           value={favDivision}
           onChangeText={setFavDivision}
           placeholder="e.g. Lightweight"
-          placeholderTextColor={c.textFaint}
         />
 
         <Text style={styles.fieldLabel}>BIO</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
+        <ClearableInput
           value={bio}
           onChangeText={setBio}
           multiline
           placeholder="Tell the crew about yourself"
-          placeholderTextColor={c.textFaint}
         />
 
         <Text style={styles.fieldLabel}>EMAIL</Text>

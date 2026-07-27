@@ -2,9 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import { Animated, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
-import { Circle, Path, Svg } from "react-native-svg";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
+import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 import { makePicksStyles } from "../styles/picks";
@@ -297,19 +297,9 @@ export default function Picks() {
         contentContainerStyle={{ padding: 20, paddingBottom: 20 }}
       >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <Svg width={36} height={36} viewBox="0 0 120 120">
-            <Circle cx="60" cy="60" r="60" fill="#1a0a0a" />
-            <Circle cx="60" cy="60" r="59" fill="none" stroke="#E8003D" strokeWidth="2" />
-            <Circle cx="60" cy="47" r="20" fill="#E8003D" fillOpacity="0.85" />
-            <Path d="M20 108C20 84.8 37.9 68 60 68C82.1 68 100 84.8 100 108" fill="#E8003D" fillOpacity="0.85" />
-          </Svg>
+          <ProfileBadge />
           <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <Svg width={36} height={36} viewBox="0 0 120 120">
-            <Path d="M60 20C51.16 20 44 27.16 44 36V40.5C34.6 44.8 28 54.2 28 65V82L20 92V96H100V92L92 82V65C92 54.2 85.4 44.8 76 40.5V36C76 27.16 68.84 20 60 20Z" fill="#E8003D" />
-            <Path d="M48 100C48 106.6 53.4 112 60 112C66.6 112 72 106.6 72 100H48Z" fill="#E8003D" />
-            <Circle cx="88" cy="32" r="10" fill="#E8003D" />
-            <Circle cx="88" cy="32" r="10" fill="none" stroke="#0A0A0A" strokeWidth="2" />
-          </Svg>
+          <NotificationBell />
         </View>
         <View style={commonStyles.divider} />
 

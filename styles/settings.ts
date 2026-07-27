@@ -147,6 +147,24 @@ export const makeSettingsStyles = (c: Palette) =>
       minHeight: 80,
       textAlignVertical: "top",
     },
+    inputWrap: {
+      position: "relative",
+      justifyContent: "center",
+    },
+    clearBtn: {
+      position: "absolute",
+      right: 10,
+      top: 0,
+      bottom: 0,
+      justifyContent: "center",
+      paddingHorizontal: 4,
+    },
+    clearBtnMultiline: {
+      position: "absolute",
+      right: 10,
+      top: 12,
+      paddingHorizontal: 4,
+    },
 
     modalOverlay: {
       flex: 1,
