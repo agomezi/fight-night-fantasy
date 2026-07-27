@@ -19,9 +19,10 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="home" options={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, animation: "fade", animationDuration: 120 }}>
+        <Stack.Screen name="login" />
+        <Stack.Screen name="home" />
+        <Stack.Screen name="picks" />
       </Stack>
       <StatusBar style="light" />
     </GestureHandlerRootView>

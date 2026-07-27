@@ -1,16 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Circle, Path, Svg } from "react-native-svg";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import BottomNav from "../components/BottomNav";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import SwipeableCards from "../components/SwipeableCards";
 import { commonStyles } from "../styles/common";
 
 export default function Home() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
   const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
+  const [quickPick, setQuickPick] = useState<"pereira" | "hill" | null>(null);
 
   const fullCardFights = [
     { matchup: "Pereira vs Hill", division: "TITLE FIGHT" },
@@ -19,9 +24,14 @@ export default function Home() {
   ];
   return (
     <SafeAreaView
-      style={[commonStyles.container, { backgroundColor: "#0A0A0A" }]}
+      style={[commonStyles.container, { backgroundColor: "#0A0A0A", padding: 0 }]}
+      edges={["top", "left", "right"]}
     >
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
+      >
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Svg width={36} height={36} viewBox="0 0 120 120">
             <Circle cx="60" cy="60" r="60" fill="#1a0a0a" />
@@ -330,7 +340,6 @@ export default function Home() {
         </View>
 
         <View style={commonStyles.homeCard}>
-          {/* Tabs */}
           <View
             style={{
               flexDirection: "row",
@@ -391,15 +400,18 @@ export default function Home() {
                   marginBottom: 20,
                 }}
               >
-                <View style={{ alignItems: "center", flex: 1 }}>
+                <Pressable
+                  onPress={() => setQuickPick("pereira")}
+                  style={{ alignItems: "center", flex: 1 }}
+                >
                   <View
                     style={{
                       width: 52,
                       height: 52,
                       borderRadius: 26,
                       backgroundColor: "#1a1a1a",
-                      borderWidth: 1,
-                      borderColor: "#333",
+                      borderWidth: quickPick === "pereira" ? 2 : 1,
+                      borderColor: quickPick === "pereira" ? "#e5003c" : "#333",
                       alignItems: "center",
                       justifyContent: "center",
                       marginBottom: 8,
@@ -411,6 +423,7 @@ export default function Home() {
                     style={[
                       commonStyles.cardTitle,
                       { fontSize: 16, marginBottom: 2 },
+                      quickPick === "pereira" && { color: "#e5003c" },
                     ]}
                   >
                     PEREIRA
@@ -418,19 +431,22 @@ export default function Home() {
                   <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
                     29-9 · C
                   </Text>
-                </View>
+                </Pressable>
                 <Text style={{ color: "#555", fontWeight: "700", fontSize: 13 }}>
                   VS
                 </Text>
-                <View style={{ alignItems: "center", flex: 1 }}>
+                <Pressable
+                  onPress={() => setQuickPick("hill")}
+                  style={{ alignItems: "center", flex: 1 }}
+                >
                   <View
                     style={{
                       width: 52,
                       height: 52,
                       borderRadius: 26,
                       backgroundColor: "#1a1a1a",
-                      borderWidth: 1,
-                      borderColor: "#333",
+                      borderWidth: quickPick === "hill" ? 2 : 1,
+                      borderColor: quickPick === "hill" ? "#e5003c" : "#333",
                       alignItems: "center",
                       justifyContent: "center",
                       marginBottom: 8,
@@ -442,6 +458,7 @@ export default function Home() {
                     style={[
                       commonStyles.cardTitle,
                       { fontSize: 16, marginBottom: 2 },
+                      quickPick === "hill" && { color: "#e5003c" },
                     ]}
                   >
                     HILL
@@ -449,10 +466,9 @@ export default function Home() {
                   <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
                     12-1 · #1
                   </Text>
-                </View>
+                </Pressable>
               </View>
 
-              {/* Pick % bar */}
               <View style={{ marginBottom: 20 }}>
                 <View
                   style={{
@@ -488,9 +504,17 @@ export default function Home() {
               </View>
 
               <Pressable
+                disabled={!quickPick}
+                onPress={() =>
+                  router.push({
+                    pathname: "/picks",
+                    params: { fighter: quickPick as string },
+                  })
+                }
                 style={{
                   borderWidth: 1,
-                  borderColor: "#333",
+                  borderColor: quickPick ? "#e5003c" : "#333",
+                  backgroundColor: quickPick ? "#e5003c" : "transparent",
                   borderRadius: 10,
                   paddingVertical: 14,
                   alignItems: "center",
@@ -498,13 +522,13 @@ export default function Home() {
               >
                 <Text
                   style={{
-                    color: "#555",
+                    color: quickPick ? "#fff" : "#555",
                     fontWeight: "700",
                     fontSize: 13,
                     letterSpacing: 2,
                   }}
                 >
-                  SELECT A FIGHTER TO PICK
+                  {quickPick ? "LOCK IN YOUR PICKS →" : "SELECT A FIGHTER TO PICK"}
                 </Text>
               </Pressable>
             </View>
@@ -541,6 +565,7 @@ export default function Home() {
                     </Text>
                   </View>
                   <Pressable
+                    onPress={() => router.push("/picks")}
                     style={{
                       backgroundColor: "#e5003c",
                       paddingHorizontal: 16,
@@ -561,7 +586,10 @@ export default function Home() {
                   </Pressable>
                 </View>
               ))}
-              <Pressable style={{ marginTop: 8, alignItems: "center" }}>
+              <Pressable
+                onPress={() => router.push("/picks")}
+                style={{ marginTop: 8, alignItems: "center" }}
+              >
                 <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
                   + 9 more fights →
                 </Text>
@@ -570,7 +598,12 @@ export default function Home() {
           )}
         </View>
 
-        <View style={[commonStyles.cardWrapper, { marginBottom: 9 }]}>
+        <View
+          style={[
+            commonStyles.cardWrapper,
+            { marginBottom: 9, justifyContent: "flex-start" },
+          ]}
+        >
           <Text
             style={[
               commonStyles.cardTitle,
@@ -699,6 +732,17 @@ export default function Home() {
           ]}
         />
       </ScrollView>
+
+      <View
+        style={{
+          backgroundColor: "#0d0d0d",
+          borderTopColor: "#222224",
+          borderTopWidth: 1,
+          paddingBottom: insets.bottom,
+        }}
+      >
+        <BottomNav active="home" />
+      </View>
     </SafeAreaView>
   );
 }
