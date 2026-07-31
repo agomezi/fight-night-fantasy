@@ -135,7 +135,7 @@ export default function Leagues() {
             <View style={[styles.projFill, { width: `${yourShare}%` }]} />
           </View>
 
-          <Pressable style={styles.primaryButton}>
+          <Pressable style={styles.primaryButton} onPress={() => router.push("/matchup")}>
             <Text style={styles.primaryButtonText}>VIEW MATCHUP</Text>
           </Pressable>
         </View>

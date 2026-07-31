@@ -38,10 +38,81 @@ export const EVENT_STANDINGS: Standing[] = [
 ];
 
 export const RIVALRY = {
-  you: { name: "You", proj: 142.0 },
-  rival: { name: "Dave", proj: 138.5 },
+  you: { name: "You", team: "Team Apex", proj: 142.0, record: "5-1", live: 88.5 },
+  rival: { name: "Dave", team: "Striker Squad", proj: 138.5, record: "5-1", live: 76.0 },
   gap: 10.5,
+  event: "UFC 299",
 };
+
+export type MatchupPick = {
+  id: string;
+  bout: string;
+  yourPick: string;
+  yourMethod: string;
+  yourPoints: number;
+  rivalPick: string;
+  rivalMethod: string;
+  rivalPoints: number;
+  status: "FINAL" | "LIVE" | "UPCOMING";
+};
+
+export const MATCHUP_PICKS: MatchupPick[] = [
+  {
+    id: "1",
+    bout: "O'Malley vs. Vera",
+    yourPick: "S. O'Malley",
+    yourMethod: "Decision",
+    yourPoints: 32.0,
+    rivalPick: "M. Vera",
+    rivalMethod: "KO/TKO R3",
+    rivalPoints: 0,
+    status: "FINAL",
+  },
+  {
+    id: "2",
+    bout: "Gaethje vs. Holloway",
+    yourPick: "J. Gaethje",
+    yourMethod: "KO/TKO R2",
+    yourPoints: 28.5,
+    rivalPick: "J. Gaethje",
+    rivalMethod: "Decision",
+    rivalPoints: 22.0,
+    status: "FINAL",
+  },
+  {
+    id: "3",
+    bout: "Pantoja vs. Erceg",
+    yourPick: "A. Pantoja",
+    yourMethod: "Submission R4",
+    yourPoints: 28.0,
+    rivalPick: "A. Pantoja",
+    rivalMethod: "Submission R4",
+    rivalPoints: 28.0,
+    status: "FINAL",
+  },
+  {
+    id: "4",
+    bout: "Makhachev vs. Poirier",
+    yourPick: "I. Makhachev",
+    yourMethod: "Submission R3",
+    yourPoints: 0,
+    rivalPick: "D. Poirier",
+    rivalMethod: "Decision",
+    rivalPoints: 26.0,
+    status: "LIVE",
+  },
+  {
+    id: "5",
+    bout: "Adesanya vs. Du Plessis",
+    yourPick: "I. Adesanya",
+    yourMethod: "Decision",
+    yourPoints: 0,
+    rivalPick: "D. Du Plessis",
+    rivalMethod: "KO/TKO R2",
+    rivalPoints: 0,
+    status: "UPCOMING",
+  },
+];
 
 export const RISING_STARS = [
   { id: "1", name: "ApexPredator", sub: "Moved up 12 spots", delta: "+42%" },

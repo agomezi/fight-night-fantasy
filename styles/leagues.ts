@@ -397,6 +397,126 @@ export const makeLeaguesStyles = (c: Palette) =>
       left: -4,
     },
 
+    // --- matchup screen ----------------------------------------------------
+    versusCard: {
+      backgroundColor: c.heroTint,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: "rgba(232,0,61,0.35)",
+      padding: 18,
+      marginTop: 18,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    versusSide: {
+      flex: 1,
+      alignItems: "center",
+    },
+    versusAvatar: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: c.input,
+      borderWidth: 2,
+      borderColor: c.borderStrong,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    versusAvatarMe: {
+      borderColor: c.red,
+    },
+    versusName: {
+      color: c.text,
+      fontSize: 15,
+      fontWeight: "800",
+      marginTop: 10,
+    },
+    versusTeam: {
+      color: c.textFaint,
+      fontSize: 11,
+      marginTop: 2,
+    },
+    versusScore: {
+      fontFamily: "BebasNeue",
+      fontSize: 40,
+      color: c.text,
+      letterSpacing: 1,
+      marginTop: 8,
+    },
+    versusScoreLead: {
+      color: c.red,
+    },
+    versusDivider: {
+      fontFamily: "BebasNeue",
+      fontSize: 24,
+      color: c.textFaint,
+      letterSpacing: 2,
+      paddingHorizontal: 6,
+    },
+
+    boutRow: {
+      backgroundColor: c.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 14,
+      marginTop: 12,
+    },
+    boutHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+    },
+    boutName: {
+      color: c.text2,
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 0.5,
+    },
+    statusPill: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    statusPillText: {
+      fontSize: 9,
+      fontWeight: "800",
+      letterSpacing: 1,
+    },
+    pickSide: {
+      flex: 1,
+    },
+    pickName: {
+      color: c.text,
+      fontSize: 14,
+      fontWeight: "700",
+    },
+    pickMethod: {
+      color: c.textFaint,
+      fontSize: 11,
+      marginTop: 2,
+    },
+    pickPoints: {
+      fontSize: 17,
+      fontWeight: "800",
+      marginTop: 6,
+      color: c.text,
+    },
+    pickPointsDim: {
+      color: c.textFaint,
+    },
+    pickWinner: {
+      color: c.green,
+    },
+    boutSpacer: {
+      width: 1,
+      alignSelf: "stretch",
+      backgroundColor: c.border,
+      marginHorizontal: 14,
+    },
+
     // --- stat strip --------------------------------------------------------
     statCard: {
       backgroundColor: c.card,
