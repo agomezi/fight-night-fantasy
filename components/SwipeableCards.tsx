@@ -8,7 +8,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { commonStyles } from "../styles/common";
+import { useThemedStyles } from "../context/ThemeContext";
+import { makeCommonStyles } from "../styles/common";
 
 export interface Card {
   tag: string;
@@ -20,6 +21,7 @@ export interface Card {
 }
 
 const SwipeableCards = ({ cards }: { cards: Card[] }) => {
+  const commonStyles = useThemedStyles(makeCommonStyles);
   const { width: windowWidth } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const translateX = useSharedValue(0);

@@ -4,8 +4,34 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { ProfileProvider } from "../context/ProfileContext";
+import { ThemeProvider, useTheme } from "../context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
+
+function ThemedApp() {
+  const { c } = useTheme();
+  return (
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animation: "fade",
+          animationDuration: 120,
+          contentStyle: { backgroundColor: c.bg },
+        }}
+      >
+        <Stack.Screen name="login" />
+        <Stack.Screen name="home" />
+        <Stack.Screen name="picks" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="settings" />
+        <Stack.Screen name="edit-profile" />
+      </Stack>
+      <StatusBar style={c.statusBar} />
+    </>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -19,12 +45,11 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false, animation: "fade", animationDuration: 120 }}>
-        <Stack.Screen name="login" />
-        <Stack.Screen name="home" />
-        <Stack.Screen name="picks" />
-      </Stack>
-      <StatusBar style="light" />
+      <ThemeProvider>
+        <ProfileProvider>
+          <ThemedApp />
+        </ProfileProvider>
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }
