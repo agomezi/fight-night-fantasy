@@ -25,6 +25,8 @@ function ThemedApp() {
         <Stack.Screen name="home" />
         <Stack.Screen name="picks" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="leagues" />
+        <Stack.Screen name="league-standings" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="edit-profile" />
       </Stack>
