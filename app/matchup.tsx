@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import EmptyState from "../components/EmptyState";
 import { MATCHUP_PICKS, MatchupPick, RIVALRY } from "../constants/league";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -26,6 +27,43 @@ export default function Matchup() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeLeaguesStyles);
+
+  // No opponent assigned yet — a new account sees the prompt, not a scoreboard.
+  if (!RIVALRY) {
+    return (
+      <SafeAreaView
+        style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
+        edges={["top", "left", "right"]}
+      >
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+        >
+          <View style={styles.screenHeader}>
+            <Pressable onPress={() => router.back()} hitSlop={12}>
+              <Ionicons name="chevron-back" size={26} color={c.text} />
+            </Pressable>
+            <View style={{ width: 26 }} />
+          </View>
+
+          <Text style={styles.screenTitle}>HEAD TO HEAD</Text>
+
+          <View style={styles.card}>
+            <EmptyState
+              icon="flash-outline"
+              title="No matchup yet"
+              message="Join a league and lock in your picks — your first head-to-head opponent is assigned when the next event opens."
+              actionLabel="MAKE YOUR PICKS"
+              onAction={() => router.push("/picks")}
+            />
+          </View>
+        </ScrollView>
+
+        <View style={{ height: insets.bottom }} />
+      </SafeAreaView>
+    );
+  }
 
   const yourLive = MATCHUP_PICKS.reduce((sum, p) => sum + p.yourPoints, 0);
   const rivalLive = MATCHUP_PICKS.reduce((sum, p) => sum + p.rivalPoints, 0);
@@ -108,6 +146,17 @@ export default function Matchup() {
           <Text style={styles.cardTitle}>Pick by Pick</Text>
           <Text style={styles.cardMeta}>{MATCHUP_PICKS.length} BOUTS</Text>
         </View>
+
+        {MATCHUP_PICKS.length === 0 && (
+          <View style={styles.card}>
+            <EmptyState
+              compact
+              icon="list-outline"
+              title="No picks locked in"
+              message="Bouts appear here once you and your opponent submit picks."
+            />
+          </View>
+        )}
 
         {MATCHUP_PICKS.map((p) => {
           const settled = p.status === "FINAL";
