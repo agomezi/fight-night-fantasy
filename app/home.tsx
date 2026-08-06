@@ -1,9 +1,9 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
+import EmptyState from "../components/EmptyState";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
@@ -61,8 +61,8 @@ export default function Home() {
             {
               tag: "YOUR LEAGUE",
               tagColor: "#E8A020",
-              title: "DTC",
-              subtitle: "You are in 3rd place",
+              title: "NO LEAGUE",
+              subtitle: "Create or join one to start competing",
               aspectRatio: 1.2,
             },
           ]}
@@ -95,20 +95,20 @@ export default function Home() {
             {
               tag: "CURRENT LEAGUE RANK",
               tagColor: c.textMuted,
-              title: "#4",
+              title: "—",
               titleSize: 50,
               footer: (
                 <Text
                   style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
                 >
-                  Top 5% in &quot;Global Strikers&quot; League
+                  Unranked · join a league to get on the board
                 </Text>
               ),
             },
             {
               tag: "LAST EVENT POINTS",
               tagColor: c.textMuted,
-              title: "842",
+              title: "0",
               titleUnit: "PTS",
               titleSize: 50,
               footer: (
@@ -143,156 +143,22 @@ export default function Home() {
                         },
                       ]}
                     >
-                      610
+                      —
                     </Text>
                   </View>
                 </>
               ),
             },
             {
-              tag: "UFC 299 Recap",
+              tag: "Last Event Recap",
               tagColor: c.text,
               tagSize: 22,
               footer: (
-                <View style={{ gap: 10, marginTop: 12 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: c.inset,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: c.border,
-                      padding: 12,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 10,
-                        backgroundColor: c.card,
-                        borderWidth: 1,
-                        borderColor: c.borderStrong,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: c.green,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Ionicons name="checkmark" size={20} color="#fff" />
-                      </View>
-                    </View>
-                    <View style={{ flex: 1, marginHorizontal: 12 }}>
-                      <Text
-                        style={[
-                          commonStyles.cardTitle,
-                          {
-                            fontSize: 16,
-                            textAlign: "left",
-                            marginBottom: 2,
-                          },
-                        ]}
-                      >
-                        O&apos;Malley (W)
-                      </Text>
-                      <Text
-                        style={[
-                          commonStyles.cardSubtitle,
-                          { textAlign: "left", marginBottom: 0 },
-                        ]}
-                      >
-                        Method: KO/TKO
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "700",
-                        color: c.text,
-                      }}
-                    >
-                      +120 PTS
-                    </Text>
-                  </View>
-
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      backgroundColor: c.inset,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: c.border,
-                      padding: 12,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 10,
-                        backgroundColor: c.card,
-                        borderWidth: 1,
-                        borderColor: c.borderStrong,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <View
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: c.red,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Ionicons name="close" size={20} color="#fff" />
-                      </View>
-                    </View>
-                    <View style={{ flex: 1, marginHorizontal: 12 }}>
-                      <Text
-                        style={[
-                          commonStyles.cardTitle,
-                          {
-                            fontSize: 16,
-                            textAlign: "left",
-                            marginBottom: 2,
-                          },
-                        ]}
-                      >
-                        Poirier (L)
-                      </Text>
-                      <Text
-                        style={[
-                          commonStyles.cardSubtitle,
-                          { textAlign: "left", marginBottom: 0 },
-                        ]}
-                      >
-                        Method: Dec
-                      </Text>
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "700",
-                        color: c.text,
-                      }}
-                    >
-                      -10 PTS
-                    </Text>
-                  </View>
-                </View>
+                <EmptyState
+                  icon="time-outline"
+                  title="No history yet"
+                  message="Once you play an event, your pick-by-pick results land here."
+                />
               ),
             },
           ]}
