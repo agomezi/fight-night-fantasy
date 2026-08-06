@@ -1,7 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import LiveDot from "../components/LiveDot";
+import Animated from "react-native-reanimated";
+import PressableScale from "../components/PressableScale";
+import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import AnimatedBar from "../components/AnimatedBar";
 import EmptyState from "../components/EmptyState";
 import { MATCHUP_PICKS, MatchupPick, RIVALRY } from "../constants/league";
 import { getInitials } from "../context/ProfileContext";
@@ -41,9 +46,9 @@ export default function Matchup() {
           contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
         >
           <View style={styles.screenHeader}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <PressableScale onPress={() => router.back()} hitSlop={12}>
               <Ionicons name="chevron-back" size={26} color={c.text} />
-            </Pressable>
+            </PressableScale>
             <View style={{ width: 26 }} />
           </View>
 
@@ -81,11 +86,11 @@ export default function Matchup() {
         contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
       >
         <View style={styles.screenHeader}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <PressableScale onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="chevron-back" size={26} color={c.text} />
-          </Pressable>
+          </PressableScale>
           <View style={styles.liveRow}>
-            <View style={styles.liveDot} />
+            <LiveDot />
             <Text style={styles.liveText}>{RIVALRY.event} · LIVE</Text>
           </View>
           <View style={{ width: 26 }} />
@@ -94,7 +99,7 @@ export default function Matchup() {
         <Text style={styles.screenTitle}>HEAD TO HEAD</Text>
 
         {/* Scoreboard */}
-        <View style={styles.versusCard}>
+        <Animated.View entering={appear(0)} style={styles.versusCard}>
           <View style={styles.versusSide}>
             <View style={[styles.versusAvatar, styles.versusAvatarMe]}>
               <Text style={styles.avatarText}>{getInitials(RIVALRY.you.name)}</Text>
@@ -120,7 +125,7 @@ export default function Matchup() {
             </Text>
             <Text style={styles.projLabel}>PROJ {RIVALRY.rival.proj.toFixed(1)}</Text>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Projection bar */}
         <View style={styles.card}>
@@ -130,11 +135,10 @@ export default function Matchup() {
               {Math.abs(RIVALRY.you.proj - RIVALRY.rival.proj).toFixed(1)} PTS APART
             </Text>
           </View>
-          <View style={styles.projTrack}>
-            <View
-              style={[styles.projFill, { width: `${(RIVALRY.you.proj / total) * 100}%` }]}
-            />
-          </View>
+          <AnimatedBar
+            percent={(RIVALRY.you.proj / total) * 100}
+            style={{ marginTop: 10 }}
+          />
           <View style={[commonStyles.row, { marginTop: 8 }]}>
             <Text style={styles.projLabel}>{RIVALRY.you.name}</Text>
             <Text style={styles.projLabel}>{RIVALRY.rival.name}</Text>
@@ -158,12 +162,12 @@ export default function Matchup() {
           </View>
         )}
 
-        {MATCHUP_PICKS.map((p) => {
+        {MATCHUP_PICKS.map((p, i) => {
           const settled = p.status === "FINAL";
           const youWonBout = settled && p.yourPoints > p.rivalPoints;
           const rivalWonBout = settled && p.rivalPoints > p.yourPoints;
           return (
-            <View key={p.id} style={styles.boutRow}>
+            <Animated.View key={p.id} entering={appear(i)} style={styles.boutRow}>
               <View style={styles.boutHeader}>
                 <Text style={styles.boutName}>{p.bout}</Text>
                 <StatusPill status={p.status} />
@@ -200,7 +204,7 @@ export default function Matchup() {
                   </Text>
                 </View>
               </View>
-            </View>
+            </Animated.View>
           );
         })}
       </ScrollView>

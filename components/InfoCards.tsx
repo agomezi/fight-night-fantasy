@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import { appear } from "../constants/motion";
 import { useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
@@ -24,8 +26,9 @@ export function InfoCards({ cards }: { cards: Card[] }) {
   return (
     <View style={{ gap: 12 }}>
       {cards.map((card, i) => (
-        <View
+        <Animated.View
           key={i}
+          entering={appear(i)}
           style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio }]}
         >
           <Text
@@ -79,7 +82,7 @@ export function InfoCards({ cards }: { cards: Card[] }) {
             </Text>
           ) : null}
           {card.footer}
-        </View>
+        </Animated.View>
       ))}
     </View>
   );
