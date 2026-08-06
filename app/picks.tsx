@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
-  ZoomIn,
   ZoomOut,
   interpolateColor,
   useAnimatedStyle,
@@ -25,6 +24,7 @@ import Animated, {
 import BottomNav from "../components/BottomNav";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import PressableScale from "../components/PressableScale";
+import { popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
@@ -146,7 +146,7 @@ function Avatar({
 
       {selected && (
         <Animated.View
-          entering={ZoomIn.springify().damping(14)}
+          entering={popIn}
           exiting={ZoomOut.duration(120)}
           style={{
             position: "absolute",

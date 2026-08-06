@@ -3,14 +3,13 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Animated, {
-  ZoomIn,
   ZoomOut,
   interpolateColor,
   useAnimatedStyle,
 } from "react-native-reanimated";
 import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
-import { appear } from "../constants/motion";
+import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
@@ -113,7 +112,7 @@ function FighterChoice({
 
         {selected && (
           <Animated.View
-            entering={ZoomIn.springify().damping(14)}
+            entering={popIn}
             exiting={ZoomOut.duration(120)}
             style={{
               position: "absolute",

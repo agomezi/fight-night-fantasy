@@ -1,4 +1,4 @@
-import { FadeIn, FadeInDown } from "react-native-reanimated";
+import { FadeIn, FadeInDown, Keyframe } from "react-native-reanimated";
 
 /*
  * Motion rules for this app:
@@ -29,6 +29,17 @@ export const appear = (i = 0) =>
 
 /** Plain cross-fade, for things where sliding would be too much. */
 export const fadeIn = (i = 0) => FadeIn.duration(200).delay(stagger(i));
+
+/**
+ * Confirmation pop for badges and checkmarks: overshoots once, then settles.
+ * A spring would oscillate several times, which reads as bouncy — this is a
+ * fixed keyframe so it's exactly one bounce, every time.
+ */
+export const popIn = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.2 }] },
+  60: { opacity: 1, transform: [{ scale: 1.12 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }] },
+}).duration(240);
 
 /**
  * Slow, low-contrast breathing for the live indicator. Only used where
