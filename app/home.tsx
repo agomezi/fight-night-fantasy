@@ -1,7 +1,9 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
+import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
@@ -199,7 +201,7 @@ export default function Home() {
           </View>
         </View>
 
-        <View style={commonStyles.homeCard}>
+        <Animated.View entering={appear(0)} style={commonStyles.homeCard}>
           <View
             style={{
               flexDirection: "row",
@@ -456,7 +458,7 @@ export default function Home() {
               </PressableScale>
             </View>
           )}
-        </View>
+        </Animated.View>
 
         <View
           style={[

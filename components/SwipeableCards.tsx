@@ -1,14 +1,17 @@
+import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useState } from "react";
-import { Text, View, useWindowDimensions } from "react-native";
+import { Platform, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  Extrapolation,
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { useThemedStyles } from "../context/ThemeContext";
+import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
 export interface Card {
@@ -20,7 +23,13 @@ export interface Card {
   footer?: React.ReactNode;
 }
 
+// Soft settle — no visible overshoot, so repeated swiping doesn't feel wobbly.
+const SETTLE = { damping: 20, stiffness: 220, mass: 0.6 };
+const SWIPE_DISTANCE = 55;
+const SWIPE_VELOCITY = 450;
+
 const SwipeableCards = ({ cards }: { cards: Card[] }) => {
+  const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const { width: windowWidth } = useWindowDimensions();
   const [index, setIndex] = useState(0);
@@ -31,6 +40,12 @@ const SwipeableCards = ({ cards }: { cards: Card[] }) => {
       cards.length === 0 ? 0 : Math.min(prev, cards.length - 1),
     );
   }, [cards.length]);
+
+  const bump = useCallback(() => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+  }, []);
 
   const advanceIndex = useCallback(
     (direction: number) => {
@@ -45,52 +60,68 @@ const SwipeableCards = ({ cards }: { cards: Card[] }) => {
   const goToRelativeCard = useCallback(
     (direction: number) => {
       if (cards.length < 2) {
-        translateX.value = withSpring(0);
+        translateX.value = withSpring(0, SETTLE);
         return;
       }
+      bump();
 
-      const outgoingTarget = direction * -windowWidth;
-      const incomingStart = direction * windowWidth;
-
+      // Throw the outgoing card off-screen, then drop the incoming one just
+      // off the opposite edge and spring it home. Springing (rather than
+      // timing) the arrival is what stops it feeling mechanical.
       translateX.value = withTiming(
-        outgoingTarget,
-        { duration: 220 },
+        direction * -windowWidth,
+        { duration: 180 },
         (done) => {
-          if (!done) {
-            return;
-          }
+          if (!done) return;
           runOnJS(advanceIndex)(direction);
-          translateX.value = incomingStart;
-          translateX.value = withTiming(0, { duration: 220 });
+          translateX.value = direction * windowWidth * 0.6;
+          translateX.value = withSpring(0, SETTLE);
         },
       );
     },
-    [advanceIndex, cards.length, translateX, windowWidth],
+    [advanceIndex, bump, cards.length, translateX, windowWidth],
   );
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
     .failOffsetY([-10, 10])
     .onUpdate((event) => {
-      translateX.value = event.translationX;
+      // Rubber-banding: the further you drag, the less it follows, so the
+      // card feels physically attached rather than glued to your finger.
+      const raw = event.translationX;
+      translateX.value = Math.sign(raw) * Math.pow(Math.abs(raw), 0.85);
     })
     .onEnd((event) => {
-      if (event.translationX <= -50) {
-        runOnJS(goToRelativeCard)(1);
+      const far = Math.abs(event.translationX) >= SWIPE_DISTANCE;
+      const fast = Math.abs(event.velocityX) >= SWIPE_VELOCITY;
+
+      if (far || fast) {
+        runOnJS(goToRelativeCard)(event.translationX < 0 ? 1 : -1);
         return;
       }
-
-      if (event.translationX >= 50) {
-        runOnJS(goToRelativeCard)(-1);
-        return;
-      }
-
-      translateX.value = withSpring(0);
+      translateX.value = withSpring(0, SETTLE);
     });
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => {
+    const progress = Math.abs(translateX.value) / windowWidth;
+    return {
+      transform: [
+        { translateX: translateX.value },
+        // A few degrees of tilt in the drag direction reads as weight.
+        {
+          rotateZ: `${interpolate(
+            translateX.value,
+            [-windowWidth, 0, windowWidth],
+            [-6, 0, 6],
+            Extrapolation.CLAMP,
+          )}deg`,
+        },
+        // Shrink slightly as it leaves, like it's receding.
+        { scale: interpolate(progress, [0, 1], [1, 0.92], Extrapolation.CLAMP) },
+      ],
+      opacity: interpolate(progress, [0, 0.75], [1, 0.4], Extrapolation.CLAMP),
+    };
+  });
 
   if (cards.length === 0) {
     return null;
@@ -102,25 +133,61 @@ const SwipeableCards = ({ cards }: { cards: Card[] }) => {
   }
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View style={animatedStyle}>
+    <View>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View style={animatedStyle}>
+          <View
+            style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio }]}
+          >
+            <Text style={[commonStyles.label, { color: card.tagColor }]}>
+              {card.tag}
+            </Text>
+            <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
+              {card.title}
+            </Text>
+            <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
+              {card.subtitle}
+            </Text>
+            {card.footer}
+          </View>
+        </Animated.View>
+      </GestureDetector>
+
+      {cards.length > 1 && (
         <View
-          style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio }]}
+          style={{
+            flexDirection: "row",
+            justifyContent: "center",
+            gap: 6,
+            marginTop: 12,
+            marginBottom: 4,
+          }}
         >
-          <Text style={[commonStyles.label, { color: card.tagColor }]}>
-            {card.tag}
-          </Text>
-          <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
-            {card.title}
-          </Text>
-          <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
-            {card.subtitle}
-          </Text>
-          {card.footer}
+          {cards.map((_, i) => (
+            <Dot key={i} active={i === index} color={c.red} idle={c.borderStrong} />
+          ))}
         </View>
-      </Animated.View>
-    </GestureDetector>
+      )}
+    </View>
   );
 };
+
+/** Pagination dot that widens into a pill when it's the active card. */
+function Dot({
+  active,
+  color,
+  idle,
+}: {
+  active: boolean;
+  color: string;
+  idle: string;
+}) {
+  const style = useAnimatedStyle(() => ({
+    width: withSpring(active ? 18 : 6, SETTLE),
+    backgroundColor: withTiming(active ? color : idle, { duration: 180 }),
+  }));
+
+  return <Animated.View style={[{ height: 6, borderRadius: 3 }, style]} />;
+}
 
 export default SwipeableCards;

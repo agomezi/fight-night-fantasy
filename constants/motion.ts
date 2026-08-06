@@ -1,43 +1,46 @@
-import { FadeInDown, FadeInUp } from "react-native-reanimated";
+import { FadeIn, FadeInDown } from "react-native-reanimated";
 
-// One place for entrance timing so every screen settles at the same rhythm.
-// Staggering by index is what makes a list read as "dealt out" rather than
-// snapped into place all at once.
-const BASE_DELAY = 40;
-const STEP = 70;
+/*
+ * Motion rules for this app:
+ *
+ * 1. Entrances are fast and short. You see them every single time you open a
+ *    screen, so anything long or bouncy becomes irritating by the tenth visit.
+ * 2. Stagger is capped. A 40-row list should not take three seconds to deal
+ *    itself out — after a handful of items everything arrives together.
+ * 3. Nothing loops forever unless it represents something genuinely live.
+ *    A permanent pulse on a static screen is visual noise.
+ */
 
-/** Cards and rows sliding up into place. `i` is the item's index in its group. */
+const BASE_DELAY = 0;
+const STEP = 35;
+// Past this many items the delay stops growing, so long lists stay snappy.
+const MAX_STAGGERED = 6;
+
+const stagger = (i: number) => BASE_DELAY + Math.min(i, MAX_STAGGERED) * STEP;
+
+/**
+ * Cards and rows easing up into place. Deliberately short (220ms) and only a
+ * few pixels of travel — enough to read as motion, not enough to wait on.
+ */
 export const appear = (i = 0) =>
-  FadeInDown.delay(BASE_DELAY + i * STEP)
-    .springify()
-    .damping(18)
-    .stiffness(160);
+  FadeInDown.duration(220).delay(stagger(i)).withInitialValues({
+    transform: [{ translateY: 8 }],
+  });
 
-/** For headers and hero text, which read better coming down from above. */
-export const appearFromTop = (i = 0) =>
-  FadeInUp.delay(BASE_DELAY + i * STEP)
-    .springify()
-    .damping(18)
-    .stiffness(160);
+/** Plain cross-fade, for things where sliding would be too much. */
+export const fadeIn = (i = 0) => FadeIn.duration(200).delay(stagger(i));
 
-/** Slow breathing pulse — used on live/active indicators. */
+/**
+ * Slow, low-contrast breathing for the live indicator. Only used where
+ * something is actually live — never as decoration.
+ */
 export const PULSE = {
   animationName: {
-    "0%": { opacity: 0.35, transform: [{ scale: 0.85 }] },
-    "50%": { opacity: 1, transform: [{ scale: 1.15 }] },
-    "100%": { opacity: 0.35, transform: [{ scale: 0.85 }] },
+    "0%": { opacity: 0.55 },
+    "50%": { opacity: 1 },
+    "100%": { opacity: 0.55 },
   },
-  animationDuration: "1600ms",
+  animationDuration: "2200ms",
   animationIterationCount: "infinite",
-} as const;
-
-/** Left-to-right sheen for skeleton/empty placeholders. */
-export const SHIMMER = {
-  animationName: {
-    "0%": { opacity: 0.4 },
-    "50%": { opacity: 0.8 },
-    "100%": { opacity: 0.4 },
-  },
-  animationDuration: "1400ms",
-  animationIterationCount: "infinite",
+  animationTimingFunction: "ease-in-out",
 } as const;

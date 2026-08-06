@@ -3,7 +3,9 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Alert, Modal, ScrollView, Switch, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
+import { appear } from "../constants/motion";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
@@ -59,7 +61,7 @@ export default function Settings() {
         contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
       >
         <Text style={styles.sectionLabel}>APPEARANCE</Text>
-        <View style={styles.card}>
+        <Animated.View entering={appear(0)} style={styles.card}>
           <View style={styles.row}>
             <View style={styles.rowIcon}>
               <Ionicons name="contrast-outline" size={20} color={c.text2} />
@@ -76,10 +78,10 @@ export default function Settings() {
               {...switchColors}
             />
           </View>
-        </View>
+        </Animated.View>
 
         <Text style={styles.sectionLabel}>NOTIFICATIONS & CONSENT</Text>
-        <View style={styles.card}>
+        <Animated.View entering={appear(1)} style={styles.card}>
           <View style={styles.row}>
             <View style={styles.rowIcon}>
               <Ionicons name="notifications-outline" size={20} color={c.text2} />
@@ -97,14 +99,14 @@ export default function Settings() {
             </View>
             <Switch value={analytics} onValueChange={setAnalytics} {...switchColors} />
           </View>
-        </View>
+        </Animated.View>
         <Text style={styles.hint}>
           You can change your consent choices at any time. Turning off analytics limits how we
           measure app performance.
         </Text>
 
         <Text style={styles.sectionLabel}>PRIVACY</Text>
-        <View style={styles.card}>
+        <Animated.View entering={appear(2)} style={styles.card}>
           <PressableScale style={styles.row} onPress={downloadData}>
             <View style={styles.rowIcon}>
               <Ionicons name="download-outline" size={20} color={c.text2} />
@@ -112,10 +114,10 @@ export default function Settings() {
             <Text style={styles.rowLabel}>Download My Data</Text>
             <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
           </PressableScale>
-        </View>
+        </Animated.View>
 
         <Text style={styles.sectionLabel}>LEGAL</Text>
-        <View style={styles.card}>
+        <Animated.View entering={appear(3)} style={styles.card}>
           <PressableScale style={styles.row} onPress={() => openLink(PRIVACY_URL)}>
             <View style={styles.rowIcon}>
               <Ionicons name="shield-checkmark-outline" size={20} color={c.text2} />
@@ -130,10 +132,10 @@ export default function Settings() {
             <Text style={styles.rowLabel}>Terms of Service</Text>
             <Ionicons name="open-outline" size={18} color={c.textFaint} />
           </PressableScale>
-        </View>
+        </Animated.View>
 
         <Text style={styles.sectionLabel}>DANGER ZONE</Text>
-        <View style={styles.card}>
+        <Animated.View entering={appear(4)} style={styles.card}>
           <PressableScale style={styles.row} onPress={() => setShowDelete(true)}>
             <View style={styles.rowIcon}>
               <Ionicons name="trash-outline" size={20} color={c.red} />
@@ -141,7 +143,7 @@ export default function Settings() {
             <Text style={[styles.rowLabel, styles.rowLabelDanger]}>Delete Account</Text>
             <Ionicons name="chevron-forward" size={18} color={c.red} />
           </PressableScale>
-        </View>
+        </Animated.View>
         <Text style={styles.hint}>
           Deleting your account permanently removes your picks, stats, and league history. This
           cannot be undone.

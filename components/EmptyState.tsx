@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { SHIMMER, appear } from "../constants/motion";
+import { appear } from "../constants/motion";
 import { useTheme } from "../context/ThemeContext";
 import PressableScale from "./PressableScale";
 
@@ -26,19 +26,16 @@ export default function EmptyState({
     <View style={{ alignItems: "center", paddingVertical: compact ? 24 : 40 }}>
       <Animated.View
         entering={appear(0)}
-        style={[
-          {
-            width: compact ? 44 : 56,
-            height: compact ? 44 : 56,
-            borderRadius: compact ? 22 : 28,
-            backgroundColor: c.inset,
-            borderWidth: 1,
-            borderColor: c.border,
-            alignItems: "center",
-            justifyContent: "center",
-          },
-          SHIMMER,
-        ]}
+        style={{
+          width: compact ? 44 : 56,
+          height: compact ? 44 : 56,
+          borderRadius: compact ? 22 : 28,
+          backgroundColor: c.inset,
+          borderWidth: 1,
+          borderColor: c.border,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
       >
         <Ionicons name={icon} size={compact ? 20 : 26} color={c.textFaint} />
       </Animated.View>

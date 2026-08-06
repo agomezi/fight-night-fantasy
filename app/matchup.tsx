@@ -2,7 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
 import LiveDot from "../components/LiveDot";
+import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
+import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import { MATCHUP_PICKS, MatchupPick, RIVALRY } from "../constants/league";
@@ -96,7 +98,7 @@ export default function Matchup() {
         <Text style={styles.screenTitle}>HEAD TO HEAD</Text>
 
         {/* Scoreboard */}
-        <View style={styles.versusCard}>
+        <Animated.View entering={appear(0)} style={styles.versusCard}>
           <View style={styles.versusSide}>
             <View style={[styles.versusAvatar, styles.versusAvatarMe]}>
               <Text style={styles.avatarText}>{getInitials(RIVALRY.you.name)}</Text>
@@ -122,7 +124,7 @@ export default function Matchup() {
             </Text>
             <Text style={styles.projLabel}>PROJ {RIVALRY.rival.proj.toFixed(1)}</Text>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Projection bar */}
         <View style={styles.card}>
@@ -160,12 +162,12 @@ export default function Matchup() {
           </View>
         )}
 
-        {MATCHUP_PICKS.map((p) => {
+        {MATCHUP_PICKS.map((p, i) => {
           const settled = p.status === "FINAL";
           const youWonBout = settled && p.yourPoints > p.rivalPoints;
           const rivalWonBout = settled && p.rivalPoints > p.yourPoints;
           return (
-            <View key={p.id} style={styles.boutRow}>
+            <Animated.View key={p.id} entering={appear(i)} style={styles.boutRow}>
               <View style={styles.boutHeader}>
                 <Text style={styles.boutName}>{p.bout}</Text>
                 <StatusPill status={p.status} />
@@ -202,7 +204,7 @@ export default function Matchup() {
                   </Text>
                 </View>
               </View>
-            </View>
+            </Animated.View>
           );
         })}
       </ScrollView>
