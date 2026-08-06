@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Alert, Modal, ScrollView, Switch, Text, View } from "react-native";
+import PressableScale from "../components/PressableScale";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
@@ -45,10 +46,10 @@ export default function Settings() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={["top", "left", "right", "bottom"]}>
       <View style={styles.header}>
-        <Pressable style={styles.headerBtn} onPress={() => router.back()} hitSlop={10}>
+        <PressableScale style={styles.headerBtn} onPress={() => router.back()} hitSlop={10}>
           <Ionicons name="chevron-back" size={22} color={c.text2} />
           <Text style={styles.headerBack}>Back</Text>
-        </Pressable>
+        </PressableScale>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.headerBtnRight} />
       </View>
@@ -104,42 +105,42 @@ export default function Settings() {
 
         <Text style={styles.sectionLabel}>PRIVACY</Text>
         <View style={styles.card}>
-          <Pressable style={styles.row} onPress={downloadData}>
+          <PressableScale style={styles.row} onPress={downloadData}>
             <View style={styles.rowIcon}>
               <Ionicons name="download-outline" size={20} color={c.text2} />
             </View>
             <Text style={styles.rowLabel}>Download My Data</Text>
             <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
-          </Pressable>
+          </PressableScale>
         </View>
 
         <Text style={styles.sectionLabel}>LEGAL</Text>
         <View style={styles.card}>
-          <Pressable style={styles.row} onPress={() => openLink(PRIVACY_URL)}>
+          <PressableScale style={styles.row} onPress={() => openLink(PRIVACY_URL)}>
             <View style={styles.rowIcon}>
               <Ionicons name="shield-checkmark-outline" size={20} color={c.text2} />
             </View>
             <Text style={styles.rowLabel}>Privacy Policy</Text>
             <Ionicons name="open-outline" size={18} color={c.textFaint} />
-          </Pressable>
-          <Pressable style={[styles.row, styles.rowBorder]} onPress={() => openLink(TERMS_URL)}>
+          </PressableScale>
+          <PressableScale style={[styles.row, styles.rowBorder]} onPress={() => openLink(TERMS_URL)}>
             <View style={styles.rowIcon}>
               <Ionicons name="document-text-outline" size={20} color={c.text2} />
             </View>
             <Text style={styles.rowLabel}>Terms of Service</Text>
             <Ionicons name="open-outline" size={18} color={c.textFaint} />
-          </Pressable>
+          </PressableScale>
         </View>
 
         <Text style={styles.sectionLabel}>DANGER ZONE</Text>
         <View style={styles.card}>
-          <Pressable style={styles.row} onPress={() => setShowDelete(true)}>
+          <PressableScale style={styles.row} onPress={() => setShowDelete(true)}>
             <View style={styles.rowIcon}>
               <Ionicons name="trash-outline" size={20} color={c.red} />
             </View>
             <Text style={[styles.rowLabel, styles.rowLabelDanger]}>Delete Account</Text>
             <Ionicons name="chevron-forward" size={18} color={c.red} />
-          </Pressable>
+          </PressableScale>
         </View>
         <Text style={styles.hint}>
           Deleting your account permanently removes your picks, stats, and league history. This
@@ -164,12 +165,12 @@ export default function Settings() {
               This permanently deletes your account and all associated data. You can&apos;t undo
               this action.
             </Text>
-            <Pressable style={styles.deleteBtn} onPress={confirmDelete}>
+            <PressableScale style={styles.deleteBtn} onPress={confirmDelete}>
               <Text style={styles.deleteBtnText}>DELETE PERMANENTLY</Text>
-            </Pressable>
-            <Pressable style={styles.cancelBtn} onPress={() => setShowDelete(false)}>
+            </PressableScale>
+            <PressableScale style={styles.cancelBtn} onPress={() => setShowDelete(false)}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         </View>
       </Modal>

@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import LiveDot from "../components/LiveDot";
+import PressableScale from "../components/PressableScale";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import { MATCHUP_PICKS, MatchupPick, RIVALRY } from "../constants/league";
@@ -41,9 +43,9 @@ export default function Matchup() {
           contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
         >
           <View style={styles.screenHeader}>
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <PressableScale onPress={() => router.back()} hitSlop={12}>
               <Ionicons name="chevron-back" size={26} color={c.text} />
-            </Pressable>
+            </PressableScale>
             <View style={{ width: 26 }} />
           </View>
 
@@ -81,11 +83,11 @@ export default function Matchup() {
         contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
       >
         <View style={styles.screenHeader}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <PressableScale onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="chevron-back" size={26} color={c.text} />
-          </Pressable>
+          </PressableScale>
           <View style={styles.liveRow}>
-            <View style={styles.liveDot} />
+            <LiveDot />
             <Text style={styles.liveText}>{RIVALRY.event} · LIVE</Text>
           </View>
           <View style={{ width: 26 }} />

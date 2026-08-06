@@ -1,7 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Share, Text, TextInput, View } from "react-native";
+import { ScrollView, Share, Text, TextInput, View } from "react-native";
+import Animated from "react-native-reanimated";
+import LiveDot from "../components/LiveDot";
+import PressableScale from "../components/PressableScale";
+import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
@@ -68,45 +72,49 @@ export default function Leagues() {
           </View>
           <View style={commonStyles.divider} />
 
-          <Text style={styles.eyebrow}>LEAGUES</Text>
-          <Text style={styles.leagueName}>No League Yet</Text>
-          <View style={styles.memberRow}>
+          <Animated.Text entering={appear(0)} style={styles.eyebrow}>
+            LEAGUES
+          </Animated.Text>
+          <Animated.Text entering={appear(1)} style={styles.leagueName}>
+            No League Yet
+          </Animated.Text>
+          <Animated.View entering={appear(2)} style={styles.memberRow}>
             <Ionicons name="people-outline" size={15} color={c.textMuted} />
             <Text style={styles.memberText}>You are not in a league</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.card}>
+          <Animated.View entering={appear(3)} style={styles.card}>
             <EmptyState
               icon="trophy-outline"
               title="Start competing"
               message="Create a league and invite friends, or join one with an invite code. Standings, rivalries and chatter unlock once you are in."
             />
-            <Pressable style={styles.primaryButton} onPress={inviteFriends}>
+            <PressableScale style={styles.primaryButton} onPress={inviteFriends}>
               <Ionicons name="add" size={16} color="#FFFFFF" />
               <Text style={styles.primaryButtonText}>CREATE A LEAGUE</Text>
-            </Pressable>
-            <Pressable style={styles.ghostButton} onPress={inviteFriends}>
+            </PressableScale>
+            <PressableScale style={styles.ghostButton} onPress={inviteFriends}>
               <Text style={styles.ghostButtonText}>JOIN WITH A CODE</Text>
-            </Pressable>
-          </View>
+            </PressableScale>
+          </Animated.View>
 
-          <View style={styles.card}>
+          <Animated.View entering={appear(4)} style={styles.card}>
             <Text style={styles.cardTitle}>What you unlock</Text>
             {[
               { icon: "podium-outline" as const, text: "Live season and event standings" },
               { icon: "flash-outline" as const, text: "Weekly head-to-head rivalries" },
               { icon: "chatbubbles-outline" as const, text: "League chatter with your friends" },
-            ].map((row) => (
-              <View key={row.text} style={styles.riserRow}>
+            ].map((row, i) => (
+              <Animated.View key={row.text} entering={appear(5 + i)} style={styles.riserRow}>
                 <View style={styles.avatar}>
                   <Ionicons name={row.icon} size={18} color={c.textFaint} />
                 </View>
                 <View style={styles.playerCell}>
                   <Text style={styles.playerName}>{row.text}</Text>
                 </View>
-              </View>
+              </Animated.View>
             ))}
-          </View>
+          </Animated.View>
         </ScrollView>
 
         <View style={{ paddingBottom: insets.bottom }}>
@@ -143,14 +151,14 @@ export default function Leagues() {
         </View>
 
         <View style={styles.actionRow}>
-          <Pressable style={styles.actionButton} onPress={inviteFriends}>
+          <PressableScale style={styles.actionButton} onPress={inviteFriends}>
             <Ionicons name="person-add-outline" size={15} color={c.text} />
             <Text style={styles.actionButtonText}>INVITE</Text>
-          </Pressable>
-          <Pressable style={styles.actionButton} onPress={() => router.push("/settings")}>
+          </PressableScale>
+          <PressableScale style={styles.actionButton} onPress={() => router.push("/settings")}>
             <Ionicons name="settings-outline" size={15} color={c.text} />
             <Text style={styles.actionButtonText}>SETTINGS</Text>
-          </Pressable>
+          </PressableScale>
         </View>
 
         {/* Standings preview */}
@@ -175,15 +183,15 @@ export default function Leagues() {
                 <Text style={styles.columnLabel}>FPTS</Text>
               </View>
 
-              {SEASON_STANDINGS.slice(0, 4).map((s) => (
-                <StandingRow key={s.id} standing={s} />
+              {SEASON_STANDINGS.slice(0, 4).map((s, i) => (
+                <StandingRow key={s.id} standing={s} index={i} />
               ))}
             </>
           )}
 
-          <Pressable style={styles.ghostButton} onPress={() => router.push("/league-standings")}>
+          <PressableScale style={styles.ghostButton} onPress={() => router.push("/league-standings")}>
             <Text style={styles.ghostButtonText}>VIEW FULL STANDINGS</Text>
-          </Pressable>
+          </PressableScale>
         </View>
 
         {/* Active rivalry */}
@@ -191,7 +199,7 @@ export default function Leagues() {
         <View style={[styles.card, styles.rivalryCard]}>
           <View style={commonStyles.row}>
             <View style={styles.liveRow}>
-              <View style={styles.liveDot} />
+              <LiveDot />
               <Text style={styles.liveText}>ACTIVE RIVALRY</Text>
             </View>
             <Ionicons name="flash" size={20} color={c.red} />
@@ -218,9 +226,9 @@ export default function Leagues() {
             <View style={[styles.projFill, { width: `${yourShare}%` }]} />
           </View>
 
-          <Pressable style={styles.primaryButton} onPress={() => router.push("/matchup")}>
+          <PressableScale style={styles.primaryButton} onPress={() => router.push("/matchup")}>
             <Text style={styles.primaryButtonText}>VIEW MATCHUP</Text>
-          </Pressable>
+          </PressableScale>
         </View>
         ) : (
           <View style={styles.card}>
@@ -304,9 +312,9 @@ export default function Leagues() {
               placeholder="Say something..."
               placeholderTextColor={c.textFaint}
             />
-            <Pressable onPress={sendMessage} hitSlop={10}>
+            <PressableScale onPress={sendMessage} hitSlop={10}>
               <Ionicons name="send" size={18} color={draft.trim() ? c.red : c.textFaint} />
-            </Pressable>
+            </PressableScale>
           </View>
         </View>
       </ScrollView>

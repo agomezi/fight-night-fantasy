@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { Standing } from "../constants/league";
+import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeLeaguesStyles } from "../styles/leagues";
@@ -30,17 +32,23 @@ export default function StandingRow({
   standing,
   showTeam = true,
   padRank = false,
+  index = 0,
 }: {
   standing: Standing;
   showTeam?: boolean;
   padRank?: boolean;
+  /** Position in the list, used to stagger the entrance. */
+  index?: number;
 }) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
   const { rank, name, team, points, move, isMe } = standing;
 
   return (
-    <View style={[styles.standingRow, isMe && styles.standingRowMe]}>
+    <Animated.View
+      entering={appear(index)}
+      style={[styles.standingRow, isMe && styles.standingRowMe]}
+    >
       <View style={styles.rankCell}>
         {rank === 1 && (
           <View style={styles.crown}>
@@ -68,6 +76,6 @@ export default function StandingRow({
         </Text>
         <Text style={styles.pointsUnit}>PTS</Text>
       </View>
-    </View>
+    </Animated.View>
   );
 }

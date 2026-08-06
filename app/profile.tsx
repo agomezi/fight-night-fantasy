@@ -1,7 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, ScrollView, Share, Text, View } from "react-native";
+import { ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated from "react-native-reanimated";
+import PressableScale from "../components/PressableScale";
+import { appear } from "../constants/motion";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
@@ -84,7 +87,7 @@ export default function Profile() {
         </View>
         <View style={commonStyles.divider} />
 
-        <View style={styles.heroCard}>
+        <Animated.View entering={appear(0)} style={styles.heroCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{getInitials(profile.username)}</Text>
           </View>
@@ -93,10 +96,10 @@ export default function Profile() {
             <Text style={styles.levelPillText}>LEVEL 1</Text>
           </View>
           <Text style={styles.memberLine}>New member · {profile.title}</Text>
-        </View>
+        </Animated.View>
 
         <View style={styles.statGrid}>
-          <View style={styles.statCard}>
+          <Animated.View entering={appear(1)} style={styles.statCard}>
             <View style={styles.statAccent} />
             <Text style={styles.statLabel}>TOTAL POINTS</Text>
             <Text style={styles.statValue}>0</Text>
@@ -106,27 +109,27 @@ export default function Profile() {
                 NO POINTS YET
               </Text>
             </View>
-          </View>
+          </Animated.View>
 
-          <View style={styles.statCard}>
+          <Animated.View entering={appear(2)} style={styles.statCard}>
             <Text style={styles.statLabel}>GLOBAL RANK</Text>
             <Text style={styles.statValue}>—</Text>
             <Text style={styles.statSub}>UNRANKED</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.statCard}>
+          <Animated.View entering={appear(3)} style={styles.statCard}>
             <Text style={styles.statLabel}>LEAGUE RANK</Text>
             <Text style={styles.statValue}>—</Text>
             <Text style={styles.statSub}>NO LEAGUE</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.statCard}>
+          <Animated.View entering={appear(4)} style={styles.statCard}>
             <Text style={styles.statLabel}>PICK ACCURACY</Text>
             <Text style={styles.statValue}>—</Text>
             <View style={styles.accuracyTrack}>
               <View style={[styles.accuracyFill, { width: "0%" }]} />
             </View>
-          </View>
+          </Animated.View>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -185,8 +188,8 @@ export default function Profile() {
           <Text style={styles.sectionTitle}>ACHIEVEMENTS</Text>
         </View>
 
-        {ACHIEVEMENTS.map((a) => (
-          <View key={a.id} style={styles.achievementRow}>
+        {ACHIEVEMENTS.map((a, i) => (
+          <Animated.View key={a.id} entering={appear(i)} style={styles.achievementRow}>
             <View
               style={[
                 styles.achievementIcon,
@@ -207,7 +210,7 @@ export default function Profile() {
               <Text style={styles.achievementSub}>{a.sub}</Text>
             </View>
             {a.locked && <Ionicons name="lock-closed" size={16} color={c.textFaint} />}
-          </View>
+          </Animated.View>
         ))}
 
         <View style={styles.sectionHeader}>
@@ -216,7 +219,7 @@ export default function Profile() {
 
         <View style={styles.menuCard}>
           {MENU.map((item, i) => (
-            <Pressable
+            <PressableScale
               key={item.id}
               onPress={item.onPress}
               style={[styles.menuRow, i > 0 && styles.menuRowBorder]}
@@ -232,7 +235,7 @@ export default function Profile() {
               {!item.danger && (
                 <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
               )}
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
       </ScrollView>

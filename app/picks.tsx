@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { Animated, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
+import { Animated, Modal, ScrollView, Share, Text, View } from "react-native";
+import PressableScale from "../components/PressableScale";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
@@ -130,13 +131,13 @@ function FightControls({
         {METHODS.map((m) => {
           const active = method === m;
           return (
-            <Pressable
+            <PressableScale
               key={m}
               onPress={() => onMethod(m)}
               style={[styles.seg, active && styles.segActive]}
             >
               <Text style={[styles.segText, active && styles.segTextActive]}>{m}</Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
@@ -148,13 +149,13 @@ function FightControls({
             {ROUNDS.map((r) => {
               const active = round === r;
               return (
-                <Pressable
+                <PressableScale
                   key={r}
                   onPress={() => onRound(r)}
                   style={[styles.roundBox, active && styles.segActive]}
                 >
                   <Text style={[styles.segText, active && styles.segTextActive]}>{r}</Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -307,7 +308,7 @@ export default function Picks() {
         <Text style={styles.eventSub}>Make your picks. Lock them in.</Text>
 
         <View style={styles.mainCard}>
-          <Pressable style={styles.mainHeader} onPress={() => toggle(MAIN_EVENT.id)}>
+          <PressableScale style={styles.mainHeader} onPress={() => toggle(MAIN_EVENT.id)}>
             <Text style={styles.mainHeaderText}>
               MAIN EVENT{"  "}
               <Text style={{ color: c.red }}>{MAIN_EVENT.division}</Text>
@@ -317,12 +318,12 @@ export default function Picks() {
               size={18}
               color={c.textMuted}
             />
-          </Pressable>
+          </PressableScale>
 
           {expanded[MAIN_EVENT.id] && (
             <View style={{ padding: 18, paddingTop: 4 }}>
               <View style={styles.fighterRow}>
-                <Pressable
+                <PressableScale
                   style={styles.fighterCol}
                   onPress={() => setPick(MAIN_EVENT.id, MAIN_EVENT.a.id)}
                 >
@@ -331,9 +332,9 @@ export default function Picks() {
                     selected={picks[MAIN_EVENT.id] === MAIN_EVENT.a.id}
                   />
                   <Text style={styles.fighterName}>{MAIN_EVENT.a.name}</Text>
-                </Pressable>
+                </PressableScale>
                 <Text style={styles.vs}>VS</Text>
-                <Pressable
+                <PressableScale
                   style={styles.fighterCol}
                   onPress={() => setPick(MAIN_EVENT.id, MAIN_EVENT.b.id)}
                 >
@@ -342,7 +343,7 @@ export default function Picks() {
                     selected={picks[MAIN_EVENT.id] === MAIN_EVENT.b.id}
                   />
                   <Text style={styles.fighterName}>{MAIN_EVENT.b.name}</Text>
-                </Pressable>
+                </PressableScale>
               </View>
 
               <FightControls
@@ -362,7 +363,7 @@ export default function Picks() {
           return (
             <View key={fight.id} style={styles.rowCard}>
               <View style={styles.row}>
-                <Pressable
+                <PressableScale
                   style={styles.rowFighter}
                   onPress={() => setPick(fight.id, fight.a.id)}
                 >
@@ -372,9 +373,9 @@ export default function Picks() {
                   >
                     {fight.a.name}
                   </Text>
-                </Pressable>
+                </PressableScale>
 
-                <Pressable style={styles.rowCenter} onPress={() => toggle(fight.id)}>
+                <PressableScale style={styles.rowCenter} onPress={() => toggle(fight.id)}>
                   <Text style={styles.rowDivision}>{fight.division}</Text>
                   {picked ? (
                     <Ionicons name="checkmark-circle" size={16} color={c.red} />
@@ -386,9 +387,9 @@ export default function Picks() {
                     size={14}
                     color={c.textFaint}
                   />
-                </Pressable>
+                </PressableScale>
 
-                <Pressable
+                <PressableScale
                   style={[styles.rowFighter, { justifyContent: "flex-end" }]}
                   onPress={() => setPick(fight.id, fight.b.id)}
                 >
@@ -402,7 +403,7 @@ export default function Picks() {
                     {fight.b.name}
                   </Text>
                   <Avatar initials={fight.b.initials} selected={picked === fight.b.id} size={40} />
-                </Pressable>
+                </PressableScale>
               </View>
 
               {isOpen && (
@@ -430,14 +431,14 @@ export default function Picks() {
                 <Text style={styles.lockedPillText}>PICKS LOCKED</Text>
               </View>
               {canEditPicks() && (
-                <Pressable style={styles.changeBtn} onPress={changePicks}>
+                <PressableScale style={styles.changeBtn} onPress={changePicks}>
                   <Text style={styles.changeBtnText}>CHANGE PICKS</Text>
-                </Pressable>
+                </PressableScale>
               )}
             </View>
           ) : (
             <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
-              <Pressable
+              <PressableScale
                 style={[styles.lockBtn, madePicks < totalFights && styles.lockBtnDisabled]}
                 onPress={lockIn}
               >
@@ -446,7 +447,7 @@ export default function Picks() {
                 <Text style={styles.lockCount}>
                   {madePicks}/{totalFights}
                 </Text>
-              </Pressable>
+              </PressableScale>
             </Animated.View>
           )}
         </View>
@@ -464,13 +465,13 @@ export default function Picks() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Pressable
+            <PressableScale
               style={styles.modalClose}
               onPress={() => setShowLockedModal(false)}
               hitSlop={10}
             >
               <Ionicons name="close" size={22} color={c.textMuted} />
-            </Pressable>
+            </PressableScale>
 
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.badgeWrap}>
@@ -527,22 +528,22 @@ export default function Picks() {
                 </Text>
               </View>
 
-              <Pressable style={styles.shareBtn} onPress={shareCard}>
+              <PressableScale style={styles.shareBtn} onPress={shareCard}>
                 <Ionicons name="share-social" size={18} color="#fff" />
                 <Text style={styles.lockText}>SHARE YOUR CARD</Text>
-              </Pressable>
-              <Pressable
+              </PressableScale>
+              <PressableScale
                 style={styles.backBtn}
                 onPress={() => setShowLockedModal(false)}
               >
                 <Text style={styles.backBtnText}>BACK TO PICKS</Text>
-              </Pressable>
+              </PressableScale>
               {canEditPicks() && (
-                <Pressable style={styles.editLink} onPress={changePicks}>
+                <PressableScale style={styles.editLink} onPress={changePicks}>
                   <Text style={styles.editLinkText}>
                     Changed your mind? Edit picks
                   </Text>
-                </Pressable>
+                </PressableScale>
               )}
             </ScrollView>
           </View>

@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import PressableScale from "../components/PressableScale";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
@@ -213,7 +214,7 @@ export default function Home() {
               const label = tab === "quick" ? "QUICK PICK" : "FULL CARD (12)";
               const active = picksTab === tab;
               return (
-                <Pressable
+                <PressableScale
                   key={tab}
                   onPress={() => setPicksTab(tab)}
                   style={{
@@ -235,7 +236,7 @@ export default function Home() {
                   >
                     {label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -259,7 +260,7 @@ export default function Home() {
                   marginBottom: 20,
                 }}
               >
-                <Pressable
+                <PressableScale
                   onPress={() => setQuickPick("pereira")}
                   style={{ alignItems: "center", flex: 1 }}
                 >
@@ -290,11 +291,11 @@ export default function Home() {
                   <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
                     29-9 · C
                   </Text>
-                </Pressable>
+                </PressableScale>
                 <Text style={{ color: c.textFaint, fontWeight: "700", fontSize: 13 }}>
                   VS
                 </Text>
-                <Pressable
+                <PressableScale
                   onPress={() => setQuickPick("hill")}
                   style={{ alignItems: "center", flex: 1 }}
                 >
@@ -325,7 +326,7 @@ export default function Home() {
                   <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
                     12-1 · #1
                   </Text>
-                </Pressable>
+                </PressableScale>
               </View>
 
               <View style={{ marginBottom: 20 }}>
@@ -362,7 +363,7 @@ export default function Home() {
                 </View>
               </View>
 
-              <Pressable
+              <PressableScale
                 disabled={!quickPick}
                 onPress={() =>
                   router.push({
@@ -389,7 +390,7 @@ export default function Home() {
                 >
                   {quickPick ? "LOCK IN YOUR PICKS →" : "SELECT A FIGHTER TO PICK"}
                 </Text>
-              </Pressable>
+              </PressableScale>
             </View>
           ) : (
             <View style={{ gap: 0 }}>
@@ -423,7 +424,7 @@ export default function Home() {
                       {fight.division}
                     </Text>
                   </View>
-                  <Pressable
+                  <PressableScale
                     onPress={() => router.push("/picks")}
                     style={{
                       backgroundColor: c.red,
@@ -442,17 +443,17 @@ export default function Home() {
                     >
                       PICK
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 </View>
               ))}
-              <Pressable
+              <PressableScale
                 onPress={() => router.push("/picks")}
                 style={{ marginTop: 8, alignItems: "center" }}
               >
                 <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
                   + 9 more fights →
                 </Text>
-              </Pressable>
+              </PressableScale>
             </View>
           )}
         </View>
@@ -482,7 +483,7 @@ export default function Home() {
               footer: (
                 <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
                   {(["yes", "no"] as const).map((option) => (
-                    <Pressable
+                    <PressableScale
                       key={option}
                       onPress={() => setHotTakeVote(option)}
                       style={{
@@ -507,7 +508,7 @@ export default function Home() {
                       >
                         {option.toUpperCase()}
                       </Text>
-                    </Pressable>
+                    </PressableScale>
                   ))}
                 </View>
               ),

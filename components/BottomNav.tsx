@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import PressableScale from "./PressableScale";
 import { Path, Svg } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
 
@@ -40,7 +41,7 @@ export default function BottomNav({ active }: { active: TabKey }) {
         const isActive = tab.key === active;
         const color = isActive ? c.red : c.textFaint;
         return (
-          <Pressable
+          <PressableScale
             key={tab.key}
             onPress={() => {
               if (isActive) return;
@@ -52,7 +53,7 @@ export default function BottomNav({ active }: { active: TabKey }) {
             <Text style={{ color, fontSize: 10, fontWeight: "700", letterSpacing: 1 }}>
               {tab.label}
             </Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
