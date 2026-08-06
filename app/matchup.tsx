@@ -6,6 +6,7 @@ import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import AnimatedBar from "../components/AnimatedBar";
 import EmptyState from "../components/EmptyState";
 import { MATCHUP_PICKS, MatchupPick, RIVALRY } from "../constants/league";
 import { getInitials } from "../context/ProfileContext";
@@ -134,11 +135,10 @@ export default function Matchup() {
               {Math.abs(RIVALRY.you.proj - RIVALRY.rival.proj).toFixed(1)} PTS APART
             </Text>
           </View>
-          <View style={styles.projTrack}>
-            <View
-              style={[styles.projFill, { width: `${(RIVALRY.you.proj / total) * 100}%` }]}
-            />
-          </View>
+          <AnimatedBar
+            percent={(RIVALRY.you.proj / total) * 100}
+            style={{ marginTop: 10 }}
+          />
           <View style={[commonStyles.row, { marginTop: 8 }]}>
             <Text style={styles.projLabel}>{RIVALRY.you.name}</Text>
             <Text style={styles.projLabel}>{RIVALRY.rival.name}</Text>

@@ -2,9 +2,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+} from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
+import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import StandingRow from "../components/StandingRow";
@@ -19,6 +23,46 @@ import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 
 type Scope = "season" | "event";
+
+/** Season / Last Event switch — the fill slides in rather than snapping. */
+function ScopeToggle({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const styles = useThemedStyles(makeLeaguesStyles);
+  const progress = useToggleProgress(active);
+
+  const boxStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ["transparent", c.red],
+    ),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [c.borderStrong, c.red],
+    ),
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.text2, "#FFFFFF"]),
+  }));
+
+  return (
+    <PressableScale onPress={onPress} style={[styles.toggle, boxStyle]}>
+      <Animated.Text style={[styles.toggleText, textStyle]}>
+        {label}
+      </Animated.Text>
+    </PressableScale>
+  );
+}
 
 export default function LeagueStandings() {
   const insets = useSafeAreaInsets();
@@ -68,20 +112,14 @@ export default function LeagueStandings() {
         <Text style={styles.screenNote}>Standings reflect picks since you joined</Text>
 
         <View style={styles.toggleRow}>
-          {(["season", "event"] as Scope[]).map((key) => {
-            const active = scope === key;
-            return (
-              <PressableScale
-                key={key}
-                onPress={() => setScope(key)}
-                style={[styles.toggle, active && styles.toggleActive]}
-              >
-                <Text style={[styles.toggleText, active && styles.toggleTextActive]}>
-                  {key === "season" ? "SEASON" : "LAST EVENT"}
-                </Text>
-              </PressableScale>
-            );
-          })}
+          {(["season", "event"] as Scope[]).map((key) => (
+            <ScopeToggle
+              key={key}
+              label={key === "season" ? "SEASON" : "LAST EVENT"}
+              active={scope === key}
+              onPress={() => setScope(key)}
+            />
+          ))}
         </View>
 
         <View style={styles.card}>

@@ -1,12 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
-import { useMemo, useRef, useState } from "react";
-import { Animated, Modal, ScrollView, Share, Text, View } from "react-native";
-import PressableScale from "../components/PressableScale";
+import { useMemo, useState } from "react";
+import {
+  Modal,
+  Platform,
+  ScrollView,
+  Share,
+  StyleProp,
+  Text,
+  View,
+  ViewStyle,
+} from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, {
+  ZoomIn,
+  ZoomOut,
+  interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import BottomNav from "../components/BottomNav";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import PressableScale from "../components/PressableScale";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
 import { makePicksStyles } from "../styles/picks";
 
@@ -90,23 +110,92 @@ function Avatar({
   size?: number;
 }) {
   const { c } = useTheme();
+  const progress = useToggleProgress(!!selected);
+
+  // Border thickens and warms to red while the tile swells slightly, so
+  // picking a fighter reads as a commitment rather than a colour swap.
+  const animatedStyle = useAnimatedStyle(() => ({
+    borderWidth: 1 + progress.value,
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [c.borderStrong, c.red],
+    ),
+    transform: [{ scale: 1 + progress.value * 0.05 }],
+  }));
+
+  const badgeSize = Math.max(18, size / 4);
+
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: 14,
-        backgroundColor: c.input,
-        borderWidth: selected ? 2 : 1,
-        borderColor: selected ? c.red : c.borderStrong,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+    <Animated.View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: 14,
+          backgroundColor: c.input,
+          alignItems: "center",
+          justifyContent: "center",
+        },
+        animatedStyle,
+      ]}
     >
       <Text style={{ color: c.text, fontWeight: "700", fontSize: size / 3 }}>
         {initials}
       </Text>
-    </View>
+
+      {selected && (
+        <Animated.View
+          entering={ZoomIn.springify().damping(14)}
+          exiting={ZoomOut.duration(120)}
+          style={{
+            position: "absolute",
+            top: -badgeSize / 3,
+            right: -badgeSize / 3,
+            width: badgeSize,
+            height: badgeSize,
+            borderRadius: badgeSize / 2,
+            backgroundColor: c.red,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name="checkmark" size={badgeSize * 0.7} color="#FFFFFF" />
+        </Animated.View>
+      )}
+    </Animated.View>
+  );
+}
+
+/** Method / round chip whose fill and label ease between states. */
+function Segment({
+  active,
+  onPress,
+  style,
+  label,
+}: {
+  active: boolean;
+  onPress: () => void;
+  style: StyleProp<ViewStyle>;
+  label: string | number;
+}) {
+  const { c } = useTheme();
+  const styles = useThemedStyles(makePicksStyles);
+  const progress = useToggleProgress(active);
+
+  const boxStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], [c.input, c.red]),
+    borderColor: interpolateColor(progress.value, [0, 1], [c.border, c.red]),
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.text2, "#FFFFFF"]),
+  }));
+
+  return (
+    <PressableScale onPress={onPress} style={[style, boxStyle]} scaleTo={0.93}>
+      <Animated.Text style={[styles.segText, textStyle]}>{label}</Animated.Text>
+    </PressableScale>
   );
 }
 
@@ -128,36 +217,30 @@ function FightControls({
     <>
       <Text style={styles.groupLabel}>METHOD OF VICTORY</Text>
       <View style={styles.segRow}>
-        {METHODS.map((m) => {
-          const active = method === m;
-          return (
-            <PressableScale
-              key={m}
-              onPress={() => onMethod(m)}
-              style={[styles.seg, active && styles.segActive]}
-            >
-              <Text style={[styles.segText, active && styles.segTextActive]}>{m}</Text>
-            </PressableScale>
-          );
-        })}
+        {METHODS.map((m) => (
+          <Segment
+            key={m}
+            label={m}
+            active={method === m}
+            onPress={() => onMethod(m)}
+            style={styles.seg}
+          />
+        ))}
       </View>
 
       {method !== "DEC" && (
         <>
           <Text style={styles.groupLabel}>ROUND</Text>
           <View style={styles.segRow}>
-            {ROUNDS.map((r) => {
-              const active = round === r;
-              return (
-                <PressableScale
-                  key={r}
-                  onPress={() => onRound(r)}
-                  style={[styles.roundBox, active && styles.segActive]}
-                >
-                  <Text style={[styles.segText, active && styles.segTextActive]}>{r}</Text>
-                </PressableScale>
-              );
-            })}
+            {ROUNDS.map((r) => (
+              <Segment
+                key={r}
+                label={r}
+                active={round === r}
+                onPress={() => onRound(r)}
+                style={styles.roundBox}
+              />
+            ))}
           </View>
         </>
       )}
@@ -255,14 +338,22 @@ export default function Picks() {
     [allFights, picks, methods, rounds]
   );
 
-  const shakeX = useRef(new Animated.Value(0)).current;
+  const shakeX = useSharedValue(0);
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
+  }));
+
   const shake = () => {
-    shakeX.setValue(0);
-    Animated.sequence(
-      [10, -10, 8, -8, 5, -5, 0].map((to) =>
-        Animated.timing(shakeX, { toValue: to, duration: 50, useNativeDriver: true })
-      )
-    ).start();
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(
+        () => {},
+      );
+    }
+    shakeX.value = withSequence(
+      ...[10, -10, 8, -8, 5, -5, 0].map((to) =>
+        withTiming(to, { duration: 50 }),
+      ),
+    );
   };
 
   const lockIn = () => {
@@ -437,7 +528,7 @@ export default function Picks() {
               )}
             </View>
           ) : (
-            <Animated.View style={{ transform: [{ translateX: shakeX }] }}>
+            <Animated.View style={shakeStyle}>
               <PressableScale
                 style={[styles.lockBtn, madePicks < totalFights && styles.lockBtnDisabled]}
                 onPress={lockIn}

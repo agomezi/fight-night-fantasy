@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { Alert, Modal, ScrollView, Switch, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, { ZoomIn } from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -158,7 +158,10 @@ export default function Settings() {
         onRequestClose={() => setShowDelete(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <Animated.View
+            entering={ZoomIn.springify().damping(18).stiffness(220)}
+            style={styles.modalCard}
+          >
             <View style={styles.modalIcon}>
               <Ionicons name="warning-outline" size={28} color={c.red} />
             </View>
@@ -173,7 +176,7 @@ export default function Settings() {
             <PressableScale style={styles.cancelBtn} onPress={() => setShowDelete(false)}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </PressableScale>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>

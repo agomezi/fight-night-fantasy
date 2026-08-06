@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Share, Text, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
+import AnimatedBar from "../components/AnimatedBar";
 import LiveDot from "../components/LiveDot";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
@@ -222,9 +223,7 @@ export default function Leagues() {
               <Text style={styles.projValue}>{RIVALRY.rival.proj.toFixed(1)}</Text>
             </View>
           </View>
-          <View style={styles.projTrack}>
-            <View style={[styles.projFill, { width: `${yourShare}%` }]} />
-          </View>
+          <AnimatedBar percent={yourShare} style={{ marginTop: 10 }} />
 
           <PressableScale style={styles.primaryButton} onPress={() => router.push("/matchup")}>
             <Text style={styles.primaryButtonText}>VIEW MATCHUP</Text>

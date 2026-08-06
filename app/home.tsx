@@ -1,9 +1,17 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import Animated from "react-native-reanimated";
+import Animated, {
+  ZoomIn,
+  ZoomOut,
+  interpolateColor,
+  useAnimatedStyle,
+} from "react-native-reanimated";
+import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
+import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
@@ -14,6 +22,181 @@ import SwipeableCards from "../components/SwipeableCards";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
+/** Tab label whose colour eases; the underline is drawn by the parent. */
+function TabButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const progress = useToggleProgress(active);
+
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.textFaint, c.text]),
+  }));
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      scaleTo={0.97}
+      style={{ flex: 1, paddingBottom: 12, alignItems: "center" }}
+    >
+      <Animated.Text
+        style={[
+          { fontSize: 13, fontWeight: "700", letterSpacing: 1 },
+          textStyle,
+        ]}
+      >
+        {label}
+      </Animated.Text>
+    </PressableScale>
+  );
+}
+
+/** Fighter tile for Quick Pick — swells and warms when chosen. */
+function FighterChoice({
+  initials,
+  name,
+  record,
+  selected,
+  onPress,
+}: {
+  initials: string;
+  name: string;
+  record: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const commonStyles = useThemedStyles(makeCommonStyles);
+  const progress = useToggleProgress(selected);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    borderWidth: 1 + progress.value,
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [c.borderStrong, c.red],
+    ),
+    transform: [{ scale: 1 + progress.value * 0.08 }],
+  }));
+
+  const nameStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.text, c.red]),
+  }));
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      style={{ alignItems: "center", flex: 1 }}
+      scaleTo={0.94}
+    >
+      <Animated.View
+        style={[
+          {
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            backgroundColor: c.input,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 8,
+          },
+          ringStyle,
+        ]}
+      >
+        <Text style={{ color: c.text, fontWeight: "700" }}>{initials}</Text>
+
+        {selected && (
+          <Animated.View
+            entering={ZoomIn.springify().damping(14)}
+            exiting={ZoomOut.duration(120)}
+            style={{
+              position: "absolute",
+              bottom: -2,
+              right: -2,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: c.red,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+          </Animated.View>
+        )}
+      </Animated.View>
+
+      <Animated.Text
+        style={[commonStyles.cardTitle, { fontSize: 16, marginBottom: 2 }, nameStyle]}
+      >
+        {name}
+      </Animated.Text>
+      <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+        {record}
+      </Text>
+    </PressableScale>
+  );
+}
+
+/** Yes/No poll button that fills red as it's chosen. */
+function VoteButton({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const progress = useToggleProgress(selected);
+
+  const boxStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], [c.card, c.red]),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [c.borderStrong, c.red],
+    ),
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.text, "#FFFFFF"]),
+  }));
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      haptic="medium"
+      style={[
+        {
+          flex: 1,
+          paddingVertical: 14,
+          borderRadius: 10,
+          alignItems: "center",
+          borderWidth: 1,
+        },
+        boxStyle,
+      ]}
+    >
+      <Animated.Text
+        style={[
+          { fontSize: 16, fontWeight: "700", letterSpacing: 2 },
+          textStyle,
+        ]}
+      >
+        {label}
+      </Animated.Text>
+    </PressableScale>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -22,6 +205,17 @@ export default function Home() {
   const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
   const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
   const [quickPick, setQuickPick] = useState<"pereira" | "hill" | null>(null);
+
+  // Measured so the sliding underline matches whatever the tabs actually are.
+  const [tabStripWidth, setTabStripWidth] = useState(0);
+  const tabProgress = useToggleProgress(picksTab === "full");
+  const underlineStyle = useAnimatedStyle(() => {
+    const half = tabStripWidth / 2;
+    return {
+      width: half,
+      transform: [{ translateX: tabProgress.value * half }],
+    };
+  });
 
   const fullCardFights = [
     { matchup: "Pereira vs Hill", division: "TITLE FIGHT" },
@@ -203,6 +397,9 @@ export default function Home() {
 
         <Animated.View entering={appear(0)} style={commonStyles.homeCard}>
           <View
+            onLayout={(e) =>
+              setTabStripWidth(Math.max(0, e.nativeEvent.layout.width - 48))
+            }
             style={{
               flexDirection: "row",
               borderBottomWidth: 1,
@@ -214,33 +411,30 @@ export default function Home() {
           >
             {(["quick", "full"] as const).map((tab) => {
               const label = tab === "quick" ? "QUICK PICK" : "FULL CARD (12)";
-              const active = picksTab === tab;
               return (
-                <PressableScale
+                <TabButton
                   key={tab}
+                  label={label}
+                  active={picksTab === tab}
                   onPress={() => setPicksTab(tab)}
-                  style={{
-                    flex: 1,
-                    paddingBottom: 12,
-                    alignItems: "center",
-                    borderBottomWidth: 2,
-                    borderBottomColor: active ? c.red : "transparent",
-                    marginBottom: -1,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      letterSpacing: 1,
-                      color: active ? c.text : c.textFaint,
-                    }}
-                  >
-                    {label}
-                  </Text>
-                </PressableScale>
+                />
               );
             })}
+
+            {/* Single underline that slides between tabs, rather than one
+                border blinking off and another blinking on. */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  bottom: -1,
+                  left: 24,
+                  height: 2,
+                  backgroundColor: c.red,
+                },
+                underlineStyle,
+              ]}
+            />
           </View>
 
           {picksTab === "quick" ? (
@@ -262,93 +456,27 @@ export default function Home() {
                   marginBottom: 20,
                 }}
               >
-                <PressableScale
+                <FighterChoice
+                  initials="AP"
+                  name="PEREIRA"
+                  record="29-9 · C"
+                  selected={quickPick === "pereira"}
                   onPress={() => setQuickPick("pereira")}
-                  style={{ alignItems: "center", flex: 1 }}
-                >
-                  <View
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 26,
-                      backgroundColor: c.input,
-                      borderWidth: quickPick === "pereira" ? 2 : 1,
-                      borderColor: quickPick === "pereira" ? c.red : c.borderStrong,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Text style={{ color: c.text, fontWeight: "700" }}>AP</Text>
-                  </View>
-                  <Text
-                    style={[
-                      commonStyles.cardTitle,
-                      { fontSize: 16, marginBottom: 2 },
-                      quickPick === "pereira" && { color: c.red },
-                    ]}
-                  >
-                    PEREIRA
-                  </Text>
-                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
-                    29-9 · C
-                  </Text>
-                </PressableScale>
+                />
                 <Text style={{ color: c.textFaint, fontWeight: "700", fontSize: 13 }}>
                   VS
                 </Text>
-                <PressableScale
+                <FighterChoice
+                  initials="JH"
+                  name="HILL"
+                  record="12-1 · #1"
+                  selected={quickPick === "hill"}
                   onPress={() => setQuickPick("hill")}
-                  style={{ alignItems: "center", flex: 1 }}
-                >
-                  <View
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: 26,
-                      backgroundColor: c.input,
-                      borderWidth: quickPick === "hill" ? 2 : 1,
-                      borderColor: quickPick === "hill" ? c.red : c.borderStrong,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Text style={{ color: c.text, fontWeight: "700" }}>JH</Text>
-                  </View>
-                  <Text
-                    style={[
-                      commonStyles.cardTitle,
-                      { fontSize: 16, marginBottom: 2 },
-                      quickPick === "hill" && { color: c.red },
-                    ]}
-                  >
-                    HILL
-                  </Text>
-                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
-                    12-1 · #1
-                  </Text>
-                </PressableScale>
+                />
               </View>
 
               <View style={{ marginBottom: 20 }}>
-                <View
-                  style={{
-                    height: 4,
-                    borderRadius: 2,
-                    backgroundColor: c.borderStrong,
-                    overflow: "hidden",
-                  }}
-                >
-                  <View
-                    style={{
-                      width: "61%",
-                      height: "100%",
-                      backgroundColor: c.red,
-                      borderRadius: 2,
-                    }}
-                  />
-                </View>
+                <AnimatedBar percent={61} height={4} />
                 <View
                   style={{
                     flexDirection: "row",
@@ -485,32 +613,12 @@ export default function Home() {
               footer: (
                 <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
                   {(["yes", "no"] as const).map((option) => (
-                    <PressableScale
+                    <VoteButton
                       key={option}
+                      label={option.toUpperCase()}
+                      selected={hotTakeVote === option}
                       onPress={() => setHotTakeVote(option)}
-                      style={{
-                        flex: 1,
-                        paddingVertical: 14,
-                        borderRadius: 10,
-                        alignItems: "center",
-                        borderWidth: 1,
-                        borderColor:
-                          hotTakeVote === option ? c.red : c.borderStrong,
-                        backgroundColor:
-                          hotTakeVote === option ? c.red : c.card,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "700",
-                          color: hotTakeVote === option ? "#fff" : c.text,
-                          letterSpacing: 2,
-                        }}
-                      >
-                        {option.toUpperCase()}
-                      </Text>
-                    </PressableScale>
+                    />
                   ))}
                 </View>
               ),

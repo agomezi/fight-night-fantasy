@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
+import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
@@ -126,9 +127,7 @@ export default function Profile() {
           <Animated.View entering={appear(4)} style={styles.statCard}>
             <Text style={styles.statLabel}>PICK ACCURACY</Text>
             <Text style={styles.statValue}>—</Text>
-            <View style={styles.accuracyTrack}>
-              <View style={[styles.accuracyFill, { width: "0%" }]} />
-            </View>
+            <AnimatedBar percent={0} height={4} style={{ marginTop: 10 }} />
           </Animated.View>
         </View>
 
