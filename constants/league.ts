@@ -8,40 +8,18 @@ export type Standing = {
   isMe?: boolean;
 };
 
-export const LEAGUE = {
-  name: "The Alpha League",
-  kind: "PRIVATE LEAGUE",
-  members: 12,
-  week: 7,
+export type League = {
+  name: string;
+  kind: string;
+  members: number;
+  week: number;
 };
 
-export const SEASON_STANDINGS: Standing[] = [
-  { id: "me", rank: 1, name: "You", team: "Team Apex", points: 1245.5, move: 1, isMe: true },
-  { id: "dave", rank: 2, name: "Dave M.", team: "Striker Squad", points: 1235.0, move: 1 },
-  { id: "sarah", rank: 3, name: "Sarah J.", team: "Submission Artists", points: 1102.5, move: 0 },
-  { id: "mike", rank: 4, name: "Mike K.", team: "Knockout Kings", points: 980.0, move: 2 },
-  { id: "priya", rank: 5, name: "Priya K.", team: "Ground Control", points: 905.0, move: -1 },
-  { id: "jordan", rank: 6, name: "Jordan M.", team: "The Octagon", points: 871.5, move: 1 },
-  { id: "deshawn", rank: 7, name: "Deshawn T.", team: "Clinch Club", points: 812.0, move: -2 },
-  { id: "sofia", rank: 8, name: "Sofia R.", team: "Heavy Hitters", points: 768.5, move: 0 },
-];
-
-export const EVENT_STANDINGS: Standing[] = [
-  { id: "dave", rank: 1, name: "Dave M.", team: "Striker Squad", points: 245.0, move: 3 },
-  { id: "sofia", rank: 2, name: "Sofia R.", team: "Heavy Hitters", points: 238.0, move: -1 },
-  { id: "deshawn", rank: 3, name: "Deshawn T.", team: "Clinch Club", points: 231.0, move: 0 },
-  { id: "me", rank: 4, name: "You", team: "Team Apex", points: 219.0, move: 2, isMe: true },
-  { id: "priya", rank: 5, name: "Priya K.", team: "Ground Control", points: 205.0, move: -2 },
-  { id: "jordan", rank: 6, name: "Jordan M.", team: "The Octagon", points: 198.0, move: 1 },
-  { id: "sarah", rank: 7, name: "Sarah J.", team: "Submission Artists", points: 181.5, move: -1 },
-  { id: "mike", rank: 8, name: "Mike K.", team: "Knockout Kings", points: 164.0, move: 0 },
-];
-
-export const RIVALRY = {
-  you: { name: "You", team: "Team Apex", proj: 142.0, record: "5-1", live: 88.5 },
-  rival: { name: "Dave", team: "Striker Squad", proj: 138.5, record: "5-1", live: 76.0 },
-  gap: 10.5,
-  event: "UFC 299",
+export type Rivalry = {
+  you: { name: string; team: string; proj: number; record: string; live: number };
+  rival: { name: string; team: string; proj: number; record: string; live: number };
+  gap: number;
+  event: string;
 };
 
 export type MatchupPick = {
@@ -56,77 +34,38 @@ export type MatchupPick = {
   status: "FINAL" | "LIVE" | "UPCOMING";
 };
 
-export const MATCHUP_PICKS: MatchupPick[] = [
-  {
-    id: "1",
-    bout: "O'Malley vs. Vera",
-    yourPick: "S. O'Malley",
-    yourMethod: "Decision",
-    yourPoints: 32.0,
-    rivalPick: "M. Vera",
-    rivalMethod: "KO/TKO R3",
-    rivalPoints: 0,
-    status: "FINAL",
-  },
-  {
-    id: "2",
-    bout: "Gaethje vs. Holloway",
-    yourPick: "J. Gaethje",
-    yourMethod: "KO/TKO R2",
-    yourPoints: 28.5,
-    rivalPick: "J. Gaethje",
-    rivalMethod: "Decision",
-    rivalPoints: 22.0,
-    status: "FINAL",
-  },
-  {
-    id: "3",
-    bout: "Pantoja vs. Erceg",
-    yourPick: "A. Pantoja",
-    yourMethod: "Submission R4",
-    yourPoints: 28.0,
-    rivalPick: "A. Pantoja",
-    rivalMethod: "Submission R4",
-    rivalPoints: 28.0,
-    status: "FINAL",
-  },
-  {
-    id: "4",
-    bout: "Makhachev vs. Poirier",
-    yourPick: "I. Makhachev",
-    yourMethod: "Submission R3",
-    yourPoints: 0,
-    rivalPick: "D. Poirier",
-    rivalMethod: "Decision",
-    rivalPoints: 26.0,
-    status: "LIVE",
-  },
-  {
-    id: "5",
-    bout: "Adesanya vs. Du Plessis",
-    yourPick: "I. Adesanya",
-    yourMethod: "Decision",
-    yourPoints: 0,
-    rivalPick: "D. Du Plessis",
-    rivalMethod: "KO/TKO R2",
-    rivalPoints: 0,
-    status: "UPCOMING",
-  },
-];
+export type Riser = { id: string; name: string; sub: string; delta: string };
 
-export const RISING_STARS = [
-  { id: "1", name: "ApexPredator", sub: "Moved up 12 spots", delta: "+42%" },
-  { id: "2", name: "IronChin88", sub: "Moved up 5 spots", delta: "+18%" },
-];
+export type ChatMessage = { id: string; author: string; time: string; text: string };
 
-export const CHATTER = [
-  { id: "1", author: "Dave M.", time: "2h ago", text: "I need a massive night from my main event pick to catch up. 🥊" },
-  { id: "2", author: "Sarah J.", time: "5h ago", text: "Who else is fading the favorite tonight? Seems like a trap." },
-];
+export type LeagueStat = {
+  id: string;
+  label: string;
+  value: string;
+  delta: string;
+  positive: boolean | null;
+};
 
-export const LEAGUE_STATS = [
-  { id: "winrate", label: "YOUR WIN RATE", value: "75.0%", delta: "+2.4%", positive: true },
-  { id: "avg", label: "POINTS AVERAGE", value: "285", delta: "Stable", positive: null as boolean | null },
-  { id: "accuracy", label: "PICK ACCURACY", value: "68%", delta: "-1.2%", positive: false },
-  { id: "percentile", label: "LEAGUE PERCENTILE", value: "TOP 3%", delta: "Rising", positive: true },
+// A brand-new account has not joined a league and has no scored picks yet, so
+// every collection below is intentionally empty. Screens branch on these to
+// render their empty states instead of fabricating numbers we don't have.
+export const LEAGUE: League | null = null;
+
+export const SEASON_STANDINGS: Standing[] = [];
+
+export const EVENT_STANDINGS: Standing[] = [];
+
+export const RIVALRY: Rivalry | null = null;
+
+export const MATCHUP_PICKS: MatchupPick[] = [];
+
+export const RISING_STARS: Riser[] = [];
+
+export const CHATTER: ChatMessage[] = [];
+
+export const LEAGUE_STATS: LeagueStat[] = [
+  { id: "winrate", label: "YOUR WIN RATE", value: "—", delta: "No events yet", positive: null },
+  { id: "avg", label: "POINTS AVERAGE", value: "0", delta: "No events yet", positive: null },
+  { id: "accuracy", label: "PICK ACCURACY", value: "—", delta: "No picks yet", positive: null },
+  { id: "percentile", label: "LEAGUE PERCENTILE", value: "—", delta: "Unranked", positive: null },
 ];

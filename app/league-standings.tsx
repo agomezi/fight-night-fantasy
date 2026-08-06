@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import EmptyState from "../components/EmptyState";
 import StandingRow from "../components/StandingRow";
 import {
     EVENT_STANDINGS,
@@ -28,7 +29,9 @@ export default function LeagueStandings() {
 
   const inviteFriends = () => {
     Share.share({
-      message: `Join "${LEAGUE.name}" on Fight Night and take your shot at the #1 spot 🥊`,
+      message: LEAGUE
+        ? `Join "${LEAGUE.name}" on Fight Night and take your shot at the #1 spot 🥊`
+        : "Join me on Fight Night and take your shot at the #1 spot 🥊",
     }).catch(() => {});
   };
 
@@ -51,9 +54,13 @@ export default function LeagueStandings() {
           </Pressable>
         </View>
 
-        <Text style={styles.screenTitle}>{LEAGUE.name.toUpperCase()}</Text>
+        <Text style={styles.screenTitle}>
+          {LEAGUE ? LEAGUE.name.toUpperCase() : "STANDINGS"}
+        </Text>
         <Text style={styles.screenSub}>
-          {LEAGUE.members} Members · {scope === "season" ? "Season" : `Week ${LEAGUE.week}`}
+          {LEAGUE
+            ? `${LEAGUE.members} Members · ${scope === "season" ? "Season" : `Week ${LEAGUE.week}`}`
+            : "No league joined"}
         </Text>
         <Text style={styles.screenNote}>Standings reflect picks since you joined</Text>
 
@@ -80,15 +87,29 @@ export default function LeagueStandings() {
             <Text style={styles.cardMeta}>{rows.length} PLAYERS</Text>
           </View>
 
-          <View style={styles.columnHeader}>
-            <Text style={[styles.columnLabel, { width: 42, textAlign: "center" }]}>RNK</Text>
-            <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER</Text>
-            <Text style={styles.columnLabel}>PTS</Text>
-          </View>
+          {rows.length === 0 ? (
+            <EmptyState
+              icon="podium-outline"
+              title="No standings yet"
+              message={
+                scope === "season"
+                  ? "Join a league and make your first picks — season standings build from there."
+                  : "Nothing has been scored yet. Event standings appear after fight night."
+              }
+            />
+          ) : (
+            <>
+              <View style={styles.columnHeader}>
+                <Text style={[styles.columnLabel, { width: 42, textAlign: "center" }]}>RNK</Text>
+                <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER</Text>
+                <Text style={styles.columnLabel}>PTS</Text>
+              </View>
 
-          {rows.map((s) => (
-            <StandingRow key={s.id} standing={s} padRank />
-          ))}
+              {rows.map((s) => (
+                <StandingRow key={s.id} standing={s} padRank />
+              ))}
+            </>
+          )}
         </View>
 
         {LEAGUE_STATS.map((stat) => (

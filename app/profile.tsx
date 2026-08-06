@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { Pressable, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
+import EmptyState from "../components/EmptyState";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -25,15 +26,12 @@ type Achievement = {
   locked?: boolean;
 };
 
-const RECENT_PICKS: Pick[] = [
-  { id: "1", name: "Islam Makhachev", meta: "Submission · Round 3", result: "WIN", points: 180 },
-  { id: "2", name: "Dustin Poirier", meta: "KO/TKO · Round 2", result: "LOSS", points: -45 },
-  { id: "3", name: "Sean O'Malley", meta: "Decision · Unanimous", result: "WIN", points: 110 },
-];
+// A new account has no scored picks and no unlocked achievements yet.
+const RECENT_PICKS: Pick[] = [];
 
 const ACHIEVEMENTS: Achievement[] = [
-  { id: "1", icon: "mic", title: "Undefeated Streak", sub: "10 Correct Picks in a row" },
-  { id: "2", icon: "star", title: "Perfect Event", sub: "Locked 12/12 · Coming soon", locked: true },
+  { id: "1", icon: "mic", title: "Undefeated Streak", sub: "10 correct picks in a row", locked: true },
+  { id: "2", icon: "star", title: "Perfect Event", sub: "Lock a full card 12/12", locked: true },
 ];
 
 export default function Profile() {
@@ -46,7 +44,7 @@ export default function Profile() {
 
   const shareProfile = () => {
     Share.share({
-      message: `${profile.username} · Level 84 · 14,280 pts on Fight Night 🥊`,
+      message: `${profile.username} just joined Fight Night 🥊`,
     }).catch(() => {});
   };
 
@@ -92,39 +90,41 @@ export default function Profile() {
           </View>
           <Text style={styles.username}>{profile.username}</Text>
           <View style={styles.levelPill}>
-            <Text style={styles.levelPillText}>LEVEL 84</Text>
+            <Text style={styles.levelPillText}>LEVEL 1</Text>
           </View>
-          <Text style={styles.memberLine}>Member since UFC 280 · {profile.title}</Text>
+          <Text style={styles.memberLine}>New member · {profile.title}</Text>
         </View>
 
         <View style={styles.statGrid}>
           <View style={styles.statCard}>
             <View style={styles.statAccent} />
             <Text style={styles.statLabel}>TOTAL POINTS</Text>
-            <Text style={styles.statValue}>14,280</Text>
+            <Text style={styles.statValue}>0</Text>
             <View style={styles.statDelta}>
-              <Ionicons name="trending-up" size={12} color={c.green} />
-              <Text style={styles.statDeltaText}>+420 THIS WEEK</Text>
+              <Ionicons name="remove" size={12} color={c.textFaint} />
+              <Text style={[styles.statDeltaText, { color: c.textFaint }]}>
+                NO POINTS YET
+              </Text>
             </View>
           </View>
 
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>GLOBAL RANK</Text>
-            <Text style={styles.statValue}>#1,204</Text>
-            <Text style={styles.statSub}>TOP 2% OVERALL</Text>
+            <Text style={styles.statValue}>—</Text>
+            <Text style={styles.statSub}>UNRANKED</Text>
           </View>
 
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>LEAGUE RANK</Text>
-            <Text style={[styles.statValue, styles.statValueRed]}>#4</Text>
-            <Text style={styles.statSub}>{profile.favDivision.toUpperCase()} DIV</Text>
+            <Text style={styles.statValue}>—</Text>
+            <Text style={styles.statSub}>NO LEAGUE</Text>
           </View>
 
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>PICK ACCURACY</Text>
-            <Text style={styles.statValue}>78.4%</Text>
+            <Text style={styles.statValue}>—</Text>
             <View style={styles.accuracyTrack}>
-              <View style={[styles.accuracyFill, { width: "78.4%" }]} />
+              <View style={[styles.accuracyFill, { width: "0%" }]} />
             </View>
           </View>
         </View>
@@ -133,6 +133,16 @@ export default function Profile() {
           <Text style={styles.sectionTitle}>RECENT PICKS</Text>
           <Text style={styles.viewHistory}>VIEW HISTORY</Text>
         </View>
+
+        {RECENT_PICKS.length === 0 && (
+          <EmptyState
+            icon="clipboard-outline"
+            title="No picks yet"
+            message="Make your first picks for the next event and your results will show up here."
+            actionLabel="MAKE YOUR PICKS"
+            onAction={() => router.push("/picks")}
+          />
+        )}
 
         {RECENT_PICKS.map((pick) => (
           <View key={pick.id} style={styles.pickRow}>
