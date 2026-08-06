@@ -1,7 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Share, Text, View } from "react-native";
+import { ScrollView, Share, Text, View } from "react-native";
+import Animated, {
+  interpolateColor,
+  useAnimatedStyle,
+} from "react-native-reanimated";
+import PressableScale from "../components/PressableScale";
+import { appear } from "../constants/motion";
+import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import StandingRow from "../components/StandingRow";
@@ -16,6 +23,46 @@ import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 
 type Scope = "season" | "event";
+
+/** Season / Last Event switch — the fill slides in rather than snapping. */
+function ScopeToggle({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const styles = useThemedStyles(makeLeaguesStyles);
+  const progress = useToggleProgress(active);
+
+  const boxStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ["transparent", c.red],
+    ),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [c.borderStrong, c.red],
+    ),
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.text2, "#FFFFFF"]),
+  }));
+
+  return (
+    <PressableScale onPress={onPress} style={[styles.toggle, boxStyle]}>
+      <Animated.Text style={[styles.toggleText, textStyle]}>
+        {label}
+      </Animated.Text>
+    </PressableScale>
+  );
+}
 
 export default function LeagueStandings() {
   const insets = useSafeAreaInsets();
@@ -46,12 +93,12 @@ export default function LeagueStandings() {
         contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
       >
         <View style={styles.screenHeader}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <PressableScale onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="chevron-back" size={26} color={c.text} />
-          </Pressable>
-          <Pressable onPress={inviteFriends} hitSlop={12}>
+          </PressableScale>
+          <PressableScale onPress={inviteFriends} hitSlop={12}>
             <Ionicons name="person-add-outline" size={22} color={c.red} />
-          </Pressable>
+          </PressableScale>
         </View>
 
         <Text style={styles.screenTitle}>
@@ -65,20 +112,14 @@ export default function LeagueStandings() {
         <Text style={styles.screenNote}>Standings reflect picks since you joined</Text>
 
         <View style={styles.toggleRow}>
-          {(["season", "event"] as Scope[]).map((key) => {
-            const active = scope === key;
-            return (
-              <Pressable
-                key={key}
-                onPress={() => setScope(key)}
-                style={[styles.toggle, active && styles.toggleActive]}
-              >
-                <Text style={[styles.toggleText, active && styles.toggleTextActive]}>
-                  {key === "season" ? "SEASON" : "LAST EVENT"}
-                </Text>
-              </Pressable>
-            );
-          })}
+          {(["season", "event"] as Scope[]).map((key) => (
+            <ScopeToggle
+              key={key}
+              label={key === "season" ? "SEASON" : "LAST EVENT"}
+              active={scope === key}
+              onPress={() => setScope(key)}
+            />
+          ))}
         </View>
 
         <View style={styles.card}>
@@ -105,15 +146,15 @@ export default function LeagueStandings() {
                 <Text style={styles.columnLabel}>PTS</Text>
               </View>
 
-              {rows.map((s) => (
-                <StandingRow key={s.id} standing={s} padRank />
+              {rows.map((s, i) => (
+                <StandingRow key={s.id} standing={s} padRank index={i} />
               ))}
             </>
           )}
         </View>
 
-        {LEAGUE_STATS.map((stat) => (
-          <View key={stat.id} style={styles.statCard}>
+        {LEAGUE_STATS.map((stat, i) => (
+          <Animated.View key={stat.id} entering={appear(i)} style={styles.statCard}>
             <Text style={styles.statLabel}>{stat.label}</Text>
             <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10 }}>
               <Text style={styles.statValue}>{stat.value}</Text>
@@ -133,13 +174,13 @@ export default function LeagueStandings() {
                 {stat.delta}
               </Text>
             </View>
-          </View>
+          </Animated.View>
         ))}
 
-        <Pressable style={styles.primaryButton} onPress={inviteFriends}>
+        <PressableScale style={styles.primaryButton} onPress={inviteFriends}>
           <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
           <Text style={styles.primaryButtonText}>INVITE FRIENDS</Text>
-        </Pressable>
+        </PressableScale>
       </ScrollView>
 
       <View style={{ height: insets.bottom }} />

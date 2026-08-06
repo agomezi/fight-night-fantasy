@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import { appear } from "../constants/motion";
 import { useTheme } from "../context/ThemeContext";
+import PressableScale from "./PressableScale";
 
 export default function EmptyState({
   icon,
@@ -21,7 +24,8 @@ export default function EmptyState({
 
   return (
     <View style={{ alignItems: "center", paddingVertical: compact ? 24 : 40 }}>
-      <View
+      <Animated.View
+        entering={appear(0)}
         style={{
           width: compact ? 44 : 56,
           height: compact ? 44 : 56,
@@ -34,9 +38,10 @@ export default function EmptyState({
         }}
       >
         <Ionicons name={icon} size={compact ? 20 : 26} color={c.textFaint} />
-      </View>
+      </Animated.View>
 
-      <Text
+      <Animated.Text
+        entering={appear(1)}
         style={{
           color: c.text2,
           fontSize: compact ? 14 : 16,
@@ -46,8 +51,9 @@ export default function EmptyState({
         }}
       >
         {title}
-      </Text>
-      <Text
+      </Animated.Text>
+      <Animated.Text
+        entering={appear(2)}
         style={{
           color: c.textFaint,
           fontSize: 13,
@@ -58,31 +64,33 @@ export default function EmptyState({
         }}
       >
         {message}
-      </Text>
+      </Animated.Text>
 
       {actionLabel && onAction && (
-        <Pressable
-          onPress={onAction}
-          style={{
-            marginTop: 18,
-            paddingVertical: 12,
-            paddingHorizontal: 22,
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: c.borderStrong,
-          }}
-        >
-          <Text
+        <Animated.View entering={appear(3)}>
+          <PressableScale
+            onPress={onAction}
             style={{
-              color: c.text2,
-              fontSize: 11,
-              fontWeight: "800",
-              letterSpacing: 1.5,
+              marginTop: 18,
+              paddingVertical: 12,
+              paddingHorizontal: 22,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: c.borderStrong,
             }}
           >
-            {actionLabel}
-          </Text>
-        </Pressable>
+            <Text
+              style={{
+                color: c.text2,
+                fontSize: 11,
+                fontWeight: "800",
+                letterSpacing: 1.5,
+              }}
+            >
+              {actionLabel}
+            </Text>
+          </PressableScale>
+        </Animated.View>
       )}
     </View>
   );
