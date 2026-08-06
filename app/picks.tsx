@@ -14,6 +14,9 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
   ZoomOut,
   interpolateColor,
   useAnimatedStyle,
@@ -23,8 +26,9 @@ import Animated, {
 } from "react-native-reanimated";
 import BottomNav from "../components/BottomNav";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
-import { popIn } from "../constants/motion";
+import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
@@ -167,6 +171,22 @@ function Avatar({
   );
 }
 
+/** Disclosure arrow that rotates between open and closed. */
+function Chevron({ open, size = 18 }: { open: boolean; size?: number }) {
+  const { c } = useTheme();
+  const progress = useToggleProgress(open);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${progress.value * 180}deg` }],
+  }));
+
+  return (
+    <Animated.View style={style}>
+      <Ionicons name="chevron-down" size={size} color={c.textMuted} />
+    </Animated.View>
+  );
+}
+
 /** Method / round chip whose fill and label ease between states. */
 function Segment({
   active,
@@ -229,7 +249,11 @@ function FightControls({
       </View>
 
       {method !== "DEC" && (
-        <>
+        <Animated.View
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(120)}
+          layout={LinearTransition.duration(200)}
+        >
           <Text style={styles.groupLabel}>ROUND</Text>
           <View style={styles.segRow}>
             {ROUNDS.map((r) => (
@@ -242,7 +266,7 @@ function FightControls({
               />
             ))}
           </View>
-        </>
+        </Animated.View>
       )}
 
       {proof && (
@@ -398,21 +422,25 @@ export default function Picks() {
         <Text style={styles.eventTitle}>UFC 300</Text>
         <Text style={styles.eventSub}>Make your picks. Lock them in.</Text>
 
-        <View style={styles.mainCard}>
+        <Animated.View
+          entering={appear(0)}
+          layout={LinearTransition.duration(220)}
+          style={styles.mainCard}
+        >
           <PressableScale style={styles.mainHeader} onPress={() => toggle(MAIN_EVENT.id)}>
             <Text style={styles.mainHeaderText}>
               MAIN EVENT{"  "}
               <Text style={{ color: c.red }}>{MAIN_EVENT.division}</Text>
             </Text>
-            <Ionicons
-              name={expanded[MAIN_EVENT.id] ? "chevron-up" : "chevron-down"}
-              size={18}
-              color={c.textMuted}
-            />
+            <Chevron open={!!expanded[MAIN_EVENT.id]} />
           </PressableScale>
 
           {expanded[MAIN_EVENT.id] && (
-            <View style={{ padding: 18, paddingTop: 4 }}>
+            <Animated.View
+              entering={FadeIn.duration(180)}
+              exiting={FadeOut.duration(120)}
+              style={{ padding: 18, paddingTop: 4 }}
+            >
               <View style={styles.fighterRow}>
                 <PressableScale
                   style={styles.fighterCol}
@@ -444,15 +472,20 @@ export default function Picks() {
                 onMethod={(m) => setMethod(MAIN_EVENT.id, m)}
                 onRound={(r) => setRound(MAIN_EVENT.id, r)}
               />
-            </View>
+            </Animated.View>
           )}
-        </View>
+        </Animated.View>
 
-        {UNDERCARD.map((fight) => {
+        {UNDERCARD.map((fight, i) => {
           const picked = picks[fight.id];
           const isOpen = expanded[fight.id];
           return (
-            <View key={fight.id} style={styles.rowCard}>
+            <Animated.View
+              key={fight.id}
+              entering={appear(i + 1)}
+              layout={LinearTransition.duration(220)}
+              style={styles.rowCard}
+            >
               <View style={styles.row}>
                 <PressableScale
                   style={styles.rowFighter}
@@ -469,15 +502,15 @@ export default function Picks() {
                 <PressableScale style={styles.rowCenter} onPress={() => toggle(fight.id)}>
                   <Text style={styles.rowDivision}>{fight.division}</Text>
                   {picked ? (
-                    <Ionicons name="checkmark-circle" size={16} color={c.red} />
+                    <Animated.View entering={popIn}>
+                      <Ionicons name="checkmark-circle" size={16} color={c.red} />
+                    </Animated.View>
                   ) : (
-                    <Text style={styles.vsSmall}>VS</Text>
+                    <Animated.Text entering={FadeIn.duration(160)} style={styles.vsSmall}>
+                      VS
+                    </Animated.Text>
                   )}
-                  <Ionicons
-                    name={isOpen ? "chevron-up" : "chevron-down"}
-                    size={14}
-                    color={c.textFaint}
-                  />
+                  <Chevron open={!!isOpen} size={14} />
                 </PressableScale>
 
                 <PressableScale
@@ -498,7 +531,11 @@ export default function Picks() {
               </View>
 
               {isOpen && (
-                <View style={styles.rowBody}>
+                <Animated.View
+                  entering={FadeIn.duration(180)}
+                  exiting={FadeOut.duration(120)}
+                  style={styles.rowBody}
+                >
                   <FightControls
                     method={methods[fight.id]}
                     round={rounds[fight.id]}
@@ -506,9 +543,9 @@ export default function Picks() {
                     onMethod={(m) => setMethod(fight.id, m)}
                     onRound={(r) => setRound(fight.id, r)}
                   />
-                </View>
+                </Animated.View>
               )}
-            </View>
+            </Animated.View>
           );
         })}
       </ScrollView>
@@ -529,6 +566,14 @@ export default function Picks() {
             </View>
           ) : (
             <Animated.View style={shakeStyle}>
+              {/* Fills as picks are made, so how close you are to locking in
+                  is readable without doing the arithmetic yourself. */}
+              <AnimatedBar
+                percent={totalFights ? (madePicks / totalFights) * 100 : 0}
+                height={3}
+                delay={0}
+                style={{ marginBottom: 10 }}
+              />
               <PressableScale
                 style={[styles.lockBtn, madePicks < totalFights && styles.lockBtnDisabled]}
                 onPress={lockIn}
@@ -555,7 +600,7 @@ export default function Picks() {
         onRequestClose={() => setShowLockedModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <Animated.View entering={popIn} style={styles.modalCard}>
             <PressableScale
               style={styles.modalClose}
               onPress={() => setShowLockedModal(false)}
@@ -637,7 +682,7 @@ export default function Picks() {
                 </PressableScale>
               )}
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </SafeAreaView>
