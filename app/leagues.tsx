@@ -10,6 +10,7 @@ import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
+import FeedItem from "../components/FeedItem";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import StandingRow from "../components/StandingRow";
 import {
@@ -162,8 +163,8 @@ export default function Leagues() {
           </PressableScale>
         </View>
 
-        {/* Standings preview */}
-        <View style={styles.card}>
+        {/* Standings preview — data, so no box. */}
+        <View style={{ marginTop: 22 }}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Standings</Text>
             <Text style={styles.cardMeta}>WEEK {LEAGUE.week}</Text>
@@ -240,8 +241,8 @@ export default function Leagues() {
           </View>
         )}
 
-        {/* Rising stars */}
-        <View style={styles.card}>
+        {/* Rising stars — feed, so no box. */}
+        <View style={{ marginTop: 30 }}>
           <View style={styles.liveRow}>
             <Ionicons name="trending-up" size={16} color={c.green} />
             <Text style={styles.cardTitle}>Rising Stars</Text>
@@ -254,22 +255,20 @@ export default function Leagues() {
               message="Risers show up once the league has some scored events."
             />
           )}
-          {RISING_STARS.map((r) => (
-            <View key={r.id} style={styles.riserRow}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={18} color={c.textFaint} />
-              </View>
-              <View style={styles.playerCell}>
-                <Text style={styles.playerName}>{r.name}</Text>
-                <Text style={styles.playerTeam}>{r.sub}</Text>
-              </View>
-              <Text style={styles.riserDelta}>{r.delta}</Text>
-            </View>
+          {RISING_STARS.map((r, i) => (
+            <FeedItem
+              key={r.id}
+              index={i}
+              name={r.name}
+              meta={r.sub}
+              last={i === RISING_STARS.length - 1}
+              trailing={<Text style={styles.riserDelta}>{r.delta}</Text>}
+            />
           ))}
         </View>
 
-        {/* League chatter */}
-        <View style={styles.card}>
+        {/* League chatter — feed, so no box. */}
+        <View style={{ marginTop: 30 }}>
           <View style={styles.liveRow}>
             <Ionicons name="chatbubbles-outline" size={16} color={c.text2} />
             <Text style={styles.cardTitle}>League Chatter</Text>
@@ -284,21 +283,15 @@ export default function Leagues() {
             />
           )}
 
-          {messages.map((m) => (
-            <View key={m.id} style={styles.chatRow}>
-              <View style={[styles.avatar, { width: 32, height: 32, borderRadius: 16 }]}>
-                <Ionicons name="person" size={15} color={c.textFaint} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8 }}>
-                  <Text style={styles.chatAuthor}>{m.author}</Text>
-                  <Text style={styles.chatTime}>{m.time}</Text>
-                </View>
-                <View style={styles.chatBubble}>
-                  <Text style={styles.chatText}>{m.text}</Text>
-                </View>
-              </View>
-            </View>
+          {messages.map((m, i) => (
+            <FeedItem
+              key={m.id}
+              index={i}
+              name={m.author}
+              meta={m.time}
+              body={m.text}
+              last={i === messages.length - 1}
+            />
           ))}
 
           <View style={styles.chatInputRow}>
