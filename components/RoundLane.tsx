@@ -82,15 +82,39 @@ export default function RoundLane({
 
   const tint = (corner: Corner) => (corner === "red" ? c.red : c.blue);
 
+  /*
+   * Deselecting peels one layer at a time rather than wiping the pick.
+   *
+   * Re-tapping a round (or DEC) drops only that part — the fighter stays
+   * picked, and so does the method. Same for un-toggling the method. The one
+   * action that clears everything is tapping the fighter's own name, because
+   * that is the layer everything else sits on.
+   */
   const select = (corner: Corner, finish: Finish) => {
     if (disabled || !onPick) return;
-    const same = pick && pick.corner === corner && pick.finish === finish;
-    // Method carries over when you refine a pick, and a decision clears it.
-    onPick(
-      same
-        ? null
-        : { corner, finish, method: finish === "DEC" ? undefined : pick?.method },
-    );
+
+    const sameCell = pick && pick.corner === corner && pick.finish === finish;
+
+    // Re-tapping the round/DEC you already chose: keep the fighter, drop the
+    // round. Method survives because it was a separate decision.
+    if (sameCell && finish !== "ANY") {
+      onPick({ corner, finish: "ANY", method: pick!.method });
+      return;
+    }
+
+    // Tapping the rail of the fighter you already picked clears the lot.
+    if (finish === "ANY" && pick?.corner === corner) {
+      onPick(null);
+      return;
+    }
+
+    // Method carries across a refinement or a corner switch; a decision has no
+    // method, so it drops.
+    onPick({
+      corner,
+      finish,
+      method: finish === "DEC" ? undefined : pick?.method,
+    });
   };
 
   const setMethod = (m: Method) => {

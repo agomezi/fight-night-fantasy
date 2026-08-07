@@ -44,6 +44,17 @@ different levels of confidence:
   clears it again
 - **the DEC column** → goes to the judges, where method is not a choice
 
+Deselecting peels one layer at a time instead of wiping the pick:
+
+- re-tap the round you chose → the round drops, fighter and method stay
+- re-tap `DEC` → drops back to no round, fighter stays
+- tap the active method again → method clears, fighter and round stay
+- **tap the fighter's name → clears everything**, since that is the layer the
+  others sit on
+
+Switching corners keeps the method, since "someone gets submitted here" is a
+view that survives changing your mind about who.
+
 So all of these are valid picks, and the readback says which one you made:
 
 | Pick | Readback |
