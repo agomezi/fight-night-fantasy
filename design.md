@@ -113,3 +113,136 @@ scheduled length. Any real fight data source has to supply it.
 - On a narrow phone a 5-round lane fits six columns in roughly 250pt. If the
   cells prove too tight to hit, the fix is dropping the record line to widen
   the rail, or letting the lane scroll horizontally.
+
+---
+
+# Redesign plan — structure first
+
+Written after a repaint attempt (corner palette, Unbounded/IBM Plex, softer
+radii) was built and reverted. It changed hexes and font names while every
+screen kept its existing shape, so it read as the same app recoloured.
+
+The lesson: **the sameness is structural, not chromatic.** 38 rounded-card
+styles, one `EmptyState` component rendered 10 times, and `getInitials` in 9
+places will look generated in any palette. So palette comes last here, and it
+only adds what is missing rather than replacing what works.
+
+## 1. Containment is reserved for interaction
+
+One rule replaces the one-card-for-everything pattern:
+
+> If you cannot tap it, it does not get a box.
+
+That yields three idioms instead of one:
+
+| Idiom | Used for | Treatment |
+|---|---|---|
+| **Scorecard** | Stats, standings, records, career figures | No container. Ruled rows, hairline separators, right-aligned tabular figures. Reads like a judge's card. |
+| **Card stock** | Picks, actions, the lane | The only thing that gets a raised surface, border and radius — because it is the thing you touch. |
+| **Feed** | League chatter, rising stars, activity | No container. Flush-left identity, text, timestamp. Reads like messages, not cards. |
+
+The rule is what stops this drifting back — every new section has an obvious
+home, and "wrap it in a card" stops being the default.
+
+## 2. The lane becomes the anchor, not a form control
+
+It currently lives inside a collapsed accordion on one screen. Making it the
+signature element means it appears in a different state on every screen:
+
+- **Home** — a live lane for the main event, pickable directly. The hero *is*
+  the mechanic instead of a countdown card.
+- **Picks** — the full card, one lane per bout. (Where it is today.)
+- **Matchup** — both picks on shared lanes. The H2H view becomes lanes stacked,
+  your marker against your opponent's.
+- **Profile** — settled lanes in history: your marker against the actual finish.
+
+Appearing four times in four states is what makes something an anchor. Appearing
+once inside an accordion makes it a widget.
+
+Its colour logic then feeds the palette rather than the other way round — which
+is the honest version of "derived from the sport."
+
+## 3. Fighter identity: name plates, not circles
+
+Initials in a circle reads as placeholder because a circle is a *social avatar*
+— it says "person," not "fighter."
+
+Replace with a **corner-striped name plate**: a tall rectangle with the corner
+colour as a hard edge stripe, initials set large in the plate, record directly
+beneath. That is the shape of a name on a fight bill, and it carries corner
+assignment, which a circle cannot.
+
+Works with no photography at all, and becomes the frame when photos arrive
+rather than being thrown away.
+
+## 4. Empty states are skeletons of the real thing
+
+Ten call sites, one template: icon circle, headline, sentence, button. Each
+becomes the actual component in its empty state instead:
+
+| Screen | Now | Becomes |
+|---|---|---|
+| No picks | Clipboard icon + button | An empty lane, prompt inside it. The thing you are missing, shown. |
+| No league | Trophy icon + button | A standings table with one row — you, 1st of 1. Shows what it will look like. |
+| No history | Clock icon + sentence | A blank scorecard with ruled empty rows. |
+
+More useful than an icon, and each is distinct because the underlying component
+is.
+
+## 5. Wordmark
+
+Correction: the current mark is Bebas Neue — a condensed sans — skewed -8deg
+with 5pt tracking. Not a serif. The generic part is the skew, which is a
+shortcut for "sporty."
+
+Replace with a **stacked poster lockup**: FIGHT over NIGHT, a rule between, no
+skew. That is the construction on every fight bill ever printed, and it is
+specific in a way an italic is not.
+
+## 6. Palette — add the missing half, keep what works
+
+Everything below is an addition. The existing ground and accent stay, because
+they were kept deliberately after the reskin was rejected.
+
+| Role | Hex | Status | Where it comes from |
+|---|---|---|---|
+| `ground` | `#0A0A0A` | unchanged | Existing. Works. |
+| `cornerRed` | `#E8003D` | unchanged | The existing accent *is* the red corner — it just was not named that. |
+| `cornerBlue` | `#2B6CD4` | **new** | Blue corner pad. The missing half of the pair. |
+| `belt` | `#C9A227` | **new** | Championship plate. Titles, league wins, settled correct picks. |
+| `scorecard` | `#EDE7DA` | **new** | Judges' scorecard stock. The one warm material, used for scorecard-idiom surfaces and settled results. |
+
+Neutrals stay as they are.
+
+Two rules that make it a system rather than a swatch list:
+
+- Red and blue are **assignments**, not styling. They appear only where corner
+  identity is real — lanes, fighter plates, H2H. Never as generic accent.
+- **A loss is never red**, because red already means red corner.
+
+## 7. Type — add a data face, keep the display face
+
+The app currently sets Bebas for display and **nothing for body** — everything
+else is the system default. That gap has never been addressed, and it is why
+stats look unconsidered.
+
+- **Display: Bebas Neue, kept.** Condensed poster type is genuinely correct for
+  fight bills. The last attempt replaced it and the result was rejected. The
+  problem was the skew and it being the *only* specified face, not Bebas.
+- **Data: IBM Plex Sans, added.** For figure disambiguation — 41.5 against 47.5
+  decides a matchup, so an ambiguous digit is a real failure. Unambiguous 1,
+  flat-topped 7, open 4, true tabular figures, legible at 10px.
+
+One addition, one retention. No wholesale swap.
+
+## Sequence
+
+1. Containment rule + the three idioms (§1) — the biggest visible change
+2. Lane onto home, matchup, profile (§2)
+3. Name plates (§3)
+4. Empty states (§4)
+5. Wordmark (§5)
+6. Palette additions (§6) and data face (§7) — last, because they are the part
+   that was already rejected once when done first
+
+Steps 1–4 are where the "generated" read actually comes from.
