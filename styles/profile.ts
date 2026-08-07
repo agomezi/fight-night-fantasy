@@ -1,12 +1,11 @@
 import { StyleSheet } from "react-native";
 import { Palette } from "../constants/palette";
-import { FONTS } from "../constants/type";
 
 export const makeProfileStyles = (c: Palette) =>
   StyleSheet.create({
     heroCard: {
       backgroundColor: c.heroTint,
-      borderRadius: 14,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: c.border,
       padding: 22,
@@ -16,7 +15,7 @@ export const makeProfileStyles = (c: Palette) =>
     avatar: {
       width: 96,
       height: 96,
-      borderRadius: 14,
+      borderRadius: 16,
       backgroundColor: c.input,
       borderWidth: 2,
       borderColor: c.red,
@@ -29,7 +28,7 @@ export const makeProfileStyles = (c: Palette) =>
       fontSize: 32,
     },
     username: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 40,
       color: c.text,
       letterSpacing: 2,
@@ -118,14 +117,14 @@ export const makeProfileStyles = (c: Palette) =>
     },
     accuracyTrack: {
       height: 6,
-      borderRadius: 6,
+      borderRadius: 3,
       backgroundColor: c.borderStrong,
       marginTop: 10,
       overflow: "hidden",
     },
     accuracyFill: {
       height: 6,
-      borderRadius: 6,
+      borderRadius: 3,
       backgroundColor: c.red,
     },
 
@@ -187,7 +186,7 @@ export const makeProfileStyles = (c: Palette) =>
       alignItems: "flex-end",
     },
     resultPill: {
-      borderRadius: 10,
+      borderRadius: 6,
       paddingHorizontal: 8,
       paddingVertical: 3,
       marginBottom: 4,
@@ -233,7 +232,7 @@ export const makeProfileStyles = (c: Palette) =>
     achievementIcon: {
       width: 40,
       height: 40,
-      borderRadius: 14,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
       marginRight: 14,

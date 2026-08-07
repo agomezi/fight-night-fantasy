@@ -1,6 +1,5 @@
 import { Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { RADIUS, FONTS, label as labelType } from "../constants/type";
 import { useTheme } from "../context/ThemeContext";
 import PressableScale from "./PressableScale";
 
@@ -26,13 +25,17 @@ export type LaneFighter = { name: string; record: string };
  *
  * Chip rows are a form; a bout is a timeline that ends somewhere, and this is
  * that shape. The same object also displays the result once the bout is
- * scored — the actual finish draws as a brass outline, and an opponent's pick
- * as an underline — so nothing has to be redrawn to show what happened.
+ * scored — the actual finish draws as a dashed outline, an opponent's pick as
+ * an underline — so nothing is redrawn to show what happened.
  *
- * Accessibility: red/blue is the real corner convention but also the pairing
- * most affected by colour deficiency, so colour never carries corner identity
+ * Corners come from the sport: every bout assigns one fighter the red corner
+ * and one the blue. The rails carry that, so the colour means something rather
+ * than just marking the thing you tapped.
+ *
+ * Accessibility: red/blue is the real convention but also the pairing most
+ * affected by colour deficiency, so colour never carries corner identity
  * alone. The RED/BLUE label is always present as text and every placed marker
- * prints its method inside the cell. The lane reads in greyscale.
+ * prints its method in the cell. The lane reads in greyscale.
  */
 export default function RoundLane({
   rounds,
@@ -45,7 +48,7 @@ export default function RoundLane({
   rivalName,
   disabled,
 }: {
-  /** Scheduled length. Championship and main events are 5. */
+  /** Scheduled length. Championship and main events go 5. */
   rounds: 3 | 5;
   red: LaneFighter;
   blue: LaneFighter;
@@ -64,25 +67,19 @@ export default function RoundLane({
     "DEC",
   ];
 
-  const tint = (corner: Corner) =>
-    corner === "red" ? c.cornerRed : c.cornerBlue;
+  const tint = (corner: Corner) => (corner === "red" ? c.red : c.blue);
 
   const select = (corner: Corner, finish: Finish) => {
     if (disabled || !onPick) return;
     const same = pick && pick.corner === corner && pick.finish === finish;
-    if (same) {
-      onPick(null);
-      return;
-    }
-    onPick({ corner, finish, method: pick?.method ?? "KO" });
+    onPick(same ? null : { corner, finish, method: pick?.method ?? "KO" });
   };
 
   const readback = () => {
     if (!pick) return "No pick yet — tap a round";
     const who = pick.corner === "red" ? red.name : blue.name;
     if (pick.finish === "DEC") return `${who} by decision`;
-    const how = pick.method === "KO" ? "KO/TKO" : "submission";
-    return `${who} by ${how} in Round ${pick.finish}`;
+    return `${who} by ${pick.method === "KO" ? "KO/TKO" : "submission"} in Round ${pick.finish}`;
   };
 
   const Rail = ({ corner }: { corner: Corner }) => {
@@ -91,30 +88,30 @@ export default function RoundLane({
 
     return (
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <View style={{ width: 92, paddingRight: 10 }}>
-          <Text style={[labelType, { color: accent, fontSize: 8.5 }]}>
-            {corner === "red" ? "Red corner" : "Blue corner"}
+        <View style={{ width: 88, paddingRight: 10 }}>
+          <Text
+            style={{
+              color: accent,
+              fontSize: 8.5,
+              fontWeight: "800",
+              letterSpacing: 1,
+            }}
+          >
+            {corner === "red" ? "RED CORNER" : "BLUE CORNER"}
           </Text>
           <Text
             style={{
-              fontFamily: FONTS.display,
-              fontSize: 14,
+              fontFamily: "BebasNeue",
+              fontSize: 18,
               color: c.text,
-              marginTop: 2,
-              letterSpacing: -0.3,
+              letterSpacing: 0.5,
+              marginTop: 1,
             }}
             numberOfLines={1}
           >
             {fighter.name}
           </Text>
-          <Text
-            style={{
-              fontFamily: FONTS.sans,
-              fontSize: 10,
-              color: c.textFaint,
-              fontVariant: ["tabular-nums"],
-            }}
-          >
+          <Text style={{ fontSize: 10, color: c.textFaint, marginTop: -2 }}>
             {fighter.record}
           </Text>
         </View>
@@ -125,13 +122,12 @@ export default function RoundLane({
             flexDirection: "row",
             gap: 3,
             padding: 3,
-            borderRadius: RADIUS.sm,
-            backgroundColor: corner === "red" ? c.redTint : "rgba(42,107,212,0.10)",
+            borderRadius: 10,
+            backgroundColor: corner === "red" ? c.redTint : "rgba(90,169,230,0.10)",
           }}
         >
           {columns.map((col) => {
-            const mine =
-              pick && pick.corner === corner && pick.finish === col;
+            const mine = pick && pick.corner === corner && pick.finish === col;
             const isActual =
               actual && actual.corner === corner && actual.finish === col;
             const isRival =
@@ -153,15 +149,15 @@ export default function RoundLane({
                 scaleTo={0.9}
                 onPress={() => select(corner, col)}
                 style={{
-                  flex: col === "DEC" ? 1.3 : 1,
+                  flex: col === "DEC" ? 1.35 : 1,
                   height: 44,
-                  borderRadius: RADIUS.sm - 2,
+                  borderRadius: 8,
                   borderWidth: 1,
                   borderColor: mine
                     ? "transparent"
                     : isActual
-                      ? c.belt
-                      : c.border,
+                      ? c.text
+                      : c.borderStrong,
                   borderStyle: isActual && !mine ? "dashed" : "solid",
                   backgroundColor: mine ? accent : "transparent",
                   alignItems: "center",
@@ -170,11 +166,10 @@ export default function RoundLane({
               >
                 <Text
                   style={{
-                    fontFamily: mine ? FONTS.sansBold : FONTS.sansMed,
-                    fontSize: mine ? 10 : 11,
-                    letterSpacing: mine ? 0.5 : 0,
-                    color: mine ? c.onAccent : c.textFaint,
-                    fontVariant: ["tabular-nums"],
+                    fontSize: mine ? 10 : 12,
+                    fontWeight: mine ? "800" : "600",
+                    letterSpacing: mine ? 0.4 : 0,
+                    color: mine ? "#FFFFFF" : c.textFaint,
                   }}
                 >
                   {glyph}
@@ -184,8 +179,8 @@ export default function RoundLane({
                   <View
                     style={{
                       position: "absolute",
-                      left: 4,
-                      right: 4,
+                      left: 5,
+                      right: 5,
                       bottom: 4,
                       height: 3,
                       borderRadius: 2,
@@ -205,20 +200,19 @@ export default function RoundLane({
     <View>
       {/* column ruler */}
       <View style={{ flexDirection: "row", marginBottom: 5 }}>
-        <View style={{ width: 92 }} />
+        <View style={{ width: 88 }} />
         <View style={{ flex: 1, flexDirection: "row", gap: 3, paddingHorizontal: 3 }}>
           {columns.map((col) => (
             <Text
               key={String(col)}
-              style={[
-                labelType,
-                {
-                  flex: col === "DEC" ? 1.3 : 1,
-                  fontSize: 8.5,
-                  color: c.textFaint,
-                  textAlign: "center",
-                },
-              ]}
+              style={{
+                flex: col === "DEC" ? 1.35 : 1,
+                fontSize: 8.5,
+                fontWeight: "800",
+                letterSpacing: 1,
+                color: c.textFaint,
+                textAlign: "center",
+              }}
             >
               {col === "DEC" ? "DEC" : `R${col}`}
             </Text>
@@ -246,8 +240,8 @@ export default function RoundLane({
         <Text
           style={{
             flex: 1,
-            fontFamily: pick ? FONTS.sansBold : FONTS.sans,
             fontSize: 13,
+            fontWeight: pick ? "700" : "400",
             color: pick ? c.text : c.textFaint,
           }}
         >
@@ -261,9 +255,9 @@ export default function RoundLane({
               flexDirection: "row",
               gap: 3,
               padding: 3,
-              borderRadius: RADIUS.sm,
+              borderRadius: 10,
               borderWidth: 1,
-              borderColor: c.border,
+              borderColor: c.borderStrong,
             }}
           >
             {(["KO", "SUB"] as Method[]).map((m) => {
@@ -276,17 +270,19 @@ export default function RoundLane({
                   style={{
                     paddingHorizontal: 10,
                     paddingVertical: 6,
-                    borderRadius: RADIUS.sm - 2,
-                    backgroundColor: on ? c.text : "transparent",
+                    borderRadius: 7,
+                    backgroundColor: on ? c.red : "transparent",
                   }}
                 >
                   <Text
-                    style={[
-                      labelType,
-                      { fontSize: 9, color: on ? c.bg : c.textFaint },
-                    ]}
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: "800",
+                      letterSpacing: 1,
+                      color: on ? "#FFFFFF" : c.textFaint,
+                    }}
                   >
-                    {m === "KO" ? "KO/TKO" : "Sub"}
+                    {m === "KO" ? "KO/TKO" : "SUB"}
                   </Text>
                 </PressableScale>
               );
@@ -306,12 +302,10 @@ export default function RoundLane({
                   borderRadius: 3,
                   borderWidth: 1,
                   borderStyle: "dashed",
-                  borderColor: c.belt,
+                  borderColor: c.text,
                 }}
               />
-              <Text style={{ fontFamily: FONTS.sans, fontSize: 10.5, color: c.textFaint }}>
-                Actual finish
-              </Text>
+              <Text style={{ fontSize: 10.5, color: c.textFaint }}>Actual finish</Text>
             </View>
           )}
           {rivalPick && (
@@ -319,7 +313,7 @@ export default function RoundLane({
               <View
                 style={{ width: 15, height: 3, borderRadius: 2, backgroundColor: c.textMuted }}
               />
-              <Text style={{ fontFamily: FONTS.sans, fontSize: 10.5, color: c.textFaint }}>
+              <Text style={{ fontSize: 10.5, color: c.textFaint }}>
                 {rivalName ?? "Opponent"}&apos;s pick
               </Text>
             </View>

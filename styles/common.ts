@@ -1,6 +1,5 @@
 import { StyleSheet } from "react-native";
 import { Palette } from "../constants/palette";
-import { FONTS } from "../constants/type";
 
 export const makeCommonStyles = (c: Palette) =>
   StyleSheet.create({
@@ -11,7 +10,7 @@ export const makeCommonStyles = (c: Palette) =>
     },
     homeCard: {
       backgroundColor: c.card,
-      borderRadius: 14,
+      borderRadius: 18,
       padding: 24,
       borderWidth: 1,
       borderColor: c.border,
@@ -26,7 +25,7 @@ export const makeCommonStyles = (c: Palette) =>
     mainButton: {
       backgroundColor: c.red,
       padding: 16,
-      borderRadius: 10,
+      borderRadius: 8,
       alignItems: "center",
       marginTop: 8,
     },
@@ -53,7 +52,7 @@ export const makeCommonStyles = (c: Palette) =>
       justifyContent: "space-between",
     },
     headerLogo: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 26,
       color: c.logoText,
       letterSpacing: 5,
@@ -95,7 +94,7 @@ export const makeCommonStyles = (c: Palette) =>
       aspectRatio: 1,
       borderWidth: 1,
       borderColor: c.borderStrong,
-      borderRadius: 10,
+      borderRadius: 8,
       backgroundColor: c.card,
       alignItems: "center",
       justifyContent: "center",

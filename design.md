@@ -1,198 +1,94 @@
-# Fight Night Fantasy — design plan
+# Fight Night Fantasy — design notes
 
-Status: proposal. Nothing here is implemented yet.
+## Visual language
 
-Scope: this document defines colour roles, type, and one signature interaction.
-It does not define component APIs — those follow once the direction is agreed.
+The existing palette and type stay as they are: `#0A0A0A` ground, `#E8003D`
+accent, Bebas Neue for display. A full reskin was tried on this branch —
+corner-derived roles, an Unbounded/IBM Plex pairing, softened radii — and
+reverted. It changed the surface without making the app better to use, which
+is not worth the churn or the two extra font packages.
 
----
+If the visual direction is revisited later, the thing worth keeping from that
+attempt is the reasoning below about corners, not the specific hexes.
 
-## 1. Colour
+## The round lane
 
-### Why not "dark charcoal plus one accent"
+The one piece that survived, and the only part of the app that is structurally
+specific to fighting.
 
-That formula is what the last three attempts used, and it fails for a
-structural reason rather than a taste one: a single accent on a neutral ground
-has nothing to say about *this* app. The accent ends up marking "the thing you
-tapped", which every app needs, so the palette carries no product meaning.
+### What it replaces
 
-Combat sports already solve this. Every bout assigns one fighter the **red
-corner** and one the **blue corner**. It is on the broadcast graphics, the
-scorecards, and the cage itself. Two opposed colours that mean "these are the
-two sides" is not decoration — it is the data model of a fight.
-
-That gives the palette a job: red and blue are never styling choices, they are
-corner assignments. A screen showing one fighter is red or blue because of who
-that fighter is, not because we wanted contrast there.
-
-### Roles
-
-Named for what they are in this app. No `surface-container-lowest`, no
-`on-primary-fixed-variant` — those names come from a generator that has to
-describe every possible app, so they describe none.
-
-| Role | Hex | Where it comes from | Used for |
-|---|---|---|---|
-| `fence` | `#0B0C0F` | Vinyl-coated cage mesh — matte, near-black, slightly cool, never pure `#000` | App ground |
-| `apron` | `#15171C` | The padded apron around the canvas, one step up in value from the fence | Raised surfaces, result cards, sheets |
-| `seam` | `#22252C` | The taped seams between cage panels | Hairlines, dividers, table rules |
-| `canvas` | `#E9E4D9` | Octagon canvas — off-white, warm, scuffed. Not `#FFFFFF` | Primary text on dark; ground in light mode |
-| `cornerRed` | `#DE2033` | Red corner pad | Fighter in the red corner; your side in H2H |
-| `cornerBlue` | `#2A6BD4` | Blue corner pad | Fighter in the blue corner; opponent in H2H |
-| `belt` | `#C4A252` | Championship belt plate — brass, not yellow gold | Title bouts, league champion, wins |
-
-Derived, not new hues: `canvasDim #9A968C` and `canvasFaint #63615B` for
-secondary and tertiary text — the canvas colour walked down in value so muted
-text stays warm instead of going grey.
-
-### Rules
-
-- Red and blue are **assigned, never chosen**. A fighter card is red because
-  that fighter is in the red corner.
-- `belt` marks outcomes that are permanent — a title, a league win, a settled
-  correct pick. Never used for hover, focus, or selection.
-- Live/in-progress state is motion (pulse) plus `canvas`, not a fourth colour.
-- Loss states use `canvasFaint` and reduced opacity, not a red. Red already
-  means "red corner"; overloading it to also mean "wrong" breaks the system.
-
-### Light mode
-
-Invert the ground relationship, not the hues: `canvas` becomes the ground,
-`fence` becomes the text. Corner colours darken slightly (`#C41B2C`,
-`#1F55AC`) to hold contrast on a warm light ground. `belt` darkens to `#8A6F2E`.
-
----
-
-## 2. Type
-
-### Pairing
-
-**Display — Archivo Expanded, 700–900.**
-Every app in this category uses a condensed face: Bebas Neue, Oswald, Anton.
-The current codebase uses Bebas. Condensed is the default *because* fight
-graphics use it, which means it is the one choice guaranteed to look like
-everyone else.
-
-Expanded inverts that at the same weight. Fight posters get their mass from
-width as much as compression, so wide-and-heavy still reads as the category
-while being immediately distinguishable from competitors. Its flat terminals
-and open counters hold together at 40px+, which matters because scores are the
-largest type in the app.
-
-Used only for: fighter names in a bout, scores, event titles. Nothing under 20px.
-
-**Body and data — IBM Plex Sans.**
-Chosen for figure disambiguation. This app is decided by numbers: `41.5` versus
-`47.5` decides a head-to-head, and a misread digit is a real failure, not a
-cosmetic one. Plex draws an unambiguous `1`, a flat-topped `7`, and an open
-`4`, and ships true tabular figures so points stay aligned down a standings
-column. It stays legible at 10px, which is the size the stat labels need to be
-for the density this app wants.
-
-Secondary reason: Plex Mono is the same family, so scorecard-style figures are
-available without introducing a third typeface.
-
-Both are free and on Google Fonts, so both work with `@expo-google-fonts`.
-
-### Scale
-
-| Token | Size / line | Face |
-|---|---|---|
-| `score` | 40 / 40 | Archivo Expanded 900 |
-| `bout` | 22 / 26 | Archivo Expanded 800 |
-| `title` | 17 / 22 | Archivo Expanded 700 |
-| `body` | 14 / 20 | Plex Sans 400 |
-| `stat` | 14 / 18 | Plex Sans 600, tabular |
-| `label` | 10 / 14 | Plex Sans 600, +0.08em, uppercase |
-
-Six sizes. Anything not on this scale is a bug.
-
----
-
-## 3. Signature element — the round lane
-
-### The problem it solves
-
-A pick is three decisions: **who** wins, **how**, and **in which round**.
-Today that is three unrelated controls stacked vertically — a fighter row, a
+A pick is three decisions: **who** wins, **how**, and **in which round**. That
+used to be three unrelated controls stacked vertically — a fighter row, a
 method chip row, a round chip row. Nothing about that arrangement is specific
-to fighting; it is a form. Any sports app would produce it.
+to fighting; it is a form, and any sports app would produce it.
 
-### The element
+### How it works
 
-One horizontal lane representing the actual fight, divided into its real
-rounds — three cells for a standard bout, five for a main event — with a final
-`DEC` cell at the end.
+One horizontal lane per bout, divided into the fight's real rounds — three
+cells for an undercard bout, five for a main event — with a `DEC` column at the
+end. Two rails, one per corner.
 
 ```
-  RED    ┌─────┬─────┬─────┬─────┬─────┬─────┐
-  Pereira│  1  │  2  │  3  │  4  │  5  │ DEC │
-         ├─────┼─────┼─────┼─────┼─────┼─────┤
-  Hill   │  1  │  2  │  3  │  4  │  5  │ DEC │
-  BLUE   └─────┴─────┴─────┴─────┴─────┴─────┘
+        R1    R2    R3    R4    R5    DEC
+RED   [    ][    ][    ][    ][    ][     ]   Pereira
+BLUE  [    ][    ][    ][    ][    ][     ]   Hill
 ```
 
-Two rails, one per corner, tinted `cornerRed` and `cornerBlue`. You place a
-single marker in one cell. That one placement encodes all three decisions:
+A single placement encodes all three decisions:
 
-- **Which rail** → who wins
-- **Which column** → which round, or a decision
-- **A two-state toggle on the marker** → KO/TKO or submission (suppressed in
-  the `DEC` column, where method is not a choice)
+- **which rail** → who wins
+- **which column** → which round, or a decision
+- **the method toggle** → KO/TKO or submission, suppressed on `DEC` where
+  method is not a choice
 
-The lane reads back as a sentence underneath: *"Pereira by KO/TKO in Round 2."*
+The lane reads back as a sentence: *"Pereira by KO/TKO in Round 2."*
 
-### Why this is worth building
+### Why corners
+
+Every bout assigns one fighter the red corner and one the blue. It is on the
+broadcast graphics, the scorecards, and the cage. Using that for the two rails
+means the colour carries information rather than just marking the thing you
+tapped.
+
+Consequence worth remembering: **a loss should never be styled red** anywhere
+that sits near the lane, because red already means red corner there.
+
+### Why it earns its place
 
 **It is the shape of a fight.** A bout is a timeline that ends somewhere. Chip
-rows are not; a timeline is. Placing a marker on round 2 is closer to the thing
-being predicted than selecting "2" from a list.
+rows are not.
 
-**One element, three jobs, and it persists.** After the bout is scored, the same
-lane shows the real finish next to your marker. The control becomes the result
-display without redrawing anything — you see how close you were on the object
-you used to guess.
+**It persists.** Once the bout is scored, the actual finish draws as a dashed
+outline on the same lane, next to where your marker already is. The control
+becomes the result display with nothing redrawn.
 
-**It solves head-to-head.** In a matchup, your opponent's marker appears on the
-same lane. Two picks on one fight timeline shows agreement, disagreement, and
-distance at a glance. Two separate pick summaries side by side never will.
+**It solves head-to-head.** An opponent's pick renders as an underline on the
+same lane. Two picks on one timeline shows agreement and distance at a glance;
+two separate summaries side by side never will.
 
-**It scales down.** Collapsed to a single row on the undercard list, the lane
-becomes a compact readout — a filled cell at the round you chose, tinted by
-corner. Same object, less space.
+**It scales down.** Collapsed on the undercard list, the row shows the pick as
+a readout and expands to the full lane.
 
-### Input
+### Accessibility
 
-Tap-first: tap a cell to place, tap again to toggle method. Drag along the lane
-is a refinement to add after the tap version works, not a requirement — drag is
-harder to make accessible and should not gate the feature.
+Red/blue is the real convention but also the pairing most affected by common
+colour deficiencies, so colour never carries corner identity alone:
 
----
+- the `RED CORNER` / `BLUE CORNER` label is always present as text
+- every placed marker prints its method — `KO`, `SUB`, `DEC` — inside the cell
 
-## 4. What this replaces
+The lane is readable in greyscale.
 
-| Current | Replaced by |
-|---|---|
-| Bebas Neue for all display | Archivo Expanded 700–900 |
-| System/default body font | IBM Plex Sans |
-| `red: #E8003D` as sole accent | `cornerRed` / `cornerBlue` as assignments, `belt` for outcomes |
-| Rounded cards at 14–18px throughout | Flat rows on `fence`, hairlines in `seam`, 8px reserved for settled results |
-| Fighter row + method chips + round chips | The round lane |
+### Data requirement
 
-Retained: the entire motion layer — `PressableScale`, `useToggleProgress`,
-`AnimatedBar`, `popIn`, entrance stagger. That work is orthogonal to visual
-direction and does not need redoing.
+`Fight` carries `rounds: 3 | 5`. The lane cannot render without knowing the
+scheduled length. Any real fight data source has to supply it.
 
----
+### Still to do
 
-## 5. Open questions
-
-- **Bout length.** The lane needs to know if a fight is 3 or 5 rounds. Not
-  currently in the `Fight` type; needs adding before the lane can be built.
-- **Colour-blind users.** Red/blue corner is the real-world convention but
-  red-green and blue-yellow deficiencies affect the pairing. The corner label
-  (`RED` / `BLUE`) must be present as text, and marker shape should differ per
-  rail, so colour is never the only channel carrying corner identity.
-- **Empty states.** The app currently ships the new-user state. Every screen
-  above assumes populated data; the empty treatment needs designing in this
-  language, not bolted on.
+- `actual` and `rivalPick` are implemented and styled but nothing populates
+  them yet — they need real scored results and an opponent's picks.
+- On a narrow phone a 5-round lane fits six columns in roughly 250pt. If the
+  cells prove too tight to hit, the fix is dropping the record line to widen
+  the rail, or letting the lane scroll horizontally.

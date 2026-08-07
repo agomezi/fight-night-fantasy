@@ -1,11 +1,10 @@
 import { StyleSheet } from "react-native";
 import { Palette } from "../constants/palette";
-import { FONTS } from "../constants/type";
 
 export const makePicksStyles = (c: Palette) =>
   StyleSheet.create({
     eventTitle: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 46,
       color: c.text,
       letterSpacing: 1,
@@ -19,7 +18,7 @@ export const makePicksStyles = (c: Palette) =>
 
     mainCard: {
       backgroundColor: c.card,
-      borderRadius: 14,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: c.border,
       marginBottom: 16,
@@ -95,7 +94,7 @@ export const makePicksStyles = (c: Palette) =>
       gap: 12,
       marginTop: 20,
       backgroundColor: c.surface2,
-      borderRadius: 14,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: c.border,
       padding: 14,
@@ -104,7 +103,7 @@ export const makePicksStyles = (c: Palette) =>
     proofDot: {
       width: 26,
       height: 26,
-      borderRadius: 14,
+      borderRadius: 13,
       borderWidth: 2,
       borderColor: c.surface2,
     },
@@ -112,7 +111,7 @@ export const makePicksStyles = (c: Palette) =>
 
     rowCard: {
       backgroundColor: c.card,
-      borderRadius: 14,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: c.border,
       padding: 12,
@@ -174,12 +173,12 @@ export const makePicksStyles = (c: Palette) =>
       justifyContent: "center",
       gap: 10,
       backgroundColor: c.red,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 16,
     },
     lockBtnDisabled: { opacity: 0.4 },
     lockText: {
-      color: c.onAccent,
+      color: "#FFFFFF",
       fontWeight: "700",
       fontSize: 15,
       letterSpacing: 1.5,
@@ -201,7 +200,7 @@ export const makePicksStyles = (c: Palette) =>
       backgroundColor: c.redTint,
       borderColor: c.red,
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 15,
     },
     lockedPillText: {
@@ -217,7 +216,7 @@ export const makePicksStyles = (c: Palette) =>
       backgroundColor: c.input,
       borderColor: c.borderStrong,
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 15,
     },
     changeBtnText: {
@@ -235,7 +234,7 @@ export const makePicksStyles = (c: Palette) =>
     },
     modalCard: {
       backgroundColor: c.card,
-      borderRadius: 14,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: c.border,
       padding: 22,
@@ -247,7 +246,7 @@ export const makePicksStyles = (c: Palette) =>
     badge: {
       width: 64,
       height: 64,
-      borderRadius: 14,
+      borderRadius: 32,
       backgroundColor: c.red,
       alignItems: "center",
       justifyContent: "center",
@@ -266,7 +265,7 @@ export const makePicksStyles = (c: Palette) =>
       justifyContent: "center",
     },
     modalTitle: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 38,
       color: c.text,
       textAlign: "center",
@@ -315,7 +314,7 @@ export const makePicksStyles = (c: Palette) =>
       justifyContent: "center",
       gap: 10,
       backgroundColor: c.red,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 16,
       marginTop: 20,
     },
@@ -324,7 +323,7 @@ export const makePicksStyles = (c: Palette) =>
       backgroundColor: c.input,
       borderColor: c.borderStrong,
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 16,
       marginTop: 10,
     },

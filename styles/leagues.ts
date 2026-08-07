@@ -1,6 +1,5 @@
 import { StyleSheet } from "react-native";
 import { Palette } from "../constants/palette";
-import { FONTS } from "../constants/type";
 
 export const makeLeaguesStyles = (c: Palette) =>
   StyleSheet.create({
@@ -12,7 +11,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       letterSpacing: 2,
     },
     leagueName: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 46,
       lineHeight: 48,
       color: c.text,
@@ -41,7 +40,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       justifyContent: "center",
       gap: 8,
       paddingVertical: 13,
-      borderRadius: 10,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: c.borderStrong,
       backgroundColor: c.surface2,
@@ -56,7 +55,7 @@ export const makeLeaguesStyles = (c: Palette) =>
     // --- generic card ------------------------------------------------------
     card: {
       backgroundColor: c.card,
-      borderRadius: 14,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: c.border,
       padding: 18,
@@ -100,7 +99,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       paddingVertical: 12,
       paddingHorizontal: 10,
       marginHorizontal: -10,
-      borderRadius: 14,
+      borderRadius: 12,
     },
     standingRowMe: {
       backgroundColor: c.redTint,
@@ -135,7 +134,7 @@ export const makeLeaguesStyles = (c: Palette) =>
     avatar: {
       width: 38,
       height: 38,
-      borderRadius: 14,
+      borderRadius: 19,
       backgroundColor: c.input,
       borderWidth: 1,
       borderColor: c.borderStrong,
@@ -208,7 +207,7 @@ export const makeLeaguesStyles = (c: Palette) =>
     liveDot: {
       width: 7,
       height: 7,
-      borderRadius: 6,
+      borderRadius: 4,
       backgroundColor: c.red,
     },
     liveText: {
@@ -218,7 +217,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       letterSpacing: 1.5,
     },
     rivalryTitle: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 34,
       color: c.text,
       letterSpacing: 1,
@@ -251,7 +250,7 @@ export const makeLeaguesStyles = (c: Palette) =>
     },
     projTrack: {
       height: 6,
-      borderRadius: 6,
+      borderRadius: 3,
       backgroundColor: c.borderStrong,
       overflow: "hidden",
       marginTop: 10,
@@ -272,7 +271,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       gap: 8,
     },
     primaryButtonText: {
-      color: c.onAccent,
+      color: "#FFFFFF",
       fontSize: 12,
       fontWeight: "800",
       letterSpacing: 1.5,
@@ -283,7 +282,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: c.inset,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 12,
       marginTop: 12,
     },
@@ -302,7 +301,7 @@ export const makeLeaguesStyles = (c: Palette) =>
     chatBubble: {
       flex: 1,
       backgroundColor: c.inset,
-      borderRadius: 14,
+      borderRadius: 12,
       borderTopLeftRadius: 4,
       padding: 12,
       marginTop: 4,
@@ -346,7 +345,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       justifyContent: "space-between",
     },
     screenTitle: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 42,
       color: c.text,
       letterSpacing: 4,
@@ -390,7 +389,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       color: c.text2,
     },
     toggleTextActive: {
-      color: c.onAccent,
+      color: "#FFFFFF",
     },
     crown: {
       position: "absolute",
@@ -401,7 +400,7 @@ export const makeLeaguesStyles = (c: Palette) =>
     // --- matchup screen ----------------------------------------------------
     versusCard: {
       backgroundColor: c.heroTint,
-      borderRadius: 14,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: "rgba(232,0,61,0.35)",
       padding: 18,
@@ -416,7 +415,7 @@ export const makeLeaguesStyles = (c: Palette) =>
     versusAvatar: {
       width: 56,
       height: 56,
-      borderRadius: 14,
+      borderRadius: 28,
       backgroundColor: c.input,
       borderWidth: 2,
       borderColor: c.borderStrong,
@@ -438,7 +437,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       marginTop: 2,
     },
     versusScore: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 40,
       color: c.text,
       letterSpacing: 1,
@@ -448,7 +447,7 @@ export const makeLeaguesStyles = (c: Palette) =>
       color: c.red,
     },
     versusDivider: {
-      fontFamily: FONTS.display,
+      fontFamily: "BebasNeue",
       fontSize: 24,
       color: c.textFaint,
       letterSpacing: 2,

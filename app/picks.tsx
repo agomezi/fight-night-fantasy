@@ -165,7 +165,7 @@ function Avatar({
             justifyContent: "center",
           }}
         >
-          <Ionicons name="checkmark" size={badgeSize * 0.7} color={c.onAccent} />
+          <Ionicons name="checkmark" size={badgeSize * 0.7} color="#FFFFFF" />
         </Animated.View>
       )}
     </Animated.View>
@@ -449,7 +449,7 @@ export default function Picks() {
                 style={[styles.lockBtn, madePicks < totalFights && styles.lockBtnDisabled]}
                 onPress={lockIn}
               >
-                <Ionicons name="lock-closed" size={18} color={c.onAccent} />
+                <Ionicons name="lock-closed" size={18} color="#FFFFFF" />
                 <Text style={styles.lockText}>LOCK IN PICKS</Text>
                 <Text style={styles.lockCount}>
                   {madePicks}/{totalFights}
@@ -483,7 +483,7 @@ export default function Picks() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.badgeWrap}>
                 <View style={styles.badge}>
-                  <Ionicons name="lock-closed" size={26} color={c.onAccent} />
+                  <Ionicons name="lock-closed" size={26} color="#FFFFFF" />
                 </View>
                 <View style={styles.badgeCheck}>
                   <Ionicons name="checkmark" size={12} color="#0A0A0A" />
@@ -536,7 +536,7 @@ export default function Picks() {
               </View>
 
               <PressableScale style={styles.shareBtn} onPress={shareCard}>
-                <Ionicons name="share-social" size={18} color={c.onAccent} />
+                <Ionicons name="share-social" size={18} color="#FFFFFF" />
                 <Text style={styles.lockText}>SHARE YOUR CARD</Text>
               </PressableScale>
               <PressableScale
