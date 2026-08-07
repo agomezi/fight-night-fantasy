@@ -52,7 +52,7 @@ function ScopeToggle({
   }));
 
   const textStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 1], [c.text2, "#FFFFFF"]),
+    color: interpolateColor(progress.value, [0, 1], [c.text2, c.onAccent]),
   }));
 
   return (
@@ -178,7 +178,7 @@ export default function LeagueStandings() {
         ))}
 
         <PressableScale style={styles.primaryButton} onPress={inviteFriends}>
-          <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
+          <Ionicons name="person-add-outline" size={16} color={c.onAccent} />
           <Text style={styles.primaryButtonText}>INVITE FRIENDS</Text>
         </PressableScale>
       </ScrollView>

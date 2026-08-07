@@ -102,7 +102,7 @@ export const makeSettingsStyles = (c: Palette) =>
     avatar: {
       width: 96,
       height: 96,
-      borderRadius: 16,
+      borderRadius: 14,
       backgroundColor: c.input,
       borderWidth: 2,
       borderColor: c.red,
@@ -174,7 +174,7 @@ export const makeSettingsStyles = (c: Palette) =>
     },
     modalCard: {
       backgroundColor: c.card,
-      borderRadius: 20,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: c.border,
       padding: 24,
@@ -183,7 +183,7 @@ export const makeSettingsStyles = (c: Palette) =>
       alignSelf: "center",
       width: 56,
       height: 56,
-      borderRadius: 28,
+      borderRadius: 14,
       backgroundColor: "rgba(232,0,61,0.15)",
       alignItems: "center",
       justifyContent: "center",
@@ -205,12 +205,12 @@ export const makeSettingsStyles = (c: Palette) =>
     },
     deleteBtn: {
       backgroundColor: c.red,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 15,
       alignItems: "center",
     },
     deleteBtnText: {
-      color: "#FFFFFF",
+      color: c.onAccent,
       fontSize: 15,
       fontWeight: "800",
       letterSpacing: 1,

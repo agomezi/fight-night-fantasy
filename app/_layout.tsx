@@ -1,4 +1,13 @@
-import { BebasNeue_400Regular, useFonts } from "@expo-google-fonts/bebas-neue";
+import {
+  IBMPlexSans_400Regular,
+  IBMPlexSans_600SemiBold,
+  IBMPlexSans_700Bold,
+} from "@expo-google-fonts/ibm-plex-sans";
+import {
+  Unbounded_700Bold,
+  Unbounded_900Black,
+  useFonts,
+} from "@expo-google-fonts/unbounded";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -38,7 +47,11 @@ function ThemedApp() {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    BebasNeue: BebasNeue_400Regular,
+    Unbounded: Unbounded_700Bold,
+    UnboundedBlack: Unbounded_900Black,
+    PlexSans: IBMPlexSans_400Regular,
+    PlexSansMed: IBMPlexSans_600SemiBold,
+    PlexSansBold: IBMPlexSans_700Bold,
   });
 
   useEffect(() => {

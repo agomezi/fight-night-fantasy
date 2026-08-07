@@ -126,7 +126,7 @@ function FighterChoice({
               justifyContent: "center",
             }}
           >
-            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+            <Ionicons name="checkmark" size={12} color={c.onAccent} />
           </Animated.View>
         )}
       </Animated.View>
@@ -166,7 +166,7 @@ function VoteButton({
   }));
 
   const textStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 1], [c.text, "#FFFFFF"]),
+    color: interpolateColor(progress.value, [0, 1], [c.text, c.onAccent]),
   }));
 
   return (
@@ -511,7 +511,7 @@ export default function Home() {
               >
                 <Text
                   style={{
-                    color: quickPick ? "#fff" : c.textFaint,
+                    color: quickPick ? c.onAccent : c.textFaint,
                     fontWeight: "700",
                     fontSize: 13,
                     letterSpacing: 2,
@@ -564,7 +564,7 @@ export default function Home() {
                   >
                     <Text
                       style={{
-                        color: "#fff",
+                        color: c.onAccent,
                         fontWeight: "700",
                         fontSize: 12,
                         letterSpacing: 1,

@@ -91,7 +91,7 @@ export default function Leagues() {
               message="Create a league and invite friends, or join one with an invite code. Standings, rivalries and chatter unlock once you are in."
             />
             <PressableScale style={styles.primaryButton} onPress={inviteFriends}>
-              <Ionicons name="add" size={16} color="#FFFFFF" />
+              <Ionicons name="add" size={16} color={c.onAccent} />
               <Text style={styles.primaryButtonText}>CREATE A LEAGUE</Text>
             </PressableScale>
             <PressableScale style={styles.ghostButton} onPress={inviteFriends}>

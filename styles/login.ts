@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { Palette } from "../constants/palette";
+import { FONTS } from "../constants/type";
 
 export const makeLoginStyles = (c: Palette) =>
   StyleSheet.create({
@@ -10,7 +11,7 @@ export const makeLoginStyles = (c: Palette) =>
       justifyContent: "center",
     },
     title: {
-      fontFamily: "BebasNeue",
+      fontFamily: FONTS.display,
       fontSize: 80,
       color: c.logoText,
       fontStyle: "italic",
@@ -20,7 +21,7 @@ export const makeLoginStyles = (c: Palette) =>
     },
     card: {
       backgroundColor: c.card,
-      borderRadius: 16,
+      borderRadius: 14,
       padding: 24,
       borderWidth: 1,
       borderColor: c.loginBorder,
@@ -49,7 +50,7 @@ export const makeLoginStyles = (c: Palette) =>
       backgroundColor: c.input,
       borderWidth: 1,
       borderColor: c.loginBorder,
-      borderRadius: 8,
+      borderRadius: 10,
       padding: 16,
       color: c.text,
       marginBottom: 16,
@@ -64,12 +65,12 @@ export const makeLoginStyles = (c: Palette) =>
     mainButton: {
       backgroundColor: c.red,
       padding: 16,
-      borderRadius: 8,
+      borderRadius: 10,
       alignItems: "center",
       marginTop: 8,
     },
     mainButtonText: {
-      color: "#FFFFFF",
+      color: c.onAccent,
       fontWeight: "700",
       fontSize: 14,
       letterSpacing: 2,
@@ -80,7 +81,7 @@ export const makeLoginStyles = (c: Palette) =>
     socialButton: {
       borderWidth: 1,
       borderColor: c.loginBorder,
-      borderRadius: 8,
+      borderRadius: 10,
       padding: 16,
       alignItems: "center",
     },
