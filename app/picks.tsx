@@ -200,7 +200,18 @@ export default function Picks() {
   );
   // One lane pick per fight replaces the old picks/methods/rounds triple —
   // winner, method and round are a single decision now.
-  const [lane, setLane] = useState<Record<string, LanePick>>({});
+  const [lane, setLane] = useState<Record<string, LanePick>>(() =>
+    // Quick Pick on home hands off a fighter id — seed the lane so the
+    // main event arrives already showing that pick, round uncalled.
+    fighter
+      ? {
+          [MAIN_EVENT.id]: {
+            corner: fighter === MAIN_EVENT.a.id ? "red" : "blue",
+            finish: "ANY",
+          },
+        }
+      : {},
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ main: true });
   const [lockedIn, setLockedIn] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
@@ -239,11 +250,21 @@ export default function Picks() {
           const winner = picks[f.id] === f.a.id ? f.a : f.b;
           const loser = picks[f.id] === f.a.id ? f.b : f.a;
           const lp = lane[f.id];
+          const how = lp?.method
+            ? lp.method === "KO"
+              ? "KO/TKO"
+              : "Sub"
+            : undefined;
+          // Winner-only picks have no detail line; each refinement adds one.
           const detail = !lp
             ? undefined
             : lp.finish === "DEC"
               ? "Decision"
-              : `${lp.method === "KO" ? "KO/TKO" : "Sub"} · Round ${lp.finish}`;
+              : lp.finish === "ANY"
+                ? how
+                : how
+                  ? `${how} · Round ${lp.finish}`
+                  : `Round ${lp.finish}`;
           return {
             id: f.id,
             winner: titleCase(winner.name),

@@ -5,13 +5,26 @@ import PressableScale from "./PressableScale";
 
 export type Corner = "red" | "blue";
 export type Method = "KO" | "SUB";
-/** A round number, or "DEC" when the fight goes to the judges. */
-export type Finish = number | "DEC";
+/**
+ * How the fight ends:
+ *   number — inside the distance, in that round
+ *   "ANY"  — inside the distance, round not called
+ *   "DEC"  — goes to the judges
+ *
+ * "ANY" exists because calling the method is a different confidence level from
+ * calling the round. Plenty of picks are "he gets finished" without a view on
+ * when, and forcing a round on those makes people guess.
+ */
+export type Finish = number | "DEC" | "ANY";
 
 export type LanePick = {
   corner: Corner;
   finish: Finish;
-  method: Method;
+  /**
+   * Optional on purpose. "Pereira to win" is a complete pick; method and round
+   * are refinements on top of it, and each can be given independently.
+   */
+  method?: Method;
 };
 
 export type LaneFighter = { name: string; record: string };
@@ -72,23 +85,59 @@ export default function RoundLane({
   const select = (corner: Corner, finish: Finish) => {
     if (disabled || !onPick) return;
     const same = pick && pick.corner === corner && pick.finish === finish;
-    onPick(same ? null : { corner, finish, method: pick?.method ?? "KO" });
+    // Method carries over when you refine a pick, and a decision clears it.
+    onPick(
+      same
+        ? null
+        : { corner, finish, method: finish === "DEC" ? undefined : pick?.method },
+    );
+  };
+
+  const setMethod = (m: Method) => {
+    if (!pick || disabled || !onPick) return;
+    onPick({ ...pick, method: pick.method === m ? undefined : m });
   };
 
   const readback = () => {
-    if (!pick) return "No pick yet — tap a round";
+    if (!pick) return "Tap a fighter to pick them, or a round to call the finish";
     const who = pick.corner === "red" ? red.name : blue.name;
     if (pick.finish === "DEC") return `${who} by decision`;
-    return `${who} by ${pick.method === "KO" ? "KO/TKO" : "submission"} in Round ${pick.finish}`;
+
+    const how = pick.method === "KO" ? "KO/TKO" : "submission";
+    if (pick.finish === "ANY") {
+      return pick.method ? `${who} by ${how} — any round` : `${who} to win`;
+    }
+    return pick.method
+      ? `${who} by ${how} in Round ${pick.finish}`
+      : `${who} to finish in Round ${pick.finish}`;
   };
 
   const Rail = ({ corner }: { corner: Corner }) => {
     const fighter = corner === "red" ? red : blue;
     const accent = tint(corner);
+    const isMine = pick?.corner === corner;
+    // Tapping the name picks the fighter without calling a round.
+    const noRound = isMine && pick?.finish === "ANY";
 
     return (
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <View style={{ width: 88, paddingRight: 10 }}>
+        <PressableScale
+          disabled={disabled}
+          haptic={noRound ? "none" : "light"}
+          scaleTo={0.95}
+          onPress={() => select(corner, "ANY")}
+          style={{
+            width: 88,
+            paddingRight: 8,
+            paddingLeft: 7,
+            paddingVertical: 5,
+            marginRight: 2,
+            borderRadius: 8,
+            borderLeftWidth: 3,
+            borderLeftColor: isMine ? accent : c.border,
+            backgroundColor: noRound ? c.redTint : "transparent",
+          }}
+        >
           <Text
             style={{
               color: accent,
@@ -112,9 +161,13 @@ export default function RoundLane({
             {fighter.name}
           </Text>
           <Text style={{ fontSize: 10, color: c.textFaint, marginTop: -2 }}>
-            {fighter.record}
+            {noRound
+              ? pick!.method
+                ? `${pick!.method === "KO" ? "KO/TKO" : "SUB"} · any round`
+                : "To win"
+              : fighter.record}
           </Text>
-        </View>
+        </PressableScale>
 
         <View
           style={{
@@ -133,13 +186,14 @@ export default function RoundLane({
             const isRival =
               rivalPick && rivalPick.corner === corner && rivalPick.finish === col;
 
-            const glyph = mine
-              ? col === "DEC"
+            // A filled cell shows the method when one is given, otherwise it
+            // keeps the round number — the fill alone says "this is my pick".
+            const glyph =
+              col === "DEC"
                 ? "DEC"
-                : pick!.method
-              : col === "DEC"
-                ? "DEC"
-                : String(col);
+                : mine && pick!.method
+                  ? pick!.method
+                  : String(col);
 
             return (
               <PressableScale
@@ -266,7 +320,7 @@ export default function RoundLane({
                 <PressableScale
                   key={m}
                   scaleTo={0.92}
-                  onPress={() => onPick?.({ ...pick, method: m })}
+                  onPress={() => setMethod(m)}
                   style={{
                     paddingHorizontal: 10,
                     paddingVertical: 6,

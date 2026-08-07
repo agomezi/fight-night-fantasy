@@ -35,14 +35,24 @@ RED   [    ][    ][    ][    ][    ][     ]   Pereira
 BLUE  [    ][    ][    ][    ][    ][     ]   Hill
 ```
 
-A single placement encodes all three decisions:
+A pick has three parts and each is given independently, because they are
+different levels of confidence:
 
-- **which rail** → who wins
-- **which column** → which round, or a decision
-- **the method toggle** → KO/TKO or submission, suppressed on `DEC` where
-  method is not a choice
+- **tap the fighter's name** → they win, round and method uncalled
+- **tap a round cell** → they win in that round
+- **the method toggle** → KO/TKO or submission, and tapping the active one
+  clears it again
+- **the DEC column** → goes to the judges, where method is not a choice
 
-The lane reads back as a sentence: *"Pereira by KO/TKO in Round 2."*
+So all of these are valid picks, and the readback says which one you made:
+
+| Pick | Readback |
+|---|---|
+| Fighter only | *Pereira to win* |
+| Fighter + method | *Pereira by KO/TKO — any round* |
+| Fighter + round | *Pereira to finish in Round 2* |
+| Fighter + method + round | *Pereira by KO/TKO in Round 2* |
+| Decision | *Pereira by decision* |
 
 ### Why corners
 
