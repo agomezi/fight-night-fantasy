@@ -219,14 +219,15 @@ export const makeProfileStyles = (c: Palette) =>
       color: c.red,
     },
 
-    // Achievements are read, not tapped, so they lose the box and become
-    // ruled rows like the rest of the scorecard content.
     achievementRow: {
       flexDirection: "row",
       alignItems: "center",
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: c.border,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 14,
+      marginBottom: 10,
     },
     achievementIcon: {
       width: 40,

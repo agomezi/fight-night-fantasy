@@ -5,8 +5,9 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
+import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
-import { EmptyScorecard, ScoreRow, Scorecard } from "../components/Scorecard";
+import EmptyState from "../components/EmptyState";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -98,26 +99,50 @@ export default function Profile() {
           <Text style={styles.memberLine}>New member · {profile.title}</Text>
         </Animated.View>
 
-        {/* Scorecard idiom: figures are read, not tapped, so they lose the
-            boxes and become ruled rows you can scan down. */}
-        <Scorecard style={{ marginTop: 22 }}>
-          <ScoreRow index={1} label="Total points" value="0" note="No points yet" />
-          <ScoreRow index={2} label="Global rank" value="—" note="Unranked" />
-          <ScoreRow index={3} label="League rank" value="—" note="No league" />
-          <ScoreRow index={4} label="Pick accuracy" value="—" last />
-        </Scorecard>
+        <View style={styles.statGrid}>
+          <Animated.View entering={appear(1)} style={styles.statCard}>
+            <View style={styles.statAccent} />
+            <Text style={styles.statLabel}>TOTAL POINTS</Text>
+            <Text style={styles.statValue}>0</Text>
+            <View style={styles.statDelta}>
+              <Ionicons name="remove" size={12} color={c.textFaint} />
+              <Text style={[styles.statDeltaText, { color: c.textFaint }]}>
+                NO POINTS YET
+              </Text>
+            </View>
+          </Animated.View>
+
+          <Animated.View entering={appear(2)} style={styles.statCard}>
+            <Text style={styles.statLabel}>GLOBAL RANK</Text>
+            <Text style={styles.statValue}>—</Text>
+            <Text style={styles.statSub}>UNRANKED</Text>
+          </Animated.View>
+
+          <Animated.View entering={appear(3)} style={styles.statCard}>
+            <Text style={styles.statLabel}>LEAGUE RANK</Text>
+            <Text style={styles.statValue}>—</Text>
+            <Text style={styles.statSub}>NO LEAGUE</Text>
+          </Animated.View>
+
+          <Animated.View entering={appear(4)} style={styles.statCard}>
+            <Text style={styles.statLabel}>PICK ACCURACY</Text>
+            <Text style={styles.statValue}>—</Text>
+            <AnimatedBar percent={0} height={4} style={{ marginTop: 10 }} />
+          </Animated.View>
+        </View>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>RECENT PICKS</Text>
           <Text style={styles.viewHistory}>VIEW HISTORY</Text>
         </View>
 
-        {/* Empty history is a blank card, not an icon and a sentence — it
-            shows the shape of what is missing. */}
         {RECENT_PICKS.length === 0 && (
-          <EmptyScorecard
-            rows={3}
-            caption="Your results fill this in after the first event you play."
+          <EmptyState
+            icon="clipboard-outline"
+            title="No picks yet"
+            message="Make your first picks for the next event and your results will show up here."
+            actionLabel="MAKE YOUR PICKS"
+            onAction={() => router.push("/picks")}
           />
         )}
 
