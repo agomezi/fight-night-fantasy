@@ -1,4 +1,10 @@
 /**
+ * Championship gold. Shared by the trophy and the belt so the two marks are
+ * literally the same colour rather than two hexes that drift apart.
+ */
+export const GOLD = "#E5B23C";
+
+/**
  * Every mark is a standalone SVG component drawn on the same 80×80 grid, so
  * they share proportion and stroke weight and can be swapped for each other
  * anywhere without adjusting anything around them.
