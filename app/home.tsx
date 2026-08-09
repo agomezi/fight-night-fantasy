@@ -422,69 +422,119 @@ export default function Home() {
         <InfoCards
           cards={[
             {
-              // No league means no rank — so no ghosted figure either. A
-              // watermark that contradicts the value is worse than none.
-              watermark: myStanding ? ordinal(myStanding.rank) : undefined,
-              serial: LEAGUE ? LEAGUE.name.toUpperCase() : "NOT IN A LEAGUE",
-              tag: "CURRENT LEAGUE RANK",
-              tagColor: c.textMuted,
-              title: myStanding ? ordinal(myStanding.rank) : "—",
-              titleSize: 50,
-              footer: (
-                <Text
-                  style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
-                >
-                  {myStanding && LEAGUE
-                    ? `${myStanding.team} · ${LEAGUE.members} in the league`
-                    : "Unranked · join a league to get on the board"}
-                </Text>
-              ),
+              /*
+               * Empty here is not "rank: —". A stat card with nothing in it is
+               * dead space, so when there's no league the card stops being a
+               * stat and becomes the thing that would fill it.
+               */
+              ...(myStanding && LEAGUE
+                ? {
+                    watermark: ordinal(myStanding.rank),
+                    serial: LEAGUE.name.toUpperCase(),
+                    tag: "CURRENT LEAGUE RANK",
+                    tagColor: c.textMuted,
+                    title: ordinal(myStanding.rank),
+                    titleSize: 50,
+                    footer: (
+                      <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
+                        {myStanding.team} · {LEAGUE.members} in the league
+                      </Text>
+                    ),
+                  }
+                : {
+                    serial: "NO LEAGUE",
+                    tag: "LEAGUES",
+                    tagColor: "#E8A020",
+                    title: "Find your people",
+                    titleSize: 32,
+                    footer: (
+                      <>
+                        <Text
+                          style={[
+                            commonStyles.cardSubtitle,
+                            { textAlign: "left", marginBottom: 14 },
+                          ]}
+                        >
+                          Rank, records and weekly matchups all start once
+                          you&apos;re in a league.
+                        </Text>
+                        <PressableScale
+                          onPress={() => router.push("/leagues")}
+                          style={{
+                            backgroundColor: c.red,
+                            borderRadius: 10,
+                            paddingVertical: 12,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#FFFFFF",
+                              fontSize: 12,
+                              fontWeight: "800",
+                              letterSpacing: 1,
+                            }}
+                          >
+                            CREATE OR JOIN
+                          </Text>
+                        </PressableScale>
+                      </>
+                    ),
+                  }),
             },
             {
-              watermark: lastEventPoints > 0 ? String(lastEventPoints) : undefined,
-              serial: lastEventPoints > 0 ? "UFC 299" : "NO EVENTS PLAYED",
-              tag: "LAST EVENT POINTS",
-              tagColor: c.textMuted,
-              title: String(lastEventPoints),
-              titleUnit: "PTS",
-              titleSize: 50,
-              footer: (
-                <>
-                  <View
-                    style={[
-                      commonStyles.divider,
-                      { marginTop: 6, marginBottom: 10 },
-                    ]}
-                  />
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={[
-                        commonStyles.cardSubtitle,
-                        { textAlign: "left", marginBottom: 0 },
-                      ]}
-                    >
-                      Avg. Score
-                    </Text>
-                    <Text
-                      style={[
-                        commonStyles.cardSubtitle,
-                        {
-                          textAlign: "right",
-                          marginBottom: 0,
-                        },
-                      ]}
-                    >
-                      {lastEventPoints > 0 ? "197" : "—"}
-                    </Text>
-                  </View>
-                </>
-              ),
+              /*
+               * Same rule: zero points is not a stat worth a tile. Before the
+               * first event this card looks forward instead of back.
+               */
+              ...(lastEventPoints > 0
+                ? {
+                    watermark: String(lastEventPoints),
+                    serial: "UFC 299",
+                    tag: "LAST EVENT POINTS",
+                    tagColor: c.textMuted,
+                    title: String(lastEventPoints),
+                    titleUnit: "PTS",
+                    titleSize: 50,
+                    footer: (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginTop: 12,
+                          paddingTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: c.border,
+                        }}
+                      >
+                        <Text
+                          style={[commonStyles.cardSubtitle, { textAlign: "left", marginBottom: 0 }]}
+                        >
+                          Avg. score
+                        </Text>
+                        <Text
+                          style={[commonStyles.cardSubtitle, { textAlign: "right", marginBottom: 0 }]}
+                        >
+                          197
+                        </Text>
+                      </View>
+                    ),
+                  }
+                : {
+                    serial: "IN 2 DAYS",
+                    tag: "YOUR FIRST EVENT",
+                    tagColor: c.red,
+                    title: "UFC 300",
+                    titleSize: 40,
+                    footer: (
+                      <Text
+                        style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
+                      >
+                        Pereira vs Hill. Get a card in before Saturday and this
+                        becomes your score.
+                      </Text>
+                    ),
+                  }),
             },
             {
               tag: "Last Event Recap",
