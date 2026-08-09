@@ -10,7 +10,6 @@ import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
-import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
 import FeedItem from "../components/FeedItem";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
@@ -164,7 +163,6 @@ export default function Leagues() {
             {
               tag: LEAGUE.kind,
               tagColor: "#E8A020",
-              mark: <CardMark name="trophy" color="#E8A020" />,
               content: (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
                   <ProgressRing

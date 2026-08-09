@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import Svg, { Path, Rect } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
 
 /*
@@ -14,7 +14,7 @@ import { useTheme } from "../context/ThemeContext";
  * match across marks and nothing looks borrowed.
  */
 
-export type MarkName = "trophy" | "scorecard" | "belt";
+export type MarkName = "trophy" | "glove" | "belt";
 
 function TrophyPath({ color }: { color: string }) {
   return (
@@ -48,33 +48,35 @@ function TrophyPath({ color }: { color: string }) {
   );
 }
 
-function ScorecardPath({ color }: { color: string }) {
+function GlovePath({ color }: { color: string }) {
   return (
     <>
-      <Rect
-        x={14}
-        y={10}
-        width={52}
-        height={60}
-        rx={4}
+      {/* mitt */}
+      <Path
+        d="M23 28c0-11 8-18 18-18s20 8 20 20v12c0 6-4 10-10 10H31c-5 0-8-4-8-9V28z"
         fill="none"
         stroke={color}
-        strokeWidth={3}
+        strokeWidth={3.5}
+        strokeLinejoin="round"
       />
-      {/* ruled rows, the way a judge's card is ruled */}
+      {/* thumb */}
       <Path
-        d="M24 26h32M24 38h32M24 50h20"
+        d="M23 33c-6 0-10 5-10 11s4 8 9 8"
+        fill="none"
         stroke={color}
-        strokeWidth={3}
+        strokeWidth={3.5}
         strokeLinecap="round"
       />
-      {/* tally through the last row */}
+      {/* cuff */}
       <Path
-        d="M46 44l12 12M58 44L46 56"
+        d="M28 52h27l2 14c0 3-2 5-5 5H32c-3 0-5-2-5-5l1-14z"
+        fill="none"
         stroke={color}
-        strokeWidth={3}
-        strokeLinecap="round"
+        strokeWidth={3.5}
+        strokeLinejoin="round"
       />
+      {/* strap */}
+      <Path d="M34 60h16" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
     </>
   );
 }
@@ -105,10 +107,10 @@ function BeltPath({ color }: { color: string }) {
 export default function CardMark({
   name,
   color,
-  size = 132,
-  opacity = 0.09,
-  right = -18,
-  top = -6,
+  size = 74,
+  opacity = 0.11,
+  right = 20,
+  top = 58,
 }: {
   name: MarkName;
   /** Defaults to the card's own text colour. */
@@ -125,7 +127,7 @@ export default function CardMark({
     <View pointerEvents="none" style={{ position: "absolute", right, top, opacity }}>
       <Svg width={size} height={size} viewBox="0 0 80 80">
         {name === "trophy" && <TrophyPath color={stroke} />}
-        {name === "scorecard" && <ScorecardPath color={stroke} />}
+        {name === "glove" && <GlovePath color={stroke} />}
         {name === "belt" && <BeltPath color={stroke} />}
       </Svg>
     </View>

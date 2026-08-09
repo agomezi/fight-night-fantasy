@@ -15,7 +15,6 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import BottomNav from "../components/BottomNav";
 import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
-import FighterFace from "../components/FighterFace";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
@@ -246,24 +245,6 @@ export default function Home() {
       tag: "NEXT EVENT",
       tagColor: c.red,
       serial: "SAT · 10PM ET",
-      // Two corner-tinted wells leaning into each other. Real PNGs drop
-      // straight in through `source` — the frame stays as it is.
-      media: (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <FighterFace initials="AP" corner="red" lean="right" />
-          <Text
-            style={{
-              fontFamily: "BebasNeue",
-              fontSize: 20,
-              color: c.textFaint,
-              letterSpacing: 1,
-            }}
-          >
-            VS
-          </Text>
-          <FighterFace initials="JH" corner="blue" lean="left" />
-        </View>
-      ),
       title: "UFC 300",
       subtitle: "PEREIRA VS HILL",
       footer: (
@@ -281,7 +262,6 @@ export default function Home() {
       tag: "YOUR LEAGUE",
       tagColor: "#E8A020",
       serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
-      mark: <CardMark name="trophy" color="#E8A020" />,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -565,7 +545,7 @@ export default function Home() {
               ...(lastEventPoints > 0
                 ? {
                     serial: "UFC 299",
-                    mark: <CardMark name="scorecard" />,
+                    mark: <CardMark name="glove" />,
                     tag: "LAST EVENT POINTS",
                     tagColor: c.textMuted,
                     title: String(lastEventPoints),
@@ -597,7 +577,7 @@ export default function Home() {
                   }
                 : {
                     serial: "IN 2 DAYS",
-                    mark: <CardMark name="scorecard" opacity={0.06} />,
+                    mark: <CardMark name="glove" opacity={0.06} />,
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
                     title: "UFC 300",
