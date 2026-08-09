@@ -434,7 +434,7 @@ export default function Home() {
               ...(myStanding && LEAGUE
                 ? {
                     serial: LEAGUE.name.toUpperCase(),
-                    mark: <CardMark name="trophy" color={GOLD} opacity={0.18} />,
+                    mark: <CardMark name="trophy" color={GOLD} opacity={1} />,
                     tag: "CURRENT LEAGUE RANK",
                     tagColor: c.textMuted,
                     title: ordinal(myStanding.rank),
@@ -497,7 +497,7 @@ export default function Home() {
                   }
                 : {
                     serial: "NO LEAGUE",
-                    mark: <CardMark name="trophy" color={GOLD} opacity={0.09} />,
+                    mark: <CardMark name="trophy" color={GOLD} opacity={1} />,
                     tag: "LEAGUES",
                     tagColor: "#E8A020",
                     title: "Find your people",
@@ -545,7 +545,7 @@ export default function Home() {
               ...(lastEventPoints > 0
                 ? {
                     serial: "UFC 299",
-                    mark: <CardMark name="belt" top={44} color={GOLD} opacity={0.18} />,
+                    mark: <CardMark name="belt" top={44} color={GOLD} opacity={1} />,
                     tag: "LAST EVENT POINTS",
                     tagColor: c.textMuted,
                     title: String(lastEventPoints),
@@ -577,7 +577,7 @@ export default function Home() {
                   }
                 : {
                     serial: "IN 2 DAYS",
-                    mark: <CardMark name="belt" top={44} color={GOLD} opacity={0.09} />,
+                    mark: <CardMark name="belt" top={44} color={GOLD} opacity={1} />,
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
                     title: "UFC 300",
