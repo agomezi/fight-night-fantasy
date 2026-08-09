@@ -15,7 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import BottomNav from "../components/BottomNav";
 import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import { NotificationBell, ProfileBadge } from "../components/icons";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";

@@ -23,7 +23,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import BottomNav from "../components/BottomNav";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import { NotificationBell, ProfileBadge } from "../components/icons";
 import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
 import RoundLane, { LanePick } from "../components/RoundLane";

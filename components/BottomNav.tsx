@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { Path, Svg } from "react-native-svg";
+import PicksTarget from "./icons/PicksTarget";
 import { Octagon } from "./marks";
 import { useTheme } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
@@ -25,18 +25,7 @@ function TabIcon({ tab, color }: { tab: TabKey; color: string }) {
   }
   if (tab === "leagues") return <Ionicons name="medal-outline" size={22} color={color} />;
   if (tab === "profile") return <Ionicons name="person-outline" size={22} color={color} />;
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 4a5 5 0 100 10 5 5 0 000-10z"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  );
+  return <PicksTarget size={22} color={color} />;
 }
 
 function Tab({

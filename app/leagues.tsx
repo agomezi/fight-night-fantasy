@@ -12,7 +12,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import FeedItem from "../components/FeedItem";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import { NotificationBell, ProfileBadge } from "../components/icons";
 import StandingRow from "../components/StandingRow";
 import {
     CHATTER,

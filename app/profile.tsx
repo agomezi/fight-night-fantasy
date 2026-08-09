@@ -9,7 +9,7 @@ import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import ResultRow from "../components/ResultRow";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import { NotificationBell, ProfileBadge } from "../components/icons";
 import { RECENT_RESULTS } from "../constants/league";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
