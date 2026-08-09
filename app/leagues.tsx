@@ -12,6 +12,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import FeedItem from "../components/FeedItem";
+import FighterFace from "../components/FighterFace";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import StandingRow from "../components/StandingRow";
 import {
@@ -213,6 +214,22 @@ export default function Leagues() {
                   {
                     tag: "THIS WEEK",
                     tagColor: c.red,
+                    media: (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                        <FighterFace initials="YO" corner="red" lean="right" height={72} />
+                        <Text
+                          style={{
+                            fontFamily: "BebasNeue",
+                            fontSize: 18,
+                            color: c.textFaint,
+                            letterSpacing: 1,
+                          }}
+                        >
+                          VS
+                        </Text>
+                        <FighterFace initials="DM" corner="blue" lean="left" height={72} />
+                      </View>
+                    ),
                     content: (
                       <View style={{ gap: 12 }}>
                         <View style={commonStyles.row}>

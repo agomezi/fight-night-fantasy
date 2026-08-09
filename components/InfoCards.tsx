@@ -18,6 +18,8 @@ export interface Card {
   aspectRatio?: number;
   /** Small mono text on the right of the header band. */
   serial?: string;
+  /** Full-bleed zone under the header — fighter art. */
+  media?: React.ReactNode;
   delta?: number;
   footer?: React.ReactNode;
 }
@@ -34,6 +36,7 @@ export function InfoCards({ cards }: { cards: Card[] }) {
             label={card.tag ?? ""}
             labelColor={card.tagColor ?? "#666"}
             serial={card.serial}
+            media={card.media}
             style={{ aspectRatio: card.aspectRatio }}
           >
           <View style={commonStyles.infoCardTitleRow}>

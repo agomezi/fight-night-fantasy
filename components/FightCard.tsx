@@ -3,40 +3,49 @@ import { StyleProp, Text, View, ViewStyle } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
 /*
- * Card treatment: ruled header, weighted base.
+ * Card treatment, fourth pass: the ruled header from the last one, the torn
+ * corner from the first, and a media zone that fighter art moves into.
  *
- * Two devices, both from print rather than app UI:
+ * Three devices, all from print rather than app UI:
  *
- * 1. The header sets the label, then a hairline rule runs across the
- *    remaining width to meet a right-hand serial. Type interrupting a rule is
- *    a masthead device — it reads as typeset rather than boxed, and it costs
- *    no fill, no border and no colour block.
+ * 1. Header — the label sits, then a hairline rule runs the remaining width
+ *    to meet a right-hand serial. Type interrupting a rule is a masthead
+ *    device; it reads as typeset rather than boxed, and costs no fill, border
+ *    or colour block.
  *
- * 2. The base carries a heavier edge than the sides. Physical cards have
- *    thickness; a uniform 1px outline on all four sides is the thing that
+ * 2. Base — a heavier bottom edge than the sides. Physical cards have
+ *    thickness, and a uniform 1px outline on all four sides is exactly what
  *    makes a card look drawn instead of made.
  *
- * No ghosted watermark. Restating a figure that's already printed two lines
- * below it is noise, and the space is better spent on real content.
+ * 3. Torn corner — the bottom-right is clipped, like a stub pulled from a
+ *    book. It's the one asymmetry, which is what stops the shape reading as a
+ *    plain rounded rectangle.
+ *
+ * `media` sits full-bleed between header and body: today a pair of tinted
+ * fighter wells, later the actual PNGs, with no change to anything else.
  */
 export default function FightCard({
   label,
   labelColor,
   serial,
+  media,
   children,
   style,
   minHeight,
 }: {
   label: string;
-  /** Tints the label only — the frame itself carries no colour. */
+  /** Tints the label only — the frame carries no colour of its own. */
   labelColor: string;
   /** Right-hand text the rule runs into — event, week, lock time. */
   serial?: string;
+  /** Full-bleed zone under the header. Where fighter art lives. */
+  media?: ReactNode;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   minHeight?: number;
 }) {
   const { c } = useTheme();
+  const NOTCH = 26;
 
   return (
     <View
@@ -47,12 +56,10 @@ export default function FightCard({
           borderBottomWidth: 3,
           borderBottomColor: c.borderStrong,
           minHeight,
-          overflow: "hidden",
         },
         style,
       ]}
     >
-      {/* label — rule — serial, all on one baseline */}
       <View
         style={{
           flexDirection: "row",
@@ -89,9 +96,32 @@ export default function FightCard({
         )}
       </View>
 
-      <View style={{ paddingHorizontal: 18, paddingTop: 14, paddingBottom: 18, flex: 1 }}>
+      {media && <View style={{ paddingHorizontal: 18, paddingTop: 14 }}>{media}</View>}
+
+      <View
+        style={{
+          paddingHorizontal: 18,
+          paddingTop: media ? 12 : 14,
+          paddingBottom: 18,
+          flex: 1,
+        }}
+      >
         {children}
       </View>
+
+      {/* torn corner — the one asymmetry in the shape */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          right: -NOTCH / 2,
+          bottom: -NOTCH / 2,
+          width: NOTCH,
+          height: NOTCH,
+          backgroundColor: c.bg,
+          transform: [{ rotate: "45deg" }],
+        }}
+      />
     </View>
   );
 }

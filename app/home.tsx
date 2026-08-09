@@ -14,6 +14,7 @@ import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
+import FighterFace from "../components/FighterFace";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
@@ -243,7 +244,25 @@ export default function Home() {
     {
       tag: "NEXT EVENT",
       tagColor: c.red,
-      serial: "UFC 300",
+      serial: "SAT · 10PM ET",
+      // Two corner-tinted wells leaning into each other. Real PNGs drop
+      // straight in through `source` — the frame stays as it is.
+      media: (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <FighterFace initials="AP" corner="red" lean="right" />
+          <Text
+            style={{
+              fontFamily: "BebasNeue",
+              fontSize: 20,
+              color: c.textFaint,
+              letterSpacing: 1,
+            }}
+          >
+            VS
+          </Text>
+          <FighterFace initials="JH" corner="blue" lean="left" />
+        </View>
+      ),
       title: "UFC 300",
       subtitle: "PEREIRA VS HILL",
       footer: (
