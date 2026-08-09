@@ -6,5 +6,5 @@
  * scanned at 22–36px, a mark is decoration at 74px+.
  */
 export { default as NotificationBell } from "./NotificationBell";
-export { default as PicksLane } from "./PicksLane";
+export { default as PicksCard } from "./PicksCard";
 export { default as ProfileBadge } from "./ProfileBadge";
