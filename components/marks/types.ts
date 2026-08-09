@@ -12,4 +12,9 @@ export type MarkProps = {
   color: string;
   /** Weight on the 80-unit grid. Raise it when rendering small. */
   strokeWidth?: number;
+  /**
+   * Optional highlight, used where a mark has one part that should carry
+   * colour while its outline stays neutral — the gold plate on the belt.
+   */
+  accent?: string;
 };

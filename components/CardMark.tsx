@@ -28,12 +28,15 @@ const MARKS = {
 export default function CardMark({
   name,
   color,
+  accent,
   size = 74,
   opacity = 0.11,
   right = 20,
   top = 58,
 }: {
   name: MarkName;
+  /** Highlight colour for marks that have one — the belt plate. */
+  accent?: string;
   /** Defaults to the card's own text colour. */
   color?: string;
   size?: number;
@@ -46,7 +49,7 @@ export default function CardMark({
 
   return (
     <View pointerEvents="none" style={{ position: "absolute", right, top, opacity }}>
-      <Mark size={size} color={color ?? c.text} />
+      <Mark size={size} color={color ?? c.text} accent={accent} />
     </View>
   );
 }

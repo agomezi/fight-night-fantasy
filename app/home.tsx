@@ -544,7 +544,7 @@ export default function Home() {
               ...(lastEventPoints > 0
                 ? {
                     serial: "UFC 299",
-                    mark: <CardMark name="belt" top={44} color={c.gold} opacity={1} />,
+                    mark: <CardMark name="belt" top={44} color={c.textFaint} accent={c.gold} opacity={1} />,
                     tag: "LAST EVENT POINTS",
                     tagColor: c.textMuted,
                     title: String(lastEventPoints),
@@ -576,7 +576,7 @@ export default function Home() {
                   }
                 : {
                     serial: "IN 2 DAYS",
-                    mark: <CardMark name="belt" top={44} color={c.gold} opacity={1} />,
+                    mark: <CardMark name="belt" top={44} color={c.textFaint} accent={c.gold} opacity={1} />,
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
                     title: "UFC 300",

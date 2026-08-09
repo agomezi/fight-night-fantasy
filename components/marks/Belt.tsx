@@ -18,7 +18,13 @@ import { MarkProps } from "./types";
  * Nothing overlaps: pieces meet at gaps rather than crossing, because line
  * art muddies wherever two outlines run through each other.
  */
-export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps) {
+export default function Belt({
+  size = 74,
+  color,
+  accent,
+  strokeWidth = 3.5,
+}: MarkProps) {
+  const plate = accent ?? color;
   return (
     <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
       {/* strap ends */}
@@ -38,16 +44,16 @@ export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps)
       {/* side plates */}
       <Path
         d="M14 41 16.5 35h5l2.5 6-2.5 6h-5z"
-        fill={color}
-        fillOpacity={0.3}
+        fill={plate}
+        fillOpacity={0.22}
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
       <Path
         d="M56 41 58.5 35h5l2.5 6-2.5 6h-5z"
-        fill={color}
-        fillOpacity={0.3}
+        fill={plate}
+        fillOpacity={0.22}
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -64,9 +70,9 @@ export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps)
       {/* filled panel inside it */}
       <Path
         d="M31 41 36 34h8l5 7-5 7H36z"
-        fill={color}
-        fillOpacity={0.9}
-        stroke={color}
+        fill={plate}
+        fillOpacity={0.95}
+        stroke={plate}
         strokeWidth={strokeWidth * 0.7}
         strokeLinejoin="round"
       />
