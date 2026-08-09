@@ -4,32 +4,40 @@ import { MarkProps } from "./types";
 /*
  * Title belt, on the classic UFC plate.
  *
- * Earlier passes drew the belt end to end — strap, plate, plate, plate,
- * strap — which spanned nearly the full grid and read as a long thin strip.
- * The fix wasn't the centre plate's proportions, it was the overall run.
+ * Five pieces on one axis: strap, side plate, centre plate, side plate,
+ * strap. The full run is what identifies it — cropping to the plates alone
+ * loses the belt and leaves three badges.
  *
- * So the straps are gone and the mark is cropped to the three plates. That
- * shortens the silhouette by about a quarter and lets the centre plate grow
- * to carry the mark, which is what identifies the belt anyway — nobody
- * recognises a title from its leather.
+ * The plates are wide hexagons, flat top and bottom tapering to a point each
+ * side, so the mark is angular and rhymes with the octagon used elsewhere in
+ * the app rather than introducing a second geometry.
  *
- * The plate is a wide hexagon: flat top and bottom, tapering to a point each
- * side. Angular, so it rhymes with the octagon used elsewhere in the app
- * rather than introducing a second geometry.
+ * Everything draws in one colour from the theme — see `gold` in the palette,
+ * which shifts between themes because a pale gold vanishes on a white card.
  *
- * Nothing overlaps — plates meet at gaps, because line art muddies wherever
- * two outlines run through each other.
+ * Nothing overlaps: pieces meet at gaps rather than crossing, because line
+ * art muddies wherever two outlines run through each other.
  */
-export default function Belt({
-  size = 74,
-  color,
-  strokeWidth = 3.5,
-}: MarkProps) {
+export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
+      {/* strap ends */}
+      <Path
+        d="M2 37.5h5v7H2z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M73 37.5h5v7h-5z"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
+
       {/* side plates */}
       <Path
-        d="M12 41 14.5 35h5l2.5 6-2.5 6h-5z"
+        d="M8 41 11 35h7l3 6-3 6h-7z"
         fill={color}
         fillOpacity={0.3}
         stroke={color}
@@ -37,7 +45,7 @@ export default function Belt({
         strokeLinejoin="round"
       />
       <Path
-        d="M58 41 60.5 35h5l2.5 6-2.5 6h-5z"
+        d="M59 41 62 35h7l3 6-3 6h-7z"
         fill={color}
         fillOpacity={0.3}
         stroke={color}
@@ -45,17 +53,17 @@ export default function Belt({
         strokeLinejoin="round"
       />
 
-      {/* centre plate — 34 across, 28 tall, so it reads landscape */}
+      {/* centre plate — outlined, 36 across by 24 tall so it reads landscape */}
       <Path
-        d="M23 41 31 27h18l8 14-8 14H31z"
+        d="M22 41 30 29h20l8 12-8 12H30z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
 
-      {/* gold panel inside it */}
+      {/* filled panel inside it */}
       <Path
-        d="M30 41 36 33h8l6 8-6 8H36z"
+        d="M29 41 35 34h10l6 7-6 7H35z"
         fill={color}
         fillOpacity={0.9}
         stroke={color}
