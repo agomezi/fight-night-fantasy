@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Circle, G, Path } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
 
 /*
@@ -83,10 +83,17 @@ function OctagonPath({ color }: { color: string }) {
 
 /** The round bell — an event was fought, and the bell marked it. */
 function BellPath({ color }: { color: string }) {
+  // Nudge the whole bell vertically within the viewBox. Negative = up.
+  const shiftY = -6;
   return (
-    <>
+    <G translateY={shiftY}>
       {/* mount and stem */}
-      <Path d="M31 11h18M40 11v7" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+      <Path
+        d="M31 11h18M40 11v7"
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinecap="round"
+      />
       {/* dome */}
       <Path
         d="M23 50c0-19 5-32 17-32s17 13 17 32"
@@ -96,11 +103,28 @@ function BellPath({ color }: { color: string }) {
         strokeLinejoin="round"
       />
       {/* rim */}
-      <Path d="M17 50h46" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+      <Path
+        d="M17 50h46"
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinecap="round"
+      />
       {/* clapper */}
-      <Path d="M40 50v6" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
-      <Circle cx={40} cy={63} r={5.5} fill="none" stroke={color} strokeWidth={3.5} />
-    </>
+      <Path
+        d="M40 50v6"
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinecap="round"
+      />
+      <Circle
+        cx={40}
+        cy={63}
+        r={5.5}
+        fill="none"
+        stroke={color}
+        strokeWidth={3.5}
+      />
+    </G>
   );
 }
 
@@ -132,30 +156,50 @@ function GlovePath({ color }: { color: string }) {
         strokeLinejoin="round"
       />
       {/* strap */}
-      <Path d="M34 60h16" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+      <Path
+        d="M34 60h16"
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinecap="round"
+      />
     </>
   );
 }
 
+/** Title belt — straps drawn either side of the plate so no lines cross. */
 function BeltPath({ color }: { color: string }) {
   return (
     <>
+      {/* straps */}
       <Path
-        d="M6 30h68v20H6z"
+        d="M5 34h22v13H5z"
         fill="none"
         stroke={color}
-        strokeWidth={3}
+        strokeWidth={3.5}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M53 34h22v13H53z"
+        fill="none"
+        stroke={color}
+        strokeWidth={3.5}
         strokeLinejoin="round"
       />
       {/* centre plate */}
       <Path
-        d="M28 22h24l6 18-6 18H28l-6-18 6-18z"
+        d="M27 20h26v20c0 9-7 15-13 17-6-2-13-8-13-17V20z"
         fill="none"
         stroke={color}
-        strokeWidth={3}
+        strokeWidth={3.5}
         strokeLinejoin="round"
       />
-      <Path d="M40 32v16M34 40h12" stroke={color} strokeWidth={3} strokeLinecap="round" />
+      {/* plate detail */}
+      <Path
+        d="M40 28v14M34 35h12"
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinecap="round"
+      />
     </>
   );
 }
@@ -180,7 +224,10 @@ export default function CardMark({
   const stroke = color ?? c.text;
 
   return (
-    <View pointerEvents="none" style={{ position: "absolute", right, top, opacity }}>
+    <View
+      pointerEvents="none"
+      style={{ position: "absolute", right, top, opacity }}
+    >
       <Svg width={size} height={size} viewBox="0 0 80 80">
         {name === "trophy" && <TrophyPath color={stroke} />}
         {name === "octagon" && <OctagonPath color={stroke} />}
