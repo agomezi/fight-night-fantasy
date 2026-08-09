@@ -49,26 +49,89 @@ export type LeagueStat = {
 // A brand-new account has not joined a league and has no scored picks yet, so
 // every collection below is intentionally empty. Screens branch on these to
 // render their empty states instead of fabricating numbers we don't have.
-export const LEAGUE: League | null = null;
+/*
+ * DEMO SWITCH
+ *
+ * false — the real shipping state: a brand-new account, everything empty.
+ * true  — sample data, so populated screens can be designed and reviewed.
+ *
+ * Flip this one line; nothing else changes. The empty-state work stays intact
+ * either way. Remove the demo branches once a backend supplies this.
+ */
+export const DEMO = true;
 
-export const SEASON_STANDINGS: Standing[] = [];
+export const LEAGUE: League | null = DEMO
+  ? { name: "The Alpha League", kind: "PRIVATE LEAGUE", members: 12, week: 7 }
+  : null;
 
-export const EVENT_STANDINGS: Standing[] = [];
+export const SEASON_STANDINGS: Standing[] = DEMO
+  ? [
+      { id: "dave", rank: 1, name: "Dave M.", team: "Striker Squad", points: 1235.0, move: 1 },
+      { id: "me", rank: 2, name: "You", team: "Team Apex", points: 1180.5, move: 2, isMe: true },
+      { id: "sarah", rank: 3, name: "Sarah J.", team: "Submission Artists", points: 1102.5, move: -1 },
+      { id: "mike", rank: 4, name: "Mike K.", team: "Knockout Kings", points: 980.0, move: 0 },
+      { id: "priya", rank: 5, name: "Priya K.", team: "Ground Control", points: 905.0, move: -2 },
+      { id: "jordan", rank: 6, name: "Jordan M.", team: "The Octagon", points: 871.5, move: 1 },
+    ]
+  : [];
 
-export const RIVALRY: Rivalry | null = null;
+export const EVENT_STANDINGS: Standing[] = DEMO
+  ? [
+      { id: "me", rank: 1, name: "You", team: "Team Apex", points: 245.0, move: 3, isMe: true },
+      { id: "dave", rank: 2, name: "Dave M.", team: "Striker Squad", points: 238.0, move: -1 },
+      { id: "sofia", rank: 3, name: "Sofia R.", team: "Heavy Hitters", points: 231.0, move: 0 },
+      { id: "priya", rank: 4, name: "Priya K.", team: "Ground Control", points: 205.0, move: -2 },
+    ]
+  : [];
+
+export const RIVALRY: Rivalry | null = DEMO
+  ? {
+      you: { name: "You", team: "Team Apex", proj: 142.0, record: "5-1", live: 88.5 },
+      rival: { name: "Dave", team: "Striker Squad", proj: 138.5, record: "5-1", live: 76.0 },
+      gap: 12.5,
+      event: "UFC 300",
+    }
+  : null;
 
 export const MATCHUP_PICKS: MatchupPick[] = [];
 
-export const RISING_STARS: Riser[] = [];
+export const RISING_STARS: Riser[] = DEMO
+  ? [
+      { id: "1", name: "Priya K.", sub: "Up 4 places this week", delta: "+42%" },
+      { id: "2", name: "Jordan M.", sub: "Up 2 places this week", delta: "+18%" },
+    ]
+  : [];
 
-export const CHATTER: ChatMessage[] = [];
+export const CHATTER: ChatMessage[] = DEMO
+  ? [
+      {
+        id: "1",
+        author: "Dave M.",
+        time: "2h ago",
+        text: "I need a big night from the main event to hold you off.",
+      },
+      {
+        id: "2",
+        author: "Sarah J.",
+        time: "5h ago",
+        text: "Anyone else fading the favourite? Feels like a trap.",
+      },
+    ]
+  : [];
 
-export const LEAGUE_STATS: LeagueStat[] = [
-  { id: "winrate", label: "YOUR WIN RATE", value: "—", delta: "No events yet", positive: null },
-  { id: "avg", label: "POINTS AVERAGE", value: "0", delta: "No events yet", positive: null },
-  { id: "accuracy", label: "PICK ACCURACY", value: "—", delta: "No picks yet", positive: null },
-  { id: "percentile", label: "LEAGUE PERCENTILE", value: "—", delta: "Unranked", positive: null },
-];
+export const LEAGUE_STATS: LeagueStat[] = DEMO
+  ? [
+      { id: "winrate", label: "YOUR WIN RATE", value: "83%", delta: "+2.4", positive: true },
+      { id: "avg", label: "POINTS AVERAGE", value: "197", delta: "Stable", positive: null },
+      { id: "accuracy", label: "PICK ACCURACY", value: "68%", delta: "-1.2", positive: false },
+      { id: "percentile", label: "LEAGUE PERCENTILE", value: "TOP 17%", delta: "Rising", positive: true },
+    ]
+  : [
+      { id: "winrate", label: "YOUR WIN RATE", value: "—", delta: "No events yet", positive: null },
+      { id: "avg", label: "POINTS AVERAGE", value: "0", delta: "No events yet", positive: null },
+      { id: "accuracy", label: "PICK ACCURACY", value: "—", delta: "No picks yet", positive: null },
+      { id: "percentile", label: "LEAGUE PERCENTILE", value: "—", delta: "Unranked", positive: null },
+    ];
 
 /**
  * A read on how you pick, rather than a raw stat — the fantasy-league
@@ -104,7 +167,40 @@ export type BoutResult = {
   verdictNote: string;
 };
 
-export const RECENT_RESULTS: BoutResult[] = [];
+export const RECENT_RESULTS: BoutResult[] = DEMO
+  ? [
+      {
+        id: "r1",
+        event: "UFC 299",
+        red: { initials: "IM", name: "I. Makhachev", method: "SUB" },
+        blue: { initials: "DP", name: "D. Poirier" },
+        detail: "R3, 2:41",
+        points: "+180",
+        verdict: "hit",
+        verdictNote: "YOU CALLED IT · R3",
+      },
+      {
+        id: "r2",
+        event: "UFC 299",
+        red: { initials: "SO", name: "S. O'Malley", method: "UD" },
+        blue: { initials: "MV", name: "M. Vera" },
+        detail: "R5",
+        points: "+110",
+        verdict: "hit",
+        verdictNote: "YOU CALLED IT",
+      },
+      {
+        id: "r3",
+        event: "UFC 299",
+        red: { initials: "AP", name: "A. Pantoja" },
+        blue: { initials: "SE", name: "S. Erceg", method: "KO/TKO" },
+        detail: "R2, 4:08",
+        points: "0",
+        verdict: "miss",
+        verdictNote: "YOU HAD PANTOJA",
+      },
+    ]
+  : [];
 
 /** Accuracy for the event currently in view. Null until something is scored. */
 export const EVENT_ACCURACY: { hit: number; total: number } | null = null;

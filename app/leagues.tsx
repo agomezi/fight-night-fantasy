@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ScrollView, Share, Text, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import AnimatedBar from "../components/AnimatedBar";
-import LiveDot from "../components/LiveDot";
+import ProgressRing from "../components/ProgressRing";
+import SwipeableCards from "../components/SwipeableCards";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +24,12 @@ import {
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
+
+function ordinal(n: number) {
+  const t = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (t[(v - 20) % 10] ?? t[v] ?? t[0]);
+}
 
 export default function Leagues() {
   const insets = useSafeAreaInsets();
@@ -51,6 +58,7 @@ export default function Leagues() {
     }).catch(() => {});
   };
 
+  const me = SEASON_STANDINGS.find((s) => s.isMe);
   const yourShare = RIVALRY
     ? (RIVALRY.you.proj / (RIVALRY.you.proj + RIVALRY.rival.proj)) * 100
     : 50;
@@ -144,13 +152,128 @@ export default function Leagues() {
         </View>
         <View style={commonStyles.divider} />
 
-        {/* League hero */}
-        <Text style={styles.eyebrow}>{LEAGUE.kind}</Text>
-        <Text style={styles.leagueName}>{LEAGUE.name}</Text>
-        <View style={styles.memberRow}>
-          <Ionicons name="people" size={15} color={c.textMuted} />
-          <Text style={styles.memberText}>{LEAGUE.members} Members</Text>
-        </View>
+        {/*
+          Same shape as home: a carousel up top where each card answers one
+          question — where you sit, who you're fighting this week, how the
+          league is trending.
+        */}
+        <SwipeableCards
+          minHeight={252}
+          cards={[
+            {
+              tag: LEAGUE.kind,
+              tagColor: "#E8A020",
+              content: (
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+                  <ProgressRing
+                    value={me ? LEAGUE.members - me.rank + 1 : 0}
+                    total={LEAGUE.members}
+                    center={me ? ordinal(me.rank) : "—"}
+                    caption={`of ${LEAGUE.members}`}
+                    size={116}
+                    color="#E8A020"
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.text, fontSize: 21, fontWeight: "800" }}>
+                      {LEAGUE.name}
+                    </Text>
+                    <Text
+                      style={{
+                        color: c.textMuted,
+                        fontSize: 12.5,
+                        lineHeight: 18,
+                        marginTop: 4,
+                      }}
+                    >
+                      {me ? `${me.points.toLocaleString()} pts` : "No points yet"} · week{" "}
+                      {LEAGUE.week}
+                    </Text>
+                    {me && (
+                      <Text
+                        style={{
+                          color: me.move >= 0 ? c.green : c.red,
+                          fontSize: 12.5,
+                          fontWeight: "700",
+                          marginTop: 6,
+                        }}
+                      >
+                        {me.move > 0
+                          ? `Up ${me.move} this week`
+                          : me.move < 0
+                            ? `Down ${Math.abs(me.move)} this week`
+                            : "Holding position"}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ),
+            },
+            ...(RIVALRY
+              ? [
+                  {
+                    tag: "THIS WEEK",
+                    tagColor: c.red,
+                    content: (
+                      <View style={{ gap: 12 }}>
+                        <View style={commonStyles.row}>
+                          <View style={{ alignItems: "flex-start" }}>
+                            <Text style={styles.projLabel}>{RIVALRY.you.name}</Text>
+                            <Text
+                              style={{
+                                color: c.text,
+                                fontSize: 30,
+                                fontWeight: "800",
+                                fontVariant: ["tabular-nums"],
+                              }}
+                            >
+                              {RIVALRY.you.live.toFixed(1)}
+                            </Text>
+                          </View>
+                          <Text style={{ color: c.textFaint, fontSize: 13, fontWeight: "800" }}>
+                            VS
+                          </Text>
+                          <View style={{ alignItems: "flex-end" }}>
+                            <Text style={styles.projLabel}>{RIVALRY.rival.name}</Text>
+                            <Text
+                              style={{
+                                color: c.textMuted,
+                                fontSize: 30,
+                                fontWeight: "800",
+                                fontVariant: ["tabular-nums"],
+                              }}
+                            >
+                              {RIVALRY.rival.live.toFixed(1)}
+                            </Text>
+                          </View>
+                        </View>
+                        <AnimatedBar percent={yourShare} />
+                        <PressableScale
+                          onPress={() => router.push("/matchup")}
+                          style={{
+                            backgroundColor: c.red,
+                            borderRadius: 10,
+                            paddingVertical: 11,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#FFFFFF",
+                              fontSize: 12,
+                              fontWeight: "800",
+                              letterSpacing: 1,
+                            }}
+                          >
+                            VIEW MATCHUP
+                          </Text>
+                        </PressableScale>
+                      </View>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
 
         <View style={styles.actionRow}>
           <PressableScale style={styles.actionButton} onPress={inviteFriends}>
@@ -196,50 +319,6 @@ export default function Leagues() {
           </PressableScale>
         </View>
 
-        {/* Active rivalry */}
-        {RIVALRY ? (
-        <View style={[styles.card, styles.rivalryCard]}>
-          <View style={commonStyles.row}>
-            <View style={styles.liveRow}>
-              <LiveDot />
-              <Text style={styles.liveText}>ACTIVE RIVALRY</Text>
-            </View>
-            <Ionicons name="flash" size={20} color={c.red} />
-          </View>
-
-          <Text style={styles.rivalryTitle}>
-            {RIVALRY.you.name} <Text style={styles.rivalryTitleAccent}>vs.</Text> {RIVALRY.rival.name}
-          </Text>
-          <Text style={styles.rivalrySub}>
-            Only {RIVALRY.gap}pts apart. The battle for the #1 spot is heating up this week.
-          </Text>
-
-          <View style={styles.projRow}>
-            <View>
-              <Text style={styles.projLabel}>Your Proj</Text>
-              <Text style={styles.projValue}>{RIVALRY.you.proj.toFixed(1)}</Text>
-            </View>
-            <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.projLabel}>{RIVALRY.rival.name}&apos;s Proj</Text>
-              <Text style={styles.projValue}>{RIVALRY.rival.proj.toFixed(1)}</Text>
-            </View>
-          </View>
-          <AnimatedBar percent={yourShare} style={{ marginTop: 10 }} />
-
-          <PressableScale style={styles.primaryButton} onPress={() => router.push("/matchup")}>
-            <Text style={styles.primaryButtonText}>VIEW MATCHUP</Text>
-          </PressableScale>
-        </View>
-        ) : (
-          <View style={styles.card}>
-            <EmptyState
-              compact
-              icon="flash-outline"
-              title="No rivalry yet"
-              message="Your first head-to-head matchup is set once the next event opens."
-            />
-          </View>
-        )}
 
         {/* Rising stars — feed, so no box. */}
         <View style={{ marginTop: 30 }}>

@@ -1,93 +1,369 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated from "react-native-reanimated";
-import BottomNav from "../components/BottomNav";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import Animated, {
+  ZoomOut,
+  interpolateColor,
+  useAnimatedStyle,
+} from "react-native-reanimated";
+import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
+import { appear, popIn } from "../constants/motion";
+import { useToggleProgress } from "../hooks/useToggleProgress";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import BottomNav from "../components/BottomNav";
+import EmptyState from "../components/EmptyState";
+import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import InfoCards from "../components/InfoCards";
+import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
-import ResultRow from "../components/ResultRow";
-import SwipeableCards from "../components/SwipeableCards";
-import {
-  EVENT_ACCURACY,
-  LEAGUE,
-  RECENT_RESULTS,
-  SUPERLATIVE,
-} from "../constants/league";
-import { appear } from "../constants/motion";
+import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
+import { LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
-/* -------------------------------------------------------------------------
- * The event card. Real's list treatment: no box, hairline between rows, and
- * the fight is the headline with its division underneath.
- * ---------------------------------------------------------------------- */
+/** Tab label whose colour eases; the underline is drawn by the parent. */
+function TabButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const progress = useToggleProgress(active);
 
-type Bout = {
-  id: string;
-  a: { initials: string; name: string };
-  b: { initials: string; name: string };
-  division: string;
-  rounds: 3 | 5;
-  billing: string;
-};
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.textFaint, c.text]),
+  }));
 
-const CARD: Bout[] = [
-  {
-    id: "main",
-    a: { initials: "AP", name: "Pereira" },
-    b: { initials: "JH", name: "Hill" },
-    division: "Light Heavyweight",
-    rounds: 5,
-    billing: "MAIN EVENT",
-  },
-  {
-    id: "zhang-yan",
-    a: { initials: "ZW", name: "Zhang" },
-    b: { initials: "XY", name: "Yan" },
-    division: "Strawweight",
-    rounds: 3,
-    billing: "CO-MAIN",
-  },
-  {
-    id: "gaethje-holloway",
-    a: { initials: "JG", name: "Gaethje" },
-    b: { initials: "MH", name: "Holloway" },
-    division: "Lightweight",
-    rounds: 3,
-    billing: "MAIN CARD",
-  },
-  {
-    id: "oliveira-tsarukyan",
-    a: { initials: "CO", name: "Oliveira" },
-    b: { initials: "AT", name: "Tsarukyan" },
-    division: "Lightweight",
-    rounds: 3,
-    billing: "MAIN CARD",
-  },
-];
+  return (
+    <PressableScale
+      onPress={onPress}
+      scaleTo={0.97}
+      style={{ flex: 1, paddingBottom: 12, alignItems: "center" }}
+    >
+      <Animated.Text
+        style={[
+          { fontSize: 13, fontWeight: "700", letterSpacing: 1 },
+          textStyle,
+        ]}
+      >
+        {label}
+      </Animated.Text>
+    </PressableScale>
+  );
+}
 
-const EVENTS = ["UFC 300", "UFC 301", "Fight Night"];
+/** Fighter tile for Quick Pick — swells and warms when chosen. */
+function FighterChoice({
+  initials,
+  name,
+  record,
+  selected,
+  onPress,
+}: {
+  initials: string;
+  name: string;
+  record: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const commonStyles = useThemedStyles(makeCommonStyles);
+  const progress = useToggleProgress(selected);
+
+  const ringStyle = useAnimatedStyle(() => ({
+    borderWidth: 1 + progress.value,
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [c.borderStrong, c.red],
+    ),
+    transform: [{ scale: 1 + progress.value * 0.08 }],
+  }));
+
+  const nameStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.text, c.red]),
+  }));
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      style={{ alignItems: "center", flex: 1 }}
+      scaleTo={0.94}
+    >
+      <Animated.View
+        style={[
+          {
+            width: 52,
+            height: 52,
+            borderRadius: 26,
+            backgroundColor: c.input,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 8,
+          },
+          ringStyle,
+        ]}
+      >
+        <Text style={{ color: c.text, fontWeight: "700" }}>{initials}</Text>
+
+        {selected && (
+          <Animated.View
+            entering={popIn}
+            exiting={ZoomOut.duration(120)}
+            style={{
+              position: "absolute",
+              bottom: -2,
+              right: -2,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: c.red,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+          </Animated.View>
+        )}
+      </Animated.View>
+
+      <Animated.Text
+        style={[commonStyles.cardTitle, { fontSize: 16, marginBottom: 2 }, nameStyle]}
+      >
+        {name}
+      </Animated.Text>
+      <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+        {record}
+      </Text>
+    </PressableScale>
+  );
+}
+
+/** Yes/No poll button that fills red as it's chosen. */
+function VoteButton({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { c } = useTheme();
+  const progress = useToggleProgress(selected);
+
+  const boxStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], [c.card, c.red]),
+    borderColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      [c.borderStrong, c.red],
+    ),
+  }));
+
+  const textStyle = useAnimatedStyle(() => ({
+    color: interpolateColor(progress.value, [0, 1], [c.text, "#FFFFFF"]),
+  }));
+
+  return (
+    <PressableScale
+      onPress={onPress}
+      haptic="medium"
+      style={[
+        {
+          flex: 1,
+          paddingVertical: 14,
+          borderRadius: 10,
+          alignItems: "center",
+          borderWidth: 1,
+        },
+        boxStyle,
+      ]}
+    >
+      <Animated.Text
+        style={[
+          { fontSize: 16, fontWeight: "700", letterSpacing: 2 },
+          textStyle,
+        ]}
+      >
+        {label}
+      </Animated.Text>
+    </PressableScale>
+  );
+}
+
+function ordinal(n: number) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
 
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
-  const [event, setEvent] = useState(EVENTS[0]);
+  const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
+  const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
+  const [quickPick, setQuickPick] = useState<"pereira" | "hill" | null>(null);
 
-  // Nothing is picked on a new account; the ring is the reminder of that.
-  const picked = 0;
-  const total = CARD.length + 8;
+  // Measured so the sliding underline matches whatever the tabs actually are.
+  const [tabStripWidth, setTabStripWidth] = useState(0);
+  const tabProgress = useToggleProgress(picksTab === "full");
+  const underlineStyle = useAnimatedStyle(() => {
+    const half = tabStripWidth / 2;
+    return {
+      width: half,
+      transform: [{ translateX: tabProgress.value * half }],
+    };
+  });
 
-  const sectionLabel = {
-    color: c.textMuted,
-    fontSize: 11,
-    fontWeight: "800" as const,
-    letterSpacing: 1.4,
-  };
+  // --- carousel -----------------------------------------------------------
+  // Two always-on cards, then two that only appear when they're relevant.
+  const myStanding = SEASON_STANDINGS.find((s) => s.isMe);
+  const picksStarted = 3;
+  const picksTotal = 12;
+  const eventIsLive = false;
 
+  const carouselCards: CarouselCard[] = [
+    {
+      tag: "NEXT EVENT",
+      tagColor: c.red,
+      title: "UFC 300",
+      subtitle: "PEREIRA VS HILL",
+      footer: (
+        <StatBoxRow>
+          <StatBox value="02" label="DAYS" />
+          <StatBox value="14" label="HOURS" />
+          <StatBox value="45" label="MINS" />
+        </StatBoxRow>
+      ),
+    },
+  ];
+
+  if (LEAGUE && myStanding) {
+    carouselCards.push({
+      tag: "YOUR LEAGUE",
+      tagColor: "#E8A020",
+      content: (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <ProgressRing
+            value={LEAGUE.members - myStanding.rank + 1}
+            total={LEAGUE.members}
+            center={ordinal(myStanding.rank)}
+            caption={`of ${LEAGUE.members}`}
+            size={116}
+            color="#E8A020"
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text, fontSize: 19, fontWeight: "800" }}>
+              {LEAGUE.name}
+            </Text>
+            <Text
+              style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}
+            >
+              {myStanding.points.toLocaleString()} pts · week {LEAGUE.week}
+            </Text>
+            <Text
+              style={{ color: c.green, fontSize: 12.5, fontWeight: "700", marginTop: 6 }}
+            >
+              {myStanding.move > 0
+                ? `Up ${myStanding.move} this week`
+                : myStanding.move < 0
+                  ? `Down ${Math.abs(myStanding.move)} this week`
+                  : "Holding position"}
+            </Text>
+          </View>
+        </View>
+      ),
+    });
+  }
+
+  // Only if they started a card and walked away without submitting.
+  if (picksStarted > 0 && picksStarted < picksTotal) {
+    carouselCards.push({
+      tag: "UNFINISHED CARD",
+      tagColor: c.red,
+      content: (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <ProgressRing
+            value={picksStarted}
+            total={picksTotal}
+            center={`${picksStarted}`}
+            caption={`of ${picksTotal}`}
+            size={116}
+          />
+          <View style={{ flex: 1, gap: 10 }}>
+            <View>
+              <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
+                Still open
+              </Text>
+              <Text
+                style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 3 }}
+              >
+                {picksTotal - picksStarted} bouts left · locks in 14h
+              </Text>
+            </View>
+            <PressableScale
+              onPress={() => router.push("/picks")}
+              style={{
+                backgroundColor: c.red,
+                borderRadius: 10,
+                paddingVertical: 11,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: "#FFFFFF",
+                  fontSize: 12,
+                  fontWeight: "800",
+                  letterSpacing: 1,
+                }}
+              >
+                FINISH YOUR CARD
+              </Text>
+            </PressableScale>
+          </View>
+        </View>
+      ),
+    });
+  }
+
+  // Only while a card is actually being fought.
+  if (eventIsLive) {
+    carouselCards.push({
+      tag: "LIVE",
+      tagColor: c.red,
+      content: (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <ProgressRing value={4} total={7} center="4" caption="of 7" size={116} color={c.green} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
+              Running accuracy
+            </Text>
+            <Text
+              style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}
+            >
+              4 of 7 scored bouts called · 5 to go
+            </Text>
+          </View>
+        </View>
+      ),
+    });
+  }
+
+  const fullCardFights = [
+    { matchup: "Pereira vs Hill", division: "TITLE FIGHT" },
+    { matchup: "Holloway vs Gaethje", division: "Lightweight" },
+    { matchup: "Poatan vs Ankalaev", division: "Light HW" },
+  ];
   return (
     <SafeAreaView
       style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
@@ -96,324 +372,468 @@ export default function Home() {
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
+        contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
       >
-        <View style={commonStyles.row}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <ProfileBadge />
           <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell hasNotifications />
+          <NotificationBell />
         </View>
         <View style={commonStyles.divider} />
 
         {/*
-          Carousel leads, and the picks ring is card one — so someone who
-          started picking, left, and came back is reminded where they stopped
-          before anything else on the screen.
+          Cards earn their place — each one only appears when it has something
+          to say. A card that reads "no league" or "0 picked" is noise, so it
+          simply isn't there.
         */}
-        <SwipeableCards
-          minHeight={186}
+        <SwipeableCards minHeight={252} cards={carouselCards} />
+        <View
+          style={[
+            commonStyles.cardWrapper,
+            { marginBottom: 9, justifyContent: "space-between" },
+          ]}
+        >
+          <Text
+            style={[
+              commonStyles.cardTitle,
+              { textAlign: "left", paddingLeft: 3 },
+            ]}
+          >
+            Your Performance
+          </Text>
+          <Text
+            style={[
+              commonStyles.cardSubtitle,
+              { marginTop: 9, paddingRight: 3 },
+            ]}
+          >
+            View History
+          </Text>
+        </View>
+        <InfoCards
           cards={[
             {
-              tag: "YOUR CARD",
-              tagColor: c.red,
-              content: (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
-                  <ProgressRing
-                    value={picked}
-                    total={total}
-                    center={`${picked}`}
-                    caption={`of ${total}`}
-                    size={124}
-                  />
-                  <View style={{ flex: 1, gap: 10 }}>
-                    <View>
-                      <Text style={{ color: c.text, fontSize: 17, fontWeight: "800" }}>
-                        {picked === 0 ? "Nothing picked yet" : "Pick up where you left off"}
-                      </Text>
-                      <Text
-                        style={{
-                          color: c.textMuted,
-                          fontSize: 12.5,
-                          lineHeight: 18,
-                          marginTop: 3,
-                        }}
-                      >
-                        {total - picked} bouts open · locks in 14h
-                      </Text>
-                    </View>
-                    <PressableScale
-                      onPress={() => router.push("/picks")}
-                      style={{
-                        backgroundColor: c.red,
-                        borderRadius: 10,
-                        paddingVertical: 11,
-                        alignItems: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: "#FFFFFF",
-                          fontSize: 12,
-                          fontWeight: "800",
-                          letterSpacing: 1,
-                        }}
-                      >
-                        {picked === 0 ? "START PICKING" : "CONTINUE"}
-                      </Text>
-                    </PressableScale>
-                  </View>
-                </View>
+              tag: "CURRENT LEAGUE RANK",
+              tagColor: c.textMuted,
+              title: "—",
+              titleSize: 50,
+              footer: (
+                <Text
+                  style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
+                >
+                  Unranked · join a league to get on the board
+                </Text>
               ),
             },
             {
-              tag: "YOUR STYLE",
-              tagColor: "#E8A020",
-              content: (
-                <View style={{ gap: 6 }}>
-                  <Text
+              tag: "LAST EVENT POINTS",
+              tagColor: c.textMuted,
+              title: "0",
+              titleUnit: "PTS",
+              titleSize: 50,
+              footer: (
+                <>
+                  <View
+                    style={[
+                      commonStyles.divider,
+                      { marginTop: 6, marginBottom: 10 },
+                    ]}
+                  />
+                  <View
                     style={{
-                      fontFamily: "BebasNeue",
-                      fontSize: 38,
-                      color: c.text,
-                      letterSpacing: 1,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                     }}
                   >
-                    {SUPERLATIVE ? SUPERLATIVE.title.toUpperCase() : "NO READ YET"}
+                    <Text
+                      style={[
+                        commonStyles.cardSubtitle,
+                        { textAlign: "left", marginBottom: 0 },
+                      ]}
+                    >
+                      Avg. Score
+                    </Text>
+                    <Text
+                      style={[
+                        commonStyles.cardSubtitle,
+                        {
+                          textAlign: "right",
+                          marginBottom: 0,
+                        },
+                      ]}
+                    >
+                      —
+                    </Text>
+                  </View>
+                </>
+              ),
+            },
+            {
+              tag: "Last Event Recap",
+              tagColor: c.text,
+              tagSize: 22,
+              footer: (
+                <EmptyState
+                  icon="time-outline"
+                  title="No history yet"
+                  message="Once you play an event, your pick-by-pick results land here."
+                />
+              ),
+            },
+          ]}
+        />
+        <View
+          style={[
+            commonStyles.cardWrapper,
+            { marginBottom: 9, justifyContent: "space-between" },
+          ]}
+        >
+          <Text
+            style={[
+              commonStyles.cardTitle,
+              { textAlign: "left", paddingLeft: 3 },
+            ]}
+          >
+            Actions
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <View
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: 4,
+                backgroundColor: c.red,
+              }}
+            />
+            <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
+              Locks in 14h
+            </Text>
+          </View>
+        </View>
+
+        <Animated.View entering={appear(0)} style={commonStyles.homeCard}>
+          <View
+            onLayout={(e) =>
+              setTabStripWidth(Math.max(0, e.nativeEvent.layout.width - 48))
+            }
+            style={{
+              flexDirection: "row",
+              borderBottomWidth: 1,
+              borderBottomColor: c.border,
+              marginBottom: 16,
+              marginHorizontal: -24,
+              paddingHorizontal: 24,
+            }}
+          >
+            {(["quick", "full"] as const).map((tab) => {
+              const label = tab === "quick" ? "QUICK PICK" : "FULL CARD (12)";
+              return (
+                <TabButton
+                  key={tab}
+                  label={label}
+                  active={picksTab === tab}
+                  onPress={() => setPicksTab(tab)}
+                />
+              );
+            })}
+
+            {/* Single underline that slides between tabs, rather than one
+                border blinking off and another blinking on. */}
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  bottom: -1,
+                  left: 24,
+                  height: 2,
+                  backgroundColor: c.red,
+                },
+                underlineStyle,
+              ]}
+            />
+          </View>
+
+          {picksTab === "quick" ? (
+            <View>
+              <Text
+                style={[
+                  commonStyles.label,
+                  { color: c.textFaint, marginBottom: 20 },
+                ]}
+              >
+                UFC 300 · MAIN EVENT —{" "}
+                <Text style={{ color: c.red }}>LHW TITLE</Text>
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 20,
+                }}
+              >
+                <FighterChoice
+                  initials="AP"
+                  name="PEREIRA"
+                  record="29-9 · C"
+                  selected={quickPick === "pereira"}
+                  onPress={() => setQuickPick("pereira")}
+                />
+                <Text style={{ color: c.textFaint, fontWeight: "700", fontSize: 13 }}>
+                  VS
+                </Text>
+                <FighterChoice
+                  initials="JH"
+                  name="HILL"
+                  record="12-1 · #1"
+                  selected={quickPick === "hill"}
+                  onPress={() => setQuickPick("hill")}
+                />
+              </View>
+
+              <View style={{ marginBottom: 20 }}>
+                <AnimatedBar percent={61} height={4} />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    marginTop: 6,
+                  }}
+                >
+                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+                    61% picking Pereira
                   </Text>
-                  <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19 }}>
-                    {SUPERLATIVE
-                      ? SUPERLATIVE.blurb
-                      : "Play an event and we'll work out what kind of picker you are."}
+                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
+                    39% Hill
                   </Text>
+                </View>
+              </View>
+
+              <PressableScale
+                disabled={!quickPick}
+                onPress={() =>
+                  router.push({
+                    pathname: "/picks",
+                    params: { fighter: quickPick as string },
+                  })
+                }
+                style={{
+                  borderWidth: 1,
+                  borderColor: quickPick ? c.red : c.borderStrong,
+                  backgroundColor: quickPick ? c.red : "transparent",
+                  borderRadius: 10,
+                  paddingVertical: 14,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    color: quickPick ? "#fff" : c.textFaint,
+                    fontWeight: "700",
+                    fontSize: 13,
+                    letterSpacing: 2,
+                  }}
+                >
+                  {quickPick ? "LOCK IN YOUR PICKS →" : "SELECT A FIGHTER TO PICK"}
+                </Text>
+              </PressableScale>
+            </View>
+          ) : (
+            <View style={{ gap: 0 }}>
+              {fullCardFights.map((fight, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingVertical: 14,
+                    borderBottomWidth: i < fullCardFights.length - 1 ? 1 : 0,
+                    borderBottomColor: c.border,
+                  }}
+                >
+                  <View>
+                    <Text
+                      style={[
+                        commonStyles.cardTitle,
+                        { fontSize: 15, textAlign: "left", marginBottom: 2 },
+                      ]}
+                    >
+                      {fight.matchup}
+                    </Text>
+                    <Text
+                      style={[
+                        commonStyles.label,
+                        { color: c.red, marginBottom: 0 },
+                      ]}
+                    >
+                      {fight.division}
+                    </Text>
+                  </View>
+                  <PressableScale
+                    onPress={() => router.push("/picks")}
+                    style={{
+                      backgroundColor: c.red,
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontWeight: "700",
+                        fontSize: 12,
+                        letterSpacing: 1,
+                      }}
+                    >
+                      PICK
+                    </Text>
+                  </PressableScale>
+                </View>
+              ))}
+              <PressableScale
+                onPress={() => router.push("/picks")}
+                style={{ marginTop: 8, alignItems: "center" }}
+              >
+                <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
+                  + 9 more fights →
+                </Text>
+              </PressableScale>
+            </View>
+          )}
+        </Animated.View>
+
+        <View
+          style={[
+            commonStyles.cardWrapper,
+            { marginBottom: 9, justifyContent: "flex-start" },
+          ]}
+        >
+          <Text
+            style={[
+              commonStyles.cardTitle,
+              { textAlign: "left", paddingLeft: 3 },
+            ]}
+          >
+            Community
+          </Text>
+        </View>
+        <InfoCards
+          cards={[
+            {
+              tag: "TODAY'S CALL",
+              tagColor: c.red,
+              title: "DOES PEREIRA FINISH HILL INSIDE 2 ROUNDS?",
+              subtitle: "UFC 300 main event · Sat night",
+              footer: (
+                <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
+                  {(["yes", "no"] as const).map((option) => (
+                    <VoteButton
+                      key={option}
+                      label={option.toUpperCase()}
+                      selected={hotTakeVote === option}
+                      onPress={() => setHotTakeVote(option)}
+                    />
+                  ))}
                 </View>
               ),
             },
             {
-              tag: "THIS EVENT",
+              tag: "FIGHTER SPOTLIGHT",
               tagColor: c.textMuted,
-              content: (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
-                  <ProgressRing
-                    value={EVENT_ACCURACY?.hit ?? 0}
-                    total={EVENT_ACCURACY?.total ?? 1}
-                    center={EVENT_ACCURACY ? `${EVENT_ACCURACY.hit}` : "—"}
-                    caption="correct"
-                    size={124}
-                    color={c.green}
-                  />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: c.text, fontSize: 17, fontWeight: "800" }}>
-                      Accuracy
-                    </Text>
-                    <Text
+              footer: (
+                <View>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 14,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <View
                       style={{
-                        color: c.textMuted,
-                        fontSize: 12.5,
-                        lineHeight: 18,
-                        marginTop: 3,
+                        width: 52,
+                        height: 52,
+                        borderRadius: 10,
+                        backgroundColor: c.input,
+                        borderWidth: 1,
+                        borderColor: c.borderStrong,
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      {EVENT_ACCURACY
-                        ? `${EVENT_ACCURACY.hit} of ${EVENT_ACCURACY.total} bouts called`
-                        : "Fills in live as bouts are scored."}
-                    </Text>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "700",
+                          color: c.text,
+                        }}
+                      >
+                        AP
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          commonStyles.cardTitle,
+                          { textAlign: "left", fontSize: 20, marginBottom: 2 },
+                        ]}
+                      >
+                        ALEX PEREIRA
+                      </Text>
+                      <Text
+                        style={[
+                          commonStyles.cardSubtitle,
+                          { textAlign: "left", marginBottom: 0 },
+                        ]}
+                      >
+                        Light Heavyweight · 29-3
+                      </Text>
+                    </View>
                   </View>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: c.text2,
+                      marginBottom: 16,
+                      lineHeight: 18,
+                    }}
+                  >
+                    <Text style={{ fontWeight: "700" }}>
+                      Finishes 80% of his wins.
+                    </Text>{" "}
+                    9 of his last 12 victories ended by knockout — he rarely
+                    leaves it to the judges.
+                  </Text>
+                  <StatBoxRow inline>
+                    <StatBox value="80%" label="FINISH RATE" accent />
+                    <StatBox value="4" label="WIN STREAK" />
+                    <StatBox value='79"' label="REACH" />
+                  </StatBoxRow>
                 </View>
               ),
             },
           ]}
         />
-
-        {/* Event strip — which card you're looking at. */}
-        <View style={{ marginTop: 28 }}>
-          <Text style={sectionLabel}>EVENTS</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 10, paddingVertical: 12 }}
-          >
-            {EVENTS.map((e) => {
-              const on = e === event;
-              return (
-                <PressableScale
-                  key={e}
-                  onPress={() => setEvent(e)}
-                  scaleTo={0.95}
-                  style={{
-                    paddingHorizontal: 15,
-                    paddingVertical: 9,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    borderColor: on ? c.red : c.borderStrong,
-                    backgroundColor: on ? c.redTint : "transparent",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: on ? c.red : c.textMuted,
-                      fontSize: 13,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {e}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* The card itself — no boxes, hairlines between bouts. */}
-        <View style={[commonStyles.row, { marginTop: 6, marginBottom: 4 }]}>
-          <Text style={{ color: c.text, fontSize: 19, fontWeight: "800" }}>{event}</Text>
-          <PressableScale onPress={() => router.push("/picks")} hitSlop={10}>
-            <Text style={{ color: c.red, fontSize: 12.5, fontWeight: "700" }}>
-              Pick all ›
-            </Text>
-          </PressableScale>
-        </View>
-
-        {CARD.map((b, i) => (
-          <Animated.View key={b.id} entering={appear(i)}>
-            <PressableScale
-              onPress={() => router.push("/picks")}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-                paddingVertical: 15,
-                borderBottomWidth: i === CARD.length - 1 ? 0 : 1,
-                borderBottomColor: c.border,
-              }}
-            >
-              <View style={{ flexDirection: "row" }}>
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: c.input,
-                    borderWidth: 1.5,
-                    borderColor: c.red,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: "800", color: c.textMuted }}>
-                    {b.a.initials}
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: c.input,
-                    borderWidth: 1.5,
-                    borderColor: c.blue,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginLeft: -10,
-                  }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: "800", color: c.textMuted }}>
-                    {b.b.initials}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }}>
-                  {b.a.name} vs {b.b.name}
-                </Text>
-                <Text style={{ color: c.textMuted, fontSize: 11.5, marginTop: 2 }}>
-                  {b.division} · {b.rounds} rounds
-                </Text>
-              </View>
-
-              <View style={{ alignItems: "flex-end" }}>
-                <Text
-                  style={{
-                    color: b.billing === "MAIN EVENT" ? c.red : c.textFaint,
-                    fontSize: 9.5,
-                    fontWeight: "800",
-                    letterSpacing: 0.8,
-                  }}
-                >
-                  {b.billing}
-                </Text>
-                <Text style={{ color: c.textFaint, fontSize: 11, marginTop: 3 }}>
-                  No pick
-                </Text>
-              </View>
-            </PressableScale>
-          </Animated.View>
-        ))}
-
-        {/* History — Real's row format, where method is the headline. */}
-        <View style={[commonStyles.row, { marginTop: 30, marginBottom: 4 }]}>
-          <Text style={{ color: c.text, fontSize: 19, fontWeight: "800" }}>History</Text>
-          {RECENT_RESULTS.length > 0 && (
-            <Text style={{ color: c.textMuted, fontSize: 12.5, fontWeight: "700" }}>
-              View all ›
-            </Text>
-          )}
-        </View>
-
-        {RECENT_RESULTS.length === 0 ? (
-          <View style={{ paddingVertical: 22 }}>
-            <Text style={{ color: c.text2, fontSize: 14, fontWeight: "700" }}>
-              Nothing scored yet
-            </Text>
-            <Text style={{ color: c.textFaint, fontSize: 12.5, lineHeight: 19, marginTop: 4 }}>
-              After fight night, every bout lands here with what you called next to
-              what actually happened.
-            </Text>
-          </View>
-        ) : (
-          RECENT_RESULTS.map((r, i) => (
-            <ResultRow
-              key={r.id}
-              index={i}
-              red={r.red}
-              blue={r.blue}
-              meta="Final"
-              detail={r.detail}
-              points={r.points}
-              verdict={r.verdict}
-              verdictNote={r.verdictNote}
-              last={i === RECENT_RESULTS.length - 1}
-            />
-          ))
-        )}
-
-        {!LEAGUE && (
-          <PressableScale
-            onPress={() => router.push("/leagues")}
-            style={{
-              marginTop: 26,
-              paddingVertical: 14,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: c.borderStrong,
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                color: c.text2,
-                fontSize: 11.5,
-                fontWeight: "800",
-                letterSpacing: 1.2,
-              }}
-            >
-              CREATE A LEAGUE
-            </Text>
-          </PressableScale>
-        )}
       </ScrollView>
 
-      <View style={{ paddingBottom: insets.bottom, backgroundColor: c.navBar }}>
+      <View
+        style={{
+          backgroundColor: c.navBar,
+          borderTopColor: c.border,
+          borderTopWidth: 1,
+          paddingBottom: insets.bottom,
+        }}
+      >
         <BottomNav active="home" />
       </View>
     </SafeAreaView>
