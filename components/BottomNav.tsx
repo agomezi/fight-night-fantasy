@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { Path, Svg } from "react-native-svg";
-import { OCTAGON_INNER, OCTAGON_OUTER } from "./CardMark";
+import { Octagon } from "./marks";
 import { useTheme } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import PressableScale from "./PressableScale";
@@ -21,25 +21,7 @@ function TabIcon({ tab, color }: { tab: TabKey; color: string }) {
   // Home is the cage, not a house — the one nav slot that should say what
   // kind of app this is rather than borrowing the generic icon.
   if (tab === "home") {
-    return (
-      <Svg width={22} height={22} viewBox="0 0 80 80" fill="none">
-        {/* fence */}
-        <Path
-          d={OCTAGON_OUTER}
-          stroke={color}
-          strokeWidth={6}
-          strokeLinejoin="round"
-        />
-        {/* canvas edge inside it */}
-        <Path
-          d={OCTAGON_INNER}
-          stroke={color}
-          strokeWidth={4.5}
-          strokeLinejoin="round"
-          opacity={0.55}
-        />
-      </Svg>
-    );
+    return <Octagon size={22} color={color} strokeWidth={6} />;
   }
   if (tab === "leagues") return <Ionicons name="medal-outline" size={22} color={color} />;
   if (tab === "profile") return <Ionicons name="person-outline" size={22} color={color} />;

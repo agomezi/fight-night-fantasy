@@ -1,208 +1,29 @@
 import { View } from "react-native";
-import Svg, { Circle, G, Path } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
+import { Belt, Bell, Glove, Octagon, Trophy } from "./marks";
 
 /*
- * A large, faint graphic sitting behind a card's content.
+ * Positions a mark faintly behind a card's content.
  *
- * This replaces the ghosted numeral, which just restated the value printed
- * two lines below it. A mark says what *kind* of card this is at a glance —
- * silhouette first, before any reading happens — and it never duplicates the
- * data.
+ * The drawing itself lives in components/marks — this only decides where it
+ * sits and how quiet it is. Keeping those apart means a mark can be used at
+ * full strength elsewhere (the octagon is the home tab icon) without any of
+ * this card-specific placement following it around.
  *
- * Drawn rather than taken from an icon set, so the weight and proportions
- * match across marks and nothing looks borrowed.
+ * A mark says what kind of card you're looking at before any reading happens,
+ * and unlike the ghosted numeral it replaced, it can never duplicate the value
+ * printed inside the card.
  */
 
-/**
- * The cage outline, shared with the home tab icon so the two are literally
- * the same shape rather than two drawings that happen to look alike.
- */
-export const OCTAGON_OUTER =
-  "M67.7 51.5 51.5 67.7H28.5L12.3 51.5V28.5L28.5 12.3h23L67.7 28.5z";
-export const OCTAGON_INNER =
-  "M57.6 47.3 47.3 57.6H32.7L22.4 47.3V32.7L32.7 22.4h14.6l10.3 10.3z";
+export type MarkName = "trophy" | "octagon" | "belt" | "bell" | "glove";
 
-export type MarkName = "trophy" | "octagon" | "bell" | "glove" | "belt";
-
-function TrophyPath({ color }: { color: string }) {
-  return (
-    <>
-      {/* cup */}
-      <Path
-        d="M24 10h32v20c0 8.8-7.2 16-16 16s-16-7.2-16-16V10z"
-        fill="none"
-        stroke={color}
-        strokeWidth={3}
-        strokeLinejoin="round"
-      />
-      {/* handles */}
-      <Path
-        d="M24 14h-8a8 8 0 0 0 8 8M56 14h8a8 8 0 0 1-8 8"
-        fill="none"
-        stroke={color}
-        strokeWidth={3}
-        strokeLinecap="round"
-      />
-      {/* stem and base */}
-      <Path
-        d="M40 46v10M28 66h24M32 56h16l4 10H28l4-10z"
-        fill="none"
-        stroke={color}
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </>
-  );
-}
-
-/** The cage itself — reads as "an event happened here". */
-function OctagonPath({ color }: { color: string }) {
-  return (
-    <>
-      <Path
-        d={OCTAGON_OUTER}
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinejoin="round"
-      />
-      {/* canvas edge inside the fence */}
-      <Path
-        d={OCTAGON_INNER}
-        fill="none"
-        stroke={color}
-        strokeWidth={2.5}
-        strokeLinejoin="round"
-        opacity={0.6}
-      />
-    </>
-  );
-}
-
-/** The round bell — an event was fought, and the bell marked it. */
-function BellPath({ color }: { color: string }) {
-  // Nudge the whole bell vertically within the viewBox. Negative = up.
-  const shiftY = -6;
-  return (
-    <G translateY={shiftY}>
-      {/* mount and stem */}
-      <Path
-        d="M31 11h18M40 11v7"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinecap="round"
-      />
-      {/* dome */}
-      <Path
-        d="M23 50c0-19 5-32 17-32s17 13 17 32"
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinejoin="round"
-      />
-      {/* rim */}
-      <Path
-        d="M17 50h46"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinecap="round"
-      />
-      {/* clapper */}
-      <Path
-        d="M40 50v6"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinecap="round"
-      />
-      <Circle
-        cx={40}
-        cy={63}
-        r={5.5}
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-      />
-    </G>
-  );
-}
-
-function GlovePath({ color }: { color: string }) {
-  return (
-    <>
-      {/* mitt */}
-      <Path
-        d="M23 28c0-11 8-18 18-18s20 8 20 20v12c0 6-4 10-10 10H31c-5 0-8-4-8-9V28z"
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinejoin="round"
-      />
-      {/* thumb */}
-      <Path
-        d="M23 33c-6 0-10 5-10 11s4 8 9 8"
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinecap="round"
-      />
-      {/* cuff */}
-      <Path
-        d="M28 52h27l2 14c0 3-2 5-5 5H32c-3 0-5-2-5-5l1-14z"
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinejoin="round"
-      />
-      {/* strap */}
-      <Path
-        d="M34 60h16"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinecap="round"
-      />
-    </>
-  );
-}
-
-/** Title belt — straps drawn either side of the plate so no lines cross. */
-function BeltPath({ color }: { color: string }) {
-  return (
-    <>
-      {/* straps */}
-      <Path
-        d="M5 34h22v13H5z"
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M53 34h22v13H53z"
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinejoin="round"
-      />
-      {/* centre plate */}
-      <Path
-        d="M27 20h26v20c0 9-7 15-13 17-6-2-13-8-13-17V20z"
-        fill="none"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinejoin="round"
-      />
-      {/* plate detail */}
-      <Path
-        d="M40 28v14M34 35h12"
-        stroke={color}
-        strokeWidth={3.5}
-        strokeLinecap="round"
-      />
-    </>
-  );
-}
+const MARKS = {
+  trophy: Trophy,
+  octagon: Octagon,
+  belt: Belt,
+  bell: Bell,
+  glove: Glove,
+} as const;
 
 export default function CardMark({
   name,
@@ -221,20 +42,11 @@ export default function CardMark({
   top?: number;
 }) {
   const { c } = useTheme();
-  const stroke = color ?? c.text;
+  const Mark = MARKS[name];
 
   return (
-    <View
-      pointerEvents="none"
-      style={{ position: "absolute", right, top, opacity }}
-    >
-      <Svg width={size} height={size} viewBox="0 0 80 80">
-        {name === "trophy" && <TrophyPath color={stroke} />}
-        {name === "octagon" && <OctagonPath color={stroke} />}
-        {name === "bell" && <BellPath color={stroke} />}
-        {name === "glove" && <GlovePath color={stroke} />}
-        {name === "belt" && <BeltPath color={stroke} />}
-      </Svg>
+    <View pointerEvents="none" style={{ position: "absolute", right, top, opacity }}>
+      <Mark size={size} color={color ?? c.text} />
     </View>
   );
 }
