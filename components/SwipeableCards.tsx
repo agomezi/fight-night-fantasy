@@ -23,8 +23,6 @@ export interface Card {
   aspectRatio?: number;
   /** Replaces title/subtitle entirely — used for the picks ring. */
   content?: React.ReactNode;
-  /** Oversized ghost text behind the card — usually the event number. */
-  watermark?: string;
   /** Small mono text on the right of the header band. */
   serial?: string;
   footer?: React.ReactNode;
@@ -153,7 +151,6 @@ const SwipeableCards = ({
           <FightCard
             label={card.tag}
             labelColor={card.tagColor}
-            watermark={card.watermark}
             serial={card.serial}
             minHeight={minHeight}
             style={{ aspectRatio: card.aspectRatio }}

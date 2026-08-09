@@ -232,14 +232,18 @@ export default function Home() {
   const eventIsLive = false;
   // Until scoring exists this comes from the demo standings, or is simply zero.
   const lastEventPoints = myStanding ? 218 : 0;
+  // The player directly above and directly below you.
+  const neighbours = myStanding
+    ? SEASON_STANDINGS.filter(
+        (s) => s.rank === myStanding.rank - 1 || s.rank === myStanding.rank + 1,
+      )
+    : [];
 
   const carouselCards: CarouselCard[] = [
     {
       tag: "NEXT EVENT",
       tagColor: c.red,
-      // The two names stacked, the way they sit on a fight bill.
-      watermark: "PEREIRA\nHILL",
-      serial: "UFC 300",
+      serial: "UFC 300",
       title: "UFC 300",
       subtitle: "PEREIRA VS HILL",
       footer: (
@@ -256,8 +260,7 @@ export default function Home() {
     carouselCards.push({
       tag: "YOUR LEAGUE",
       tagColor: "#E8A020",
-      watermark: myStanding ? ordinal(myStanding.rank) : undefined,
-      serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
+      serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -429,16 +432,65 @@ export default function Home() {
                */
               ...(myStanding && LEAGUE
                 ? {
-                    watermark: ordinal(myStanding.rank),
                     serial: LEAGUE.name.toUpperCase(),
                     tag: "CURRENT LEAGUE RANK",
                     tagColor: c.textMuted,
                     title: ordinal(myStanding.rank),
                     titleSize: 50,
                     footer: (
-                      <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
-                        {myStanding.team} · {LEAGUE.members} in the league
-                      </Text>
+                      <>
+                        <Text
+                          style={[
+                            commonStyles.cardSubtitle,
+                            { textAlign: "left", marginBottom: 12 },
+                          ]}
+                        >
+                          {myStanding.team} · {LEAGUE.members} in the league
+                        </Text>
+                        {/* Who you're chasing and who's chasing you — worth
+                            more than restating the rank in ghost type. */}
+                        {neighbours.map((n) => (
+                          <View
+                            key={n.id}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 10,
+                              paddingVertical: 8,
+                              borderTopWidth: 1,
+                              borderTopColor: c.border,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: n.rank < myStanding.rank ? c.green : c.textFaint,
+                                fontSize: 12,
+                                fontWeight: "800",
+                                width: 12,
+                              }}
+                            >
+                              {n.rank < myStanding.rank ? "↑" : "↓"}
+                            </Text>
+                            <Text
+                              style={{ flex: 1, color: c.text2, fontSize: 13 }}
+                              numberOfLines={1}
+                            >
+                              {n.name}
+                            </Text>
+                            <Text
+                              style={{
+                                color: c.textMuted,
+                                fontSize: 12.5,
+                                fontWeight: "700",
+                                fontVariant: ["tabular-nums"],
+                              }}
+                            >
+                              {n.points > myStanding.points ? "+" : ""}
+                              {Math.round(n.points - myStanding.points)}
+                            </Text>
+                          </View>
+                        ))}
+                      </>
                     ),
                   }
                 : {
@@ -489,7 +541,6 @@ export default function Home() {
                */
               ...(lastEventPoints > 0
                 ? {
-                    watermark: String(lastEventPoints),
                     serial: "UFC 299",
                     tag: "LAST EVENT POINTS",
                     tagColor: c.textMuted,

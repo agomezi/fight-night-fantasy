@@ -16,8 +16,6 @@ export interface Card {
   titleUnit?: string;
   subtitle?: string;
   aspectRatio?: number;
-  /** Oversized ghost text behind the card. */
-  watermark?: string;
   /** Small mono text on the right of the header band. */
   serial?: string;
   delta?: number;
@@ -35,7 +33,6 @@ export function InfoCards({ cards }: { cards: Card[] }) {
           <FightCard
             label={card.tag ?? ""}
             labelColor={card.tagColor ?? "#666"}
-            watermark={card.watermark}
             serial={card.serial}
             style={{ aspectRatio: card.aspectRatio }}
           >
