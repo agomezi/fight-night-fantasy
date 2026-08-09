@@ -230,12 +230,16 @@ export default function Home() {
   const picksStarted = 3;
   const picksTotal = 12;
   const eventIsLive = false;
+  // Until scoring exists this comes from the demo standings, or is simply zero.
+  const lastEventPoints = myStanding ? 218 : 0;
 
   const carouselCards: CarouselCard[] = [
     {
       tag: "NEXT EVENT",
       tagColor: c.red,
-      watermark: "300",
+      // The two names stacked, the way they sit on a fight bill.
+      watermark: "PEREIRA\nHILL",
+      serial: "UFC 300",
       title: "UFC 300",
       subtitle: "PEREIRA VS HILL",
       footer: (
@@ -253,6 +257,7 @@ export default function Home() {
       tag: "YOUR LEAGUE",
       tagColor: "#E8A020",
       watermark: myStanding ? ordinal(myStanding.rank) : undefined,
+      serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -292,7 +297,7 @@ export default function Home() {
     carouselCards.push({
       tag: "UNFINISHED CARD",
       tagColor: c.red,
-      watermark: String(picksTotal - picksStarted),
+      serial: "LOCKS 14H",
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -344,7 +349,7 @@ export default function Home() {
     carouselCards.push({
       tag: "LIVE",
       tagColor: c.red,
-      watermark: "LIVE",
+      serial: "IN PROGRESS",
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing value={4} total={7} center="4" caption="of 7" size={116} color={c.green} />
@@ -417,24 +422,30 @@ export default function Home() {
         <InfoCards
           cards={[
             {
-              watermark: "#4",
+              // No league means no rank — so no ghosted figure either. A
+              // watermark that contradicts the value is worse than none.
+              watermark: myStanding ? ordinal(myStanding.rank) : undefined,
+              serial: LEAGUE ? LEAGUE.name.toUpperCase() : "NOT IN A LEAGUE",
               tag: "CURRENT LEAGUE RANK",
               tagColor: c.textMuted,
-              title: "—",
+              title: myStanding ? ordinal(myStanding.rank) : "—",
               titleSize: 50,
               footer: (
                 <Text
                   style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
                 >
-                  Unranked · join a league to get on the board
+                  {myStanding && LEAGUE
+                    ? `${myStanding.team} · ${LEAGUE.members} in the league`
+                    : "Unranked · join a league to get on the board"}
                 </Text>
               ),
             },
             {
-              watermark: "842",
+              watermark: lastEventPoints > 0 ? String(lastEventPoints) : undefined,
+              serial: lastEventPoints > 0 ? "UFC 299" : "NO EVENTS PLAYED",
               tag: "LAST EVENT POINTS",
               tagColor: c.textMuted,
-              title: "0",
+              title: String(lastEventPoints),
               titleUnit: "PTS",
               titleSize: 50,
               footer: (
@@ -469,7 +480,7 @@ export default function Home() {
                         },
                       ]}
                     >
-                      —
+                      {lastEventPoints > 0 ? "197" : "—"}
                     </Text>
                   </View>
                 </>

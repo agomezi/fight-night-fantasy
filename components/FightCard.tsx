@@ -5,34 +5,68 @@ import { useTheme } from "../context/ThemeContext";
 /*
  * Card treatment: fight bill, not app card.
  *
- * The generic version — rounded rect, 1px border all round, flat fill — is the
- * default shape every app ships, which is why it reads as templated no matter
- * what colour it is. This borrows from printed fight bills and ticket stubs
- * instead:
+ * The generic shape — rounded rect, 1px border all round, flat fill — is what
+ * every app ships, so it reads as templated in any palette. This is built from
+ * printed fight bills and ticket stubs instead.
  *
- *   · square-ish corners (4px), because posters aren't rounded
- *   · a solid rule across the top in the card's own colour, the way a printed
- *     header band sits above the bill
- *   · the label as a stamped block hanging off that rule, not floating text
- *   · an oversized ghosted numeral behind the content — the event number, set
- *     huge and nearly invisible, which is pure poster language
- *   · a clipped bottom-right corner, like a torn ticket
+ * The header does the work:
+ *   · a hazard-striped band, the way a poster or a ticket edge is banded
+ *   · the label stamped into it, notched so it interrupts the stripes rather
+ *     than floating above them
+ *   · a serial on the right, set small in mono — the detail that makes
+ *     printed matter feel issued rather than designed
  *
- * The frame is deliberately empty in the middle so fighter art can sit inside
- * it later without the treatment fighting the image.
+ * Below that, an oversized ghosted line of type — fighter names, a rank — and
+ * a clipped bottom-right corner like a torn stub.
+ *
+ * The middle stays plain on purpose: when fighter art lands, every device here
+ * is at the edges, so the frame holds the image instead of competing with it.
  */
+
+/** Diagonal hazard stripes, clipped to the band. */
+function StripeBand({ color, height = 9 }: { color: string; height?: number }) {
+  const bars = Array.from({ length: 34 });
+  return (
+    <View
+      style={{
+        height,
+        backgroundColor: color,
+        overflow: "hidden",
+        flexDirection: "row",
+      }}
+    >
+      {bars.map((_, i) => (
+        <View
+          key={i}
+          style={{
+            width: 5,
+            height: height * 3,
+            marginTop: -height,
+            marginRight: 9,
+            backgroundColor: "rgba(0,0,0,0.42)",
+            transform: [{ rotate: "24deg" }],
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 export default function FightCard({
   label,
   labelColor,
+  serial,
   watermark,
   children,
   style,
   minHeight,
 }: {
   label: string;
-  /** Drives the header rule and the stamp. */
+  /** Drives the band and the stamp. */
   labelColor: string;
-  /** Oversized ghost text behind the content — usually the event number. */
+  /** Small mono text on the right of the header — issue number, date, round. */
+  serial?: string;
+  /** Oversized ghost type behind the content. Supports a newline for two lines. */
   watermark?: string;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -40,6 +74,7 @@ export default function FightCard({
 }) {
   const { c } = useTheme();
   const NOTCH = 22;
+  const lines = watermark?.split("\n") ?? [];
 
   return (
     <View
@@ -55,38 +90,48 @@ export default function FightCard({
         style,
       ]}
     >
-      {/* printed header band */}
-      <View style={{ height: 3, backgroundColor: labelColor }} />
+      <StripeBand color={labelColor} />
 
-      {/* ghosted event numeral */}
-      {watermark && (
-        <Text
+      {/* ghosted type, sitting behind everything */}
+      {lines.length > 0 && (
+        <View
           pointerEvents="none"
-          numberOfLines={1}
-          style={{
-            position: "absolute",
-            right: -8,
-            top: 6,
-            fontFamily: "BebasNeue",
-            fontSize: 118,
-            lineHeight: 128,
-            letterSpacing: -2,
-            color: c.text,
-            opacity: 0.045,
-          }}
+          style={{ position: "absolute", right: -6, top: 18, alignItems: "flex-end" }}
         >
-          {watermark}
-        </Text>
+          {lines.map((line, i) => (
+            <Text
+              key={i}
+              numberOfLines={1}
+              style={{
+                fontFamily: "BebasNeue",
+                fontSize: lines.length > 1 ? 62 : 108,
+                lineHeight: lines.length > 1 ? 58 : 116,
+                letterSpacing: -1,
+                color: c.text,
+                opacity: 0.05,
+              }}
+            >
+              {line}
+            </Text>
+          ))}
+        </View>
       )}
 
-      {/* stamped label, hanging off the band */}
-      <View style={{ flexDirection: "row" }}>
+      {/* stamped label, notched into the band */}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          paddingRight: 14,
+        }}
+      >
         <View
           style={{
             backgroundColor: labelColor,
-            paddingHorizontal: 10,
-            paddingVertical: 4,
-            borderBottomRightRadius: 3,
+            paddingHorizontal: 11,
+            paddingVertical: 5,
+            borderBottomRightRadius: 4,
           }}
         >
           <Text
@@ -100,6 +145,19 @@ export default function FightCard({
             {label}
           </Text>
         </View>
+
+        {serial && (
+          <Text
+            style={{
+              color: c.textFaint,
+              fontSize: 9.5,
+              letterSpacing: 1,
+              fontVariant: ["tabular-nums"],
+            }}
+          >
+            {serial}
+          </Text>
+        )}
       </View>
 
       <View style={{ padding: 20, paddingTop: 16, flex: 1 }}>{children}</View>

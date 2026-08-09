@@ -18,6 +18,8 @@ export interface Card {
   aspectRatio?: number;
   /** Oversized ghost text behind the card. */
   watermark?: string;
+  /** Small mono text on the right of the header band. */
+  serial?: string;
   delta?: number;
   footer?: React.ReactNode;
 }
@@ -34,6 +36,7 @@ export function InfoCards({ cards }: { cards: Card[] }) {
             label={card.tag ?? ""}
             labelColor={card.tagColor ?? "#666"}
             watermark={card.watermark}
+            serial={card.serial}
             style={{ aspectRatio: card.aspectRatio }}
           >
           <View style={commonStyles.infoCardTitleRow}>
