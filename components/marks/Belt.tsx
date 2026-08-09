@@ -23,13 +23,13 @@ export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps)
     <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
       {/* strap ends */}
       <Path
-        d="M2 37.5h5v7H2z"
+        d="M9 37.5h4v7H9z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
       <Path
-        d="M73 37.5h5v7h-5z"
+        d="M67 37.5h4v7h-4z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -37,7 +37,7 @@ export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps)
 
       {/* side plates */}
       <Path
-        d="M8 41 11 35h7l3 6-3 6h-7z"
+        d="M14 41 16.5 35h5l2.5 6-2.5 6h-5z"
         fill={color}
         fillOpacity={0.3}
         stroke={color}
@@ -45,7 +45,7 @@ export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps)
         strokeLinejoin="round"
       />
       <Path
-        d="M59 41 62 35h7l3 6-3 6h-7z"
+        d="M56 41 58.5 35h5l2.5 6-2.5 6h-5z"
         fill={color}
         fillOpacity={0.3}
         stroke={color}
@@ -53,9 +53,9 @@ export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps)
         strokeLinejoin="round"
       />
 
-      {/* centre plate — outlined, 36 across by 24 tall so it reads landscape */}
+      {/* centre plate — outlined, 30 across by 24 tall so it reads landscape */}
       <Path
-        d="M22 41 30 29h20l8 12-8 12H30z"
+        d="M25 41 32 29h16l7 12-7 12H32z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -63,7 +63,7 @@ export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps)
 
       {/* filled panel inside it */}
       <Path
-        d="M29 41 35 34h10l6 7-6 7H35z"
+        d="M31 41 36 34h8l5 7-5 7H36z"
         fill={color}
         fillOpacity={0.9}
         stroke={color}
