@@ -69,3 +69,42 @@ export const LEAGUE_STATS: LeagueStat[] = [
   { id: "accuracy", label: "PICK ACCURACY", value: "—", delta: "No picks yet", positive: null },
   { id: "percentile", label: "LEAGUE PERCENTILE", value: "—", delta: "Unranked", positive: null },
 ];
+
+/**
+ * A read on how you pick, rather than a raw stat — the fantasy-league
+ * superlative. Earned from your own history, so a new account has none yet.
+ */
+export type Superlative = {
+  id: string;
+  title: string;
+  blurb: string;
+};
+
+export const SUPERLATIVE: Superlative | null = null;
+
+/** Candidates, for reference once scoring exists. */
+export const SUPERLATIVE_POOL: Superlative[] = [
+  { id: "finisher", title: "The Finisher", blurb: "You almost never call a decision" },
+  { id: "chalk", title: "Chalk Eater", blurb: "You back the favourite nearly every time" },
+  { id: "dog", title: "Dog Merchant", blurb: "You live on underdogs" },
+  { id: "sniper", title: "Round Sniper", blurb: "You call the round more often than anyone" },
+  { id: "judge", title: "The Judge", blurb: "You see fights going the distance before they do" },
+  { id: "cold", title: "Ice Cold", blurb: "Three events without a miss" },
+];
+
+/** A settled bout, shown in history. */
+export type BoutResult = {
+  id: string;
+  event: string;
+  red: { initials: string; name: string; method?: string };
+  blue: { initials: string; name: string; method?: string };
+  detail: string;
+  points: string;
+  verdict: "hit" | "miss" | "none";
+  verdictNote: string;
+};
+
+export const RECENT_RESULTS: BoutResult[] = [];
+
+/** Accuracy for the event currently in view. Null until something is scored. */
+export const EVENT_ACCURACY: { hit: number; total: number } | null = null;

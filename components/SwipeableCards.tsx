@@ -17,9 +17,11 @@ import { makeCommonStyles } from "../styles/common";
 export interface Card {
   tag: string;
   tagColor: string;
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   aspectRatio?: number;
+  /** Replaces title/subtitle entirely — used for the picks ring. */
+  content?: React.ReactNode;
   footer?: React.ReactNode;
 }
 
@@ -28,7 +30,14 @@ const SETTLE = { damping: 20, stiffness: 220, mass: 0.6 };
 const SWIPE_DISTANCE = 55;
 const SWIPE_VELOCITY = 450;
 
-const SwipeableCards = ({ cards }: { cards: Card[] }) => {
+const SwipeableCards = ({
+  cards,
+  minHeight,
+}: {
+  cards: Card[];
+  /** Holds one height across cards so swiping doesn't jolt the page. */
+  minHeight?: number;
+}) => {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const { width: windowWidth } = useWindowDimensions();
@@ -137,17 +146,25 @@ const SwipeableCards = ({ cards }: { cards: Card[] }) => {
       <GestureDetector gesture={panGesture}>
         <Animated.View style={animatedStyle}>
           <View
-            style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio }]}
+            style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio, minHeight }]}
           >
             <Text style={[commonStyles.label, { color: card.tagColor }]}>
               {card.tag}
             </Text>
-            <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
-              {card.title}
-            </Text>
-            <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
-              {card.subtitle}
-            </Text>
+            {card.content ?? (
+              <>
+                {card.title ? (
+                  <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
+                    {card.title}
+                  </Text>
+                ) : null}
+                {card.subtitle ? (
+                  <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
+                    {card.subtitle}
+                  </Text>
+                ) : null}
+              </>
+            )}
             {card.footer}
           </View>
         </Animated.View>
