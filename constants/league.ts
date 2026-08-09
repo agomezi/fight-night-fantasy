@@ -281,3 +281,59 @@ export const PAST_EVENTS: PastEvent[] = DEMO
       },
     ]
   : [];
+
+/** Something that happened while you weren't looking. */
+export type Notification = {
+  id: string;
+  /** Drives the mark and the accent. */
+  kind: "result" | "league" | "matchup" | "reminder";
+  title: string;
+  body: string;
+  time: string;
+  unread: boolean;
+};
+
+export const NOTIFICATIONS: Notification[] = DEMO
+  ? [
+      {
+        id: "n1",
+        kind: "reminder",
+        title: "Your card locks in 14 hours",
+        body: "5 bouts on UFC 300 still have no pick.",
+        time: "2h",
+        unread: true,
+      },
+      {
+        id: "n2",
+        kind: "matchup",
+        title: "Dave M. pulled within 12.5",
+        body: "He's picked the main event against you.",
+        time: "5h",
+        unread: true,
+      },
+      {
+        id: "n3",
+        kind: "result",
+        title: "Makhachev by submission, R3",
+        body: "You called it. +180 points.",
+        time: "1d",
+        unread: false,
+      },
+      {
+        id: "n4",
+        kind: "league",
+        title: "Sarah J. joined The Alpha League",
+        body: "12 members now competing.",
+        time: "2d",
+        unread: false,
+      },
+      {
+        id: "n5",
+        kind: "result",
+        title: "UFC 299 scored",
+        body: "You finished 2nd for the event with 218 points.",
+        time: "3d",
+        unread: false,
+      },
+    ]
+  : [];

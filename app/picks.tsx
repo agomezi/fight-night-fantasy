@@ -23,7 +23,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import BottomNav from "../components/BottomNav";
-import { NotificationBell, ProfileBadge } from "../components/icons";
+import HeaderBar from "../components/HeaderBar";
 import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
 import RoundLane, { LanePick } from "../components/RoundLane";
@@ -80,8 +80,6 @@ const UNDERCARD: Fight[] = [
   },
 ];
 
-
-const EVENTS = ["UFC 300", "UFC 301", "Fight Night"];
 
 const EVENT_START = new Date(Date.now() + (3 * 24 + 14) * 60 * 60 * 1000);
 const LOCK_LEAD_MS = 10 * 60 * 1000;
@@ -215,7 +213,6 @@ export default function Picks() {
       : {},
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ main: true });
-  const [event, setEvent] = useState(EVENTS[0]);
   const [lockedIn, setLockedIn] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
 
@@ -328,51 +325,9 @@ export default function Picks() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 20 }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <ProfileBadge />
-          <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell />
-        </View>
-        <View style={commonStyles.divider} />
+        <HeaderBar />
 
-        {/* Event strip lives here rather than on home — this is the screen
-            where which card you're looking at actually changes what you see. */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: 9, paddingBottom: 16 }}
-        >
-          {EVENTS.map((e) => {
-            const on = e === event;
-            return (
-              <PressableScale
-                key={e}
-                onPress={() => setEvent(e)}
-                scaleTo={0.95}
-                style={{
-                  paddingHorizontal: 15,
-                  paddingVertical: 9,
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: on ? c.red : c.borderStrong,
-                  backgroundColor: on ? c.redTint : "transparent",
-                }}
-              >
-                <Text
-                  style={{
-                    color: on ? c.red : c.textMuted,
-                    fontSize: 13,
-                    fontWeight: "700",
-                  }}
-                >
-                  {e}
-                </Text>
-              </PressableScale>
-            );
-          })}
-        </ScrollView>
-
-        <Text style={styles.eventTitle}>{event}</Text>
+        <Text style={styles.eventTitle}>UFC 300</Text>
         <Text style={styles.eventSub}>Make your picks. Lock them in.</Text>
 
         <Animated.View

@@ -12,7 +12,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import FeedItem from "../components/FeedItem";
-import { NotificationBell, ProfileBadge } from "../components/icons";
+import HeaderBar from "../components/HeaderBar";
 import StandingRow from "../components/StandingRow";
 import {
     CHATTER,
@@ -75,12 +75,7 @@ export default function Leagues() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
         >
-          <View style={commonStyles.row}>
-            <ProfileBadge />
-            <Text style={commonStyles.headerLogo}>Fight Night</Text>
-            <NotificationBell />
-          </View>
-          <View style={commonStyles.divider} />
+          <HeaderBar />
 
           <Animated.Text entering={appear(0)} style={styles.eyebrow}>
             LEAGUES
@@ -145,12 +140,7 @@ export default function Leagues() {
         contentContainerStyle={{ padding: 20, paddingBottom: 24 }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={commonStyles.row}>
-          <ProfileBadge />
-          <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell hasNotifications />
-        </View>
-        <View style={commonStyles.divider} />
+        <HeaderBar hasNotifications />
 
         {/*
           Same shape as home: a carousel up top where each card answers one
@@ -280,7 +270,7 @@ export default function Leagues() {
             <Ionicons name="person-add-outline" size={15} color={c.text} />
             <Text style={styles.actionButtonText}>INVITE</Text>
           </PressableScale>
-          <PressableScale style={styles.actionButton} onPress={() => router.push("/settings")}>
+          <PressableScale style={styles.actionButton} onPress={() => router.push("/league-settings")}>
             <Ionicons name="settings-outline" size={15} color={c.text} />
             <Text style={styles.actionButtonText}>SETTINGS</Text>
           </PressableScale>

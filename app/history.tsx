@@ -52,6 +52,11 @@ export default function History() {
 
   const toggle = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
 
+  // Filter strip of past events — moved here from picks, where switching
+  // events did nothing useful. Here it is the whole point of the screen.
+  const [filter, setFilter] = useState<string | null>(null);
+  const shown = filter ? PAST_EVENTS.filter((e) => e.id === filter) : PAST_EVENTS;
+
   return (
     <SafeAreaView
       style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
@@ -149,13 +154,47 @@ export default function History() {
                 fontWeight: "800",
                 letterSpacing: 1.4,
                 marginTop: 30,
-                marginBottom: 4,
               }}
             >
               PAST EVENTS
             </Text>
 
-            {PAST_EVENTS.map((e, i) => {
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingVertical: 12 }}
+            >
+              {[{ id: null, name: "All" }, ...PAST_EVENTS].map((e) => {
+                const on = filter === e.id;
+                return (
+                  <PressableScale
+                    key={e.id ?? "all"}
+                    onPress={() => setFilter(e.id)}
+                    scaleTo={0.95}
+                    style={{
+                      paddingHorizontal: 14,
+                      paddingVertical: 8,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: on ? c.red : c.borderStrong,
+                      backgroundColor: on ? c.redTint : "transparent",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: on ? c.red : c.textMuted,
+                        fontSize: 12.5,
+                        fontWeight: "700",
+                      }}
+                    >
+                      {e.name}
+                    </Text>
+                  </PressableScale>
+                );
+              })}
+            </ScrollView>
+
+            {shown.map((e, i) => {
               const isOpen = !!open[e.id];
               const pct = e.total > 0 ? Math.round((e.hit / e.total) * 100) : 0;
 

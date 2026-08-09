@@ -9,7 +9,7 @@ import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import ResultRow from "../components/ResultRow";
-import { NotificationBell, ProfileBadge } from "../components/icons";
+import HeaderBar from "../components/HeaderBar";
 import { RECENT_RESULTS } from "../constants/league";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -83,12 +83,7 @@ export default function Profile() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 20 }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <ProfileBadge />
-          <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell />
-        </View>
-        <View style={commonStyles.divider} />
+        <HeaderBar />
 
         <Animated.View entering={appear(0)} style={styles.heroCard}>
           <View style={styles.avatar}>

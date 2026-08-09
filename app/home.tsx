@@ -15,7 +15,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import BottomNav from "../components/BottomNav";
 import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
-import { NotificationBell, ProfileBadge } from "../components/icons";
+import HeaderBar from "../components/HeaderBar";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
@@ -395,12 +395,7 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <ProfileBadge />
-          <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell />
-        </View>
-        <View style={commonStyles.divider} />
+        <HeaderBar />
 
         {/*
           Cards earn their place — each one only appears when it has something
