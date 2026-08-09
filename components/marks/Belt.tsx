@@ -21,7 +21,7 @@ export default function Belt({
   color,
   strokeWidth = 3.5,
   /** The plate fill. Warm by default, matching the trophy. */
-  gold = "#E8A020",
+  gold = "#F2BE42",
 }: MarkProps & { gold?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
@@ -41,7 +41,7 @@ export default function Belt({
 
       {/* side plates — same hexagon, scaled down */}
       <Path
-        d="M9 41 12.5 34h7L23 41l-3.5 7h-7z"
+        d="M11 41 14.5 34h7L25 41l-3.5 7h-7z"
         fill={gold}
         fillOpacity={0.18}
         stroke={color}
@@ -49,7 +49,7 @@ export default function Belt({
         strokeLinejoin="round"
       />
       <Path
-        d="M57 41 60.5 34h7L71 41l-3.5 7h-7z"
+        d="M55 41 58.5 34h7L69 41l-3.5 7h-7z"
         fill={gold}
         fillOpacity={0.18}
         stroke={color}
@@ -59,7 +59,7 @@ export default function Belt({
 
       {/* centre plate */}
       <Path
-        d="M25 41 32 26h16l7 15-7 15H32z"
+        d="M27 41 33.5 27h13L53 41l-6.5 14h-13z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -67,9 +67,9 @@ export default function Belt({
 
       {/* gold panel inside it */}
       <Path
-        d="M31 41 36 32h8l5 9-5 9h-8z"
+        d="M32.5 41 37 33h6l4.5 8-4.5 8h-6z"
         fill={gold}
-        fillOpacity={0.55}
+        fillOpacity={0.82}
         stroke={gold}
         strokeWidth={strokeWidth * 0.7}
         strokeLinejoin="round"
