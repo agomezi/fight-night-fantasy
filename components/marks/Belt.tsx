@@ -27,13 +27,13 @@ export default function Belt({
     <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
       {/* strap ends */}
       <Path
-        d="M2 37h7v8H2z"
+        d="M2 37.5h5v7H2z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
       <Path
-        d="M71 37h7v8h-7z"
+        d="M73 37.5h5v7h-5z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -41,7 +41,7 @@ export default function Belt({
 
       {/* side plates — same hexagon, scaled down */}
       <Path
-        d="M11 41 14.5 34h7L25 41l-3.5 7h-7z"
+        d="M8 41 11 35h7l3 6-3 6h-7z"
         fill={gold}
         fillOpacity={0.18}
         stroke={color}
@@ -49,7 +49,7 @@ export default function Belt({
         strokeLinejoin="round"
       />
       <Path
-        d="M55 41 58.5 34h7L69 41l-3.5 7h-7z"
+        d="M59 41 62 35h7l3 6-3 6h-7z"
         fill={gold}
         fillOpacity={0.18}
         stroke={color}
@@ -59,7 +59,7 @@ export default function Belt({
 
       {/* centre plate */}
       <Path
-        d="M27 41 33.5 27h13L53 41l-6.5 14h-13z"
+        d="M22 41 30 29h20l8 12-8 12H30z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
@@ -67,7 +67,7 @@ export default function Belt({
 
       {/* gold panel inside it */}
       <Path
-        d="M32.5 41 37 33h6l4.5 8-4.5 8h-6z"
+        d="M29 41 35 34h10l6 7-6 7H35z"
         fill={gold}
         fillOpacity={0.82}
         stroke={gold}
