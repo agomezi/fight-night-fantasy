@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 import { useTheme } from "../context/ThemeContext";
 
 /*
@@ -14,7 +14,7 @@ import { useTheme } from "../context/ThemeContext";
  * match across marks and nothing looks borrowed.
  */
 
-export type MarkName = "trophy" | "octagon" | "glove" | "belt";
+export type MarkName = "trophy" | "octagon" | "bell" | "glove" | "belt";
 
 function TrophyPath({ color }: { color: string }) {
   return (
@@ -68,6 +68,29 @@ function OctagonPath({ color }: { color: string }) {
         strokeLinejoin="round"
         opacity={0.6}
       />
+    </>
+  );
+}
+
+/** The round bell — an event was fought, and the bell marked it. */
+function BellPath({ color }: { color: string }) {
+  return (
+    <>
+      {/* mount and stem */}
+      <Path d="M31 11h18M40 11v7" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+      {/* dome */}
+      <Path
+        d="M23 50c0-19 5-32 17-32s17 13 17 32"
+        fill="none"
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinejoin="round"
+      />
+      {/* rim */}
+      <Path d="M17 50h46" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+      {/* clapper */}
+      <Path d="M40 50v6" stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+      <Circle cx={40} cy={63} r={5.5} fill="none" stroke={color} strokeWidth={3.5} />
     </>
   );
 }
@@ -152,6 +175,7 @@ export default function CardMark({
       <Svg width={size} height={size} viewBox="0 0 80 80">
         {name === "trophy" && <TrophyPath color={stroke} />}
         {name === "octagon" && <OctagonPath color={stroke} />}
+        {name === "bell" && <BellPath color={stroke} />}
         {name === "glove" && <GlovePath color={stroke} />}
         {name === "belt" && <BeltPath color={stroke} />}
       </Svg>

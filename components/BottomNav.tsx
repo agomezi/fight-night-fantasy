@@ -17,7 +17,20 @@ const TABS: { key: TabKey; label: string; route: string }[] = [
 ];
 
 function TabIcon({ tab, color }: { tab: TabKey; color: string }) {
-  if (tab === "home") return <Ionicons name="home-outline" size={22} color={color} />;
+  // Home is the cage, not a house — the one nav slot that should say what
+  // kind of app this is rather than borrowing the generic icon.
+  if (tab === "home") {
+    return (
+      <Svg width={22} height={22} viewBox="0 0 80 80" fill="none">
+        <Path
+          d="M67.7 51.5 51.5 67.7H28.5L12.3 51.5V28.5L28.5 12.3h23L67.7 28.5z"
+          stroke={color}
+          strokeWidth={6}
+          strokeLinejoin="round"
+        />
+      </Svg>
+    );
+  }
   if (tab === "leagues") return <Ionicons name="medal-outline" size={22} color={color} />;
   if (tab === "profile") return <Ionicons name="person-outline" size={22} color={color} />;
   return (
