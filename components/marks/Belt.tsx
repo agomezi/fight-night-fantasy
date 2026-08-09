@@ -1,53 +1,78 @@
-import Svg, { Circle, Path } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { MarkProps } from "./types";
 
 /*
- * Title belt, on the classic UFC silhouette.
+ * Title belt, on the classic UFC plate.
  *
- * The thing that makes that belt readable at a glance isn't the centre plate
- * on its own — it's the run of five: strap, side plate, centre plate, side
- * plate, strap. Earlier passes drew only the middle and looked like a buckle.
+ * The silhouette that actually identifies that belt is a wide hexagon —
+ * flat top and bottom, tapering to a point at each side — repeated smaller
+ * for the two side plates, with strap showing at the ends. Circles were
+ * wrong; the real plate is angular, and it rhymes with the octagon the rest
+ * of the app already uses.
  *
- * Everything sits on one horizontal axis and nothing overlaps, because line
- * art muddies the moment two outlines cross with no fill to hide the seam.
+ * The inner panel is filled gold, which is the one warm note on the mark and
+ * the thing that reads first at low opacity.
  *
- * The inner disc is filled rather than outlined, which gives the mark a solid
- * centre to read against at small sizes and echoes the coloured medallion on
- * the real thing.
+ * Nothing overlaps: plates and straps meet at gaps rather than crossing,
+ * because line art muddies wherever two outlines run through each other.
  */
-export default function Belt({ size = 74, color, strokeWidth = 3.5 }: MarkProps) {
+export default function Belt({
+  size = 74,
+  color,
+  strokeWidth = 3.5,
+  /** The plate fill. Warm by default, matching the trophy. */
+  gold = "#E8A020",
+}: MarkProps & { gold?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
       {/* strap ends */}
       <Path
-        d="M2 35.5h7v11H2z"
+        d="M2 37h7v8H2z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
       <Path
-        d="M71 35.5h7v11h-7z"
+        d="M71 37h7v8h-7z"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinejoin="round"
       />
 
-      {/* side plates */}
-      <Circle cx={16.5} cy={41} r={8} stroke={color} strokeWidth={strokeWidth} />
-      <Circle cx={63.5} cy={41} r={8} stroke={color} strokeWidth={strokeWidth} />
+      {/* side plates — same hexagon, scaled down */}
+      <Path
+        d="M9 41 12.5 34h7L23 41l-3.5 7h-7z"
+        fill={gold}
+        fillOpacity={0.18}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M57 41 60.5 34h7L71 41l-3.5 7h-7z"
+        fill={gold}
+        fillOpacity={0.18}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
 
       {/* centre plate */}
-      <Circle cx={40} cy={41} r={15.5} stroke={color} strokeWidth={strokeWidth} />
-
-      {/* filled medallion */}
-      <Circle
-        cx={40}
-        cy={41}
-        r={8.5}
-        fill={color}
-        fillOpacity={0.3}
+      <Path
+        d="M25 41 32 26h16l7 15-7 15H32z"
         stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinejoin="round"
+      />
+
+      {/* gold panel inside it */}
+      <Path
+        d="M31 41 36 32h8l5 9-5 9h-8z"
+        fill={gold}
+        fillOpacity={0.55}
+        stroke={gold}
         strokeWidth={strokeWidth * 0.7}
+        strokeLinejoin="round"
       />
     </Svg>
   );
