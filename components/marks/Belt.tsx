@@ -1,5 +1,5 @@
 import Svg, { Path } from "react-native-svg";
-import { GOLD, MarkProps } from "./types";
+import { MarkProps } from "./types";
 
 /*
  * Title belt, on the classic UFC plate.
@@ -24,15 +24,13 @@ export default function Belt({
   size = 74,
   color,
   strokeWidth = 3.5,
-  /** The plate fill. Warm by default, matching the trophy. */
-  gold = GOLD,
-}: MarkProps & { gold?: string }) {
+}: MarkProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 80 80" fill="none">
       {/* side plates */}
       <Path
         d="M12 41 14.5 35h5l2.5 6-2.5 6h-5z"
-        fill={gold}
+        fill={color}
         fillOpacity={0.3}
         stroke={color}
         strokeWidth={strokeWidth}
@@ -40,7 +38,7 @@ export default function Belt({
       />
       <Path
         d="M58 41 60.5 35h5l2.5 6-2.5 6h-5z"
-        fill={gold}
+        fill={color}
         fillOpacity={0.3}
         stroke={color}
         strokeWidth={strokeWidth}
@@ -58,9 +56,9 @@ export default function Belt({
       {/* gold panel inside it */}
       <Path
         d="M30 41 36 33h8l6 8-6 8H36z"
-        fill={gold}
+        fill={color}
         fillOpacity={0.9}
-        stroke={gold}
+        stroke={color}
         strokeWidth={strokeWidth * 0.7}
         strokeLinejoin="round"
       />

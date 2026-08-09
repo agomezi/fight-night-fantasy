@@ -13,5 +13,4 @@ export { default as Bell } from "./Bell";
 export { default as Glove } from "./Glove";
 export { default as Octagon, OCTAGON_INNER, OCTAGON_OUTER } from "./Octagon";
 export { default as Trophy } from "./Trophy";
-export { GOLD } from "./types";
 export type { MarkProps } from "./types";

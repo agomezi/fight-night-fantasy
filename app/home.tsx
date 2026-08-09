@@ -14,7 +14,6 @@ import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
 import CardMark from "../components/CardMark";
-import { GOLD } from "../components/marks";
 import EmptyState from "../components/EmptyState";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
 import InfoCards from "../components/InfoCards";
@@ -434,7 +433,7 @@ export default function Home() {
               ...(myStanding && LEAGUE
                 ? {
                     serial: LEAGUE.name.toUpperCase(),
-                    mark: <CardMark name="trophy" color={GOLD} opacity={1} />,
+                    mark: <CardMark name="trophy" color={c.gold} opacity={1} />,
                     tag: "CURRENT LEAGUE RANK",
                     tagColor: c.textMuted,
                     title: ordinal(myStanding.rank),
@@ -497,7 +496,7 @@ export default function Home() {
                   }
                 : {
                     serial: "NO LEAGUE",
-                    mark: <CardMark name="trophy" color={GOLD} opacity={1} />,
+                    mark: <CardMark name="trophy" color={c.gold} opacity={1} />,
                     tag: "LEAGUES",
                     tagColor: "#E8A020",
                     title: "Find your people",
@@ -545,7 +544,7 @@ export default function Home() {
               ...(lastEventPoints > 0
                 ? {
                     serial: "UFC 299",
-                    mark: <CardMark name="belt" top={44} color={GOLD} opacity={1} />,
+                    mark: <CardMark name="belt" top={44} color={c.gold} opacity={1} />,
                     tag: "LAST EVENT POINTS",
                     tagColor: c.textMuted,
                     title: String(lastEventPoints),
@@ -577,7 +576,7 @@ export default function Home() {
                   }
                 : {
                     serial: "IN 2 DAYS",
-                    mark: <CardMark name="belt" top={44} color={GOLD} opacity={1} />,
+                    mark: <CardMark name="belt" top={44} color={c.gold} opacity={1} />,
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
                     title: "UFC 300",
