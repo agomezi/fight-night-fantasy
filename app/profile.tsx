@@ -135,7 +135,9 @@ export default function Profile() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>RECENT PICKS</Text>
-          <Text style={styles.viewHistory}>VIEW HISTORY</Text>
+          <PressableScale onPress={() => router.push("/history")} hitSlop={10}>
+            <Text style={styles.viewHistory}>VIEW HISTORY</Text>
+          </PressableScale>
         </View>
 
         {/* History uses the method-as-headline row: the finish is the

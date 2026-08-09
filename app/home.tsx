@@ -414,14 +414,13 @@ export default function Home() {
           >
             Your Performance
           </Text>
-          <Text
-            style={[
-              commonStyles.cardSubtitle,
-              { marginTop: 9, paddingRight: 3 },
-            ]}
-          >
-            View History
-          </Text>
+          <PressableScale onPress={() => router.push("/history")} hitSlop={10}>
+            <Text
+              style={[commonStyles.cardSubtitle, { marginTop: 9, paddingRight: 3 }]}
+            >
+              View History
+            </Text>
+          </PressableScale>
         </View>
         <InfoCards
           cards={[
@@ -545,7 +544,7 @@ export default function Home() {
               ...(lastEventPoints > 0
                 ? {
                     serial: "UFC 299",
-                    mark: <CardMark name="glove" />,
+                    mark: <CardMark name="octagon" top={44} />,
                     tag: "LAST EVENT POINTS",
                     tagColor: c.textMuted,
                     title: String(lastEventPoints),
@@ -577,7 +576,7 @@ export default function Home() {
                   }
                 : {
                     serial: "IN 2 DAYS",
-                    mark: <CardMark name="glove" opacity={0.06} />,
+                    mark: <CardMark name="octagon" top={44} opacity={0.06} />,
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
                     title: "UFC 300",

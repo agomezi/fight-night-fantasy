@@ -204,3 +204,80 @@ export const RECENT_RESULTS: BoutResult[] = DEMO
 
 /** Accuracy for the event currently in view. Null until something is scored. */
 export const EVENT_ACCURACY: { hit: number; total: number } | null = null;
+
+/** A settled event, with everything you called in it. */
+export type PastEvent = {
+  id: string;
+  name: string;
+  date: string;
+  /** What you scored. */
+  points: number;
+  /** Bouts you called correctly, out of how many you picked. */
+  hit: number;
+  total: number;
+  bouts: BoutResult[];
+};
+
+export const PAST_EVENTS: PastEvent[] = DEMO
+  ? [
+      {
+        id: "ufc299",
+        name: "UFC 299",
+        date: "9 Mar",
+        points: 218,
+        hit: 8,
+        total: 12,
+        bouts: RECENT_RESULTS,
+      },
+      {
+        id: "ufc298",
+        name: "UFC 298",
+        date: "17 Feb",
+        points: 196,
+        hit: 7,
+        total: 11,
+        bouts: [
+          {
+            id: "e298-1",
+            event: "UFC 298",
+            red: { initials: "IG", name: "I. Garry", method: "UD" },
+            blue: { initials: "GB", name: "G. Buckley" },
+            detail: "R3",
+            points: "+95",
+            verdict: "hit",
+            verdictNote: "YOU CALLED IT",
+          },
+          {
+            id: "e298-2",
+            event: "UFC 298",
+            red: { initials: "MM", name: "M. Merab" },
+            blue: { initials: "HC", name: "H. Cejudo", method: "KO/TKO" },
+            detail: "R1, 0:58",
+            points: "0",
+            verdict: "miss",
+            verdictNote: "YOU HAD MERAB",
+          },
+        ],
+      },
+      {
+        id: "ufc297",
+        name: "UFC 297",
+        date: "20 Jan",
+        points: 174,
+        hit: 6,
+        total: 11,
+        bouts: [
+          {
+            id: "e297-1",
+            event: "UFC 297",
+            red: { initials: "SS", name: "S. Strickland" },
+            blue: { initials: "DD", name: "D. Du Plessis", method: "SD" },
+            detail: "R5",
+            points: "0",
+            verdict: "miss",
+            verdictNote: "YOU HAD STRICKLAND",
+          },
+        ],
+      },
+    ]
+  : [];

@@ -14,7 +14,7 @@ import { useTheme } from "../context/ThemeContext";
  * match across marks and nothing looks borrowed.
  */
 
-export type MarkName = "trophy" | "glove" | "belt";
+export type MarkName = "trophy" | "octagon" | "glove" | "belt";
 
 function TrophyPath({ color }: { color: string }) {
   return (
@@ -43,6 +43,30 @@ function TrophyPath({ color }: { color: string }) {
         strokeWidth={3}
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+    </>
+  );
+}
+
+/** The cage itself — reads as "an event happened here". */
+function OctagonPath({ color }: { color: string }) {
+  return (
+    <>
+      <Path
+        d="M67.7 51.5 51.5 67.7H28.5L12.3 51.5V28.5L28.5 12.3h23L67.7 28.5z"
+        fill="none"
+        stroke={color}
+        strokeWidth={3.5}
+        strokeLinejoin="round"
+      />
+      {/* canvas edge inside the fence */}
+      <Path
+        d="M57.6 47.3 47.3 57.6H32.7L22.4 47.3V32.7L32.7 22.4h14.6l10.3 10.3z"
+        fill="none"
+        stroke={color}
+        strokeWidth={2.5}
+        strokeLinejoin="round"
+        opacity={0.6}
       />
     </>
   );
@@ -127,6 +151,7 @@ export default function CardMark({
     <View pointerEvents="none" style={{ position: "absolute", right, top, opacity }}>
       <Svg width={size} height={size} viewBox="0 0 80 80">
         {name === "trophy" && <TrophyPath color={stroke} />}
+        {name === "octagon" && <OctagonPath color={stroke} />}
         {name === "glove" && <GlovePath color={stroke} />}
         {name === "belt" && <BeltPath color={stroke} />}
       </Svg>
