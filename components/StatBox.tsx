@@ -4,16 +4,15 @@ import { Palette } from "../constants/palette";
 import { useThemedStyles } from "../context/ThemeContext";
 
 /*
- * Tale of the tape.
+ * Recessed wells.
  *
- * These were three bordered squares — the generic dashboard tile, and the
- * same shape whether they held a countdown or a fighter's reach. Boxing every
- * figure also broke the rule the rest of the app follows: if you can't tap
- * it, it doesn't get a container.
+ * Third pass. Bordered squares read as generic dashboard tiles; bare ruled
+ * columns lost too much weight and the figures stopped feeling like they
+ * belonged to anything.
  *
- * So the boxes are gone. Figures sit in columns divided by hairline rules,
- * the way a tale of the tape is set on a fight card — which is exactly what
- * these are. Values lead at size, labels sit under them small and tracked.
+ * These sit *into* the card instead of on top of it — a darker inset with no
+ * border, so the depth reads as a well rather than another stacked box. The
+ * card stays the object; the figures are punched into it.
  *
  * Same component drives the countdown and the fighter spotlight, so both
  * read as the same kind of information.
@@ -74,12 +73,14 @@ const makeStyles = (c: Palette) =>
   StyleSheet.create({
     column: {
       flex: 1,
-      paddingHorizontal: 4,
+      backgroundColor: c.inset,
+      borderRadius: 10,
+      paddingVertical: 13,
+      paddingHorizontal: 12,
     },
-    // The rule between columns, not around them.
+    // Gap between wells is handled by the row, so nothing draws a divider.
     divided: {
-      borderRightWidth: 1,
-      borderRightColor: c.border,
+      marginRight: 8,
     },
 
     iconWrapper: {
@@ -87,9 +88,9 @@ const makeStyles = (c: Palette) =>
     },
 
     value: {
-      fontSize: 27,
+      fontSize: 25,
       fontWeight: "800",
-      letterSpacing: -1,
+      letterSpacing: -0.8,
       color: c.text,
       fontVariant: ["tabular-nums"],
     },
@@ -100,9 +101,9 @@ const makeStyles = (c: Palette) =>
     label: {
       fontSize: 9.5,
       fontWeight: "700",
-      color: c.textFaint,
-      letterSpacing: 1.1,
-      marginTop: 3,
+      color: c.textMuted,
+      letterSpacing: 1,
+      marginTop: 4,
       lineHeight: 13,
     },
 

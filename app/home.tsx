@@ -245,14 +245,22 @@ export default function Home() {
       tag: "NEXT EVENT",
       tagColor: c.red,
       serial: "SAT · 10PM ET",
-      title: "UFC 300",
-      subtitle: "PEREIRA VS HILL",
-      footer: (
-        <StatBoxRow inline>
-          <StatBox value="02" label="DAYS" />
-          <StatBox value="14" label="HOURS" />
-          <StatBox value="45" label="MINS" />
-        </StatBoxRow>
+      // Content sits low in the card rather than crowding the header rule —
+      // the event name is what you should land on, not the label above it.
+      content: (
+        <View style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20 }}>
+          <Text style={[commonStyles.cardTitle, { textAlign: "left", fontSize: 34 }]}>
+            UFC 300
+          </Text>
+          <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
+            PEREIRA VS HILL
+          </Text>
+          <StatBoxRow inline>
+            <StatBox value="02" label="DAYS" />
+            <StatBox value="14" label="HOURS" />
+            <StatBox value="45" label="MINS" />
+          </StatBoxRow>
+        </View>
       ),
     },
   ];

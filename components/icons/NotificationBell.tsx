@@ -14,11 +14,11 @@ export default function NotificationBell({
     <Svg width={size} height={size} viewBox="0 0 120 120">
       <Path
         d="M60 20C51.16 20 44 27.16 44 36V40.5C34.6 44.8 28 54.2 28 65V82L20 92V96H100V92L92 82V65C92 54.2 85.4 44.8 76 40.5V36C76 27.16 68.84 20 60 20Z"
-        fill={c.text2}
+        fill={c.red}
       />
       <Path
         d="M48 100C48 106.6 53.4 112 60 112C66.6 112 72 106.6 72 100H48Z"
-        fill={c.text2}
+        fill={c.red}
       />
       {hasNotifications && (
         <>
