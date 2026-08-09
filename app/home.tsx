@@ -13,6 +13,7 @@ import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
+import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
 import FighterFace from "../components/FighterFace";
 import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
@@ -280,6 +281,7 @@ export default function Home() {
       tag: "YOUR LEAGUE",
       tagColor: "#E8A020",
       serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
+      mark: <CardMark name="trophy" color="#E8A020" />,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -452,6 +454,7 @@ export default function Home() {
               ...(myStanding && LEAGUE
                 ? {
                     serial: LEAGUE.name.toUpperCase(),
+                    mark: <CardMark name="trophy" color="#E8A020" />,
                     tag: "CURRENT LEAGUE RANK",
                     tagColor: c.textMuted,
                     title: ordinal(myStanding.rank),
@@ -514,6 +517,7 @@ export default function Home() {
                   }
                 : {
                     serial: "NO LEAGUE",
+                    mark: <CardMark name="trophy" color="#E8A020" opacity={0.06} />,
                     tag: "LEAGUES",
                     tagColor: "#E8A020",
                     title: "Find your people",
@@ -561,6 +565,7 @@ export default function Home() {
               ...(lastEventPoints > 0
                 ? {
                     serial: "UFC 299",
+                    mark: <CardMark name="scorecard" />,
                     tag: "LAST EVENT POINTS",
                     tagColor: c.textMuted,
                     title: String(lastEventPoints),
@@ -592,6 +597,7 @@ export default function Home() {
                   }
                 : {
                     serial: "IN 2 DAYS",
+                    mark: <CardMark name="scorecard" opacity={0.06} />,
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
                     title: "UFC 300",

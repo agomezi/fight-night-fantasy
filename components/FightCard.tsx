@@ -29,6 +29,7 @@ export default function FightCard({
   labelColor,
   serial,
   media,
+  mark,
   children,
   style,
   minHeight,
@@ -40,6 +41,8 @@ export default function FightCard({
   serial?: string;
   /** Full-bleed zone under the header. Where fighter art lives. */
   media?: ReactNode;
+  /** Large faint graphic behind the body — says what kind of card this is. */
+  mark?: ReactNode;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   minHeight?: number;
@@ -95,6 +98,25 @@ export default function FightCard({
           </Text>
         )}
       </View>
+
+      {/* The mark is clipped to the card, but the torn corner deliberately
+          isn't — hence a clipping layer here rather than on the card itself. */}
+      {mark && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: 12,
+            overflow: "hidden",
+          }}
+        >
+          {mark}
+        </View>
+      )}
 
       {media && <View style={{ paddingHorizontal: 18, paddingTop: 14 }}>{media}</View>}
 

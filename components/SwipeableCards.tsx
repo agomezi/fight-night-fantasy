@@ -27,6 +27,8 @@ export interface Card {
   serial?: string;
   /** Full-bleed zone under the header — fighter art. */
   media?: React.ReactNode;
+  /** Large faint graphic behind the body. */
+  mark?: React.ReactNode;
   footer?: React.ReactNode;
 }
 
@@ -155,6 +157,7 @@ const SwipeableCards = ({
             labelColor={card.tagColor}
             serial={card.serial}
             media={card.media}
+            mark={card.mark}
             minHeight={minHeight}
             style={{ aspectRatio: card.aspectRatio }}
           >

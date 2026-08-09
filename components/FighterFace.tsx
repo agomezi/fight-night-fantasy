@@ -2,16 +2,20 @@ import { Image, ImageSourcePropType, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
 /*
- * The slot fighter art drops into.
+ * The slot fighter art drops into — and the fallback when a fighter has no
+ * headshot.
  *
- * Right now it renders initials over a corner-tinted well. Pass `source` and
- * the same frame holds a PNG instead — nothing around it changes. That's the
- * point: the corner tint, the angled inner edge and the sizing are all
- * properties of the frame, so real art inherits the treatment rather than
- * needing a new one.
+ * Kept deliberately: this is the answer to "what shows when we have no image
+ * for someone". Initials over a corner-tinted well, with a skewed inner edge
+ * so a facing pair reads as a matchup. Pass `source` and the same frame holds
+ * a PNG instead; the tint, the lean, the plinth rule and the sizing all belong
+ * to the frame, so real art inherits the treatment.
  *
- * The tint is the fighter's corner, so the card is already carrying who is red
- * and who is blue before you read a word.
+ * The tint is the fighter's corner, so it carries who is red and who is blue
+ * before a word is read.
+ *
+ * Currently used on: the home NEXT EVENT card, where the main-event fighters
+ * will get real headshots. Not used on leagues or picks — undecided.
  */
 export default function FighterFace({
   initials,
