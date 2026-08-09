@@ -12,6 +12,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import FightCard from "./FightCard";
 import { makeCommonStyles } from "../styles/common";
 
 export interface Card {
@@ -22,6 +23,8 @@ export interface Card {
   aspectRatio?: number;
   /** Replaces title/subtitle entirely — used for the picks ring. */
   content?: React.ReactNode;
+  /** Oversized ghost text behind the card — usually the event number. */
+  watermark?: string;
   footer?: React.ReactNode;
 }
 
@@ -145,12 +148,13 @@ const SwipeableCards = ({
     <View>
       <GestureDetector gesture={panGesture}>
         <Animated.View style={animatedStyle}>
-          <View
-            style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio, minHeight }]}
+          <FightCard
+            label={card.tag}
+            labelColor={card.tagColor}
+            watermark={card.watermark}
+            minHeight={minHeight}
+            style={{ aspectRatio: card.aspectRatio }}
           >
-            <Text style={[commonStyles.label, { color: card.tagColor }]}>
-              {card.tag}
-            </Text>
             {card.content ?? (
               <>
                 {card.title ? (
@@ -166,7 +170,7 @@ const SwipeableCards = ({
               </>
             )}
             {card.footer}
-          </View>
+          </FightCard>
         </Animated.View>
       </GestureDetector>
 

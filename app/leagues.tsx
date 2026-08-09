@@ -163,6 +163,7 @@ export default function Leagues() {
             {
               tag: LEAGUE.kind,
               tagColor: "#E8A020",
+              watermark: me ? ordinal(me.rank) : undefined,
               content: (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
                   <ProgressRing
@@ -213,6 +214,7 @@ export default function Leagues() {
                   {
                     tag: "THIS WEEK",
                     tagColor: c.red,
+                    watermark: "VS",
                     content: (
                       <View style={{ gap: 12 }}>
                         <View style={commonStyles.row}>

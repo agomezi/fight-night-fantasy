@@ -235,10 +235,11 @@ export default function Home() {
     {
       tag: "NEXT EVENT",
       tagColor: c.red,
+      watermark: "300",
       title: "UFC 300",
       subtitle: "PEREIRA VS HILL",
       footer: (
-        <StatBoxRow>
+        <StatBoxRow inline>
           <StatBox value="02" label="DAYS" />
           <StatBox value="14" label="HOURS" />
           <StatBox value="45" label="MINS" />
@@ -251,6 +252,7 @@ export default function Home() {
     carouselCards.push({
       tag: "YOUR LEAGUE",
       tagColor: "#E8A020",
+      watermark: myStanding ? ordinal(myStanding.rank) : undefined,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -290,6 +292,7 @@ export default function Home() {
     carouselCards.push({
       tag: "UNFINISHED CARD",
       tagColor: c.red,
+      watermark: String(picksTotal - picksStarted),
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -341,6 +344,7 @@ export default function Home() {
     carouselCards.push({
       tag: "LIVE",
       tagColor: c.red,
+      watermark: "LIVE",
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing value={4} total={7} center="4" caption="of 7" size={116} color={c.green} />
@@ -413,6 +417,7 @@ export default function Home() {
         <InfoCards
           cards={[
             {
+              watermark: "#4",
               tag: "CURRENT LEAGUE RANK",
               tagColor: c.textMuted,
               title: "—",
@@ -426,6 +431,7 @@ export default function Home() {
               ),
             },
             {
+              watermark: "842",
               tag: "LAST EVENT POINTS",
               tagColor: c.textMuted,
               title: "0",

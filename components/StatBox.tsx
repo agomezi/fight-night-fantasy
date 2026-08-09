@@ -87,6 +87,7 @@ const makeStyles = (c: Palette) =>
     rowInline: {
       flexDirection: "row",
       gap: 12,
+      marginTop: 14,
     },
   });
 
