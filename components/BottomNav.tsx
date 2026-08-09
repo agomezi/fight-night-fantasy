@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { Path, Svg } from "react-native-svg";
+import { OCTAGON_INNER, OCTAGON_OUTER } from "./CardMark";
 import { useTheme } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import PressableScale from "./PressableScale";
@@ -22,11 +23,20 @@ function TabIcon({ tab, color }: { tab: TabKey; color: string }) {
   if (tab === "home") {
     return (
       <Svg width={22} height={22} viewBox="0 0 80 80" fill="none">
+        {/* fence */}
         <Path
-          d="M67.7 51.5 51.5 67.7H28.5L12.3 51.5V28.5L28.5 12.3h23L67.7 28.5z"
+          d={OCTAGON_OUTER}
           stroke={color}
           strokeWidth={6}
           strokeLinejoin="round"
+        />
+        {/* canvas edge inside it */}
+        <Path
+          d={OCTAGON_INNER}
+          stroke={color}
+          strokeWidth={4.5}
+          strokeLinejoin="round"
+          opacity={0.55}
         />
       </Svg>
     );
