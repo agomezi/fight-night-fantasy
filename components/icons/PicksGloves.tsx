@@ -10,6 +10,11 @@ import { Circle, Path, Svg } from "react-native-svg";
  *
  * Each glove is a narrow cuff opening into a round mitt below. The laces do
  * most of the identifying work, so they stay thin and the mitts stay heavy.
+ *
+ * Mitt radius is 4 on a 24 grid with the cuffs at 4.8 and 15.8, which leaves
+ * a 3-unit gap between them. At 4.6 they overlapped by 2 and merged into one
+ * mass — with a large-arc flag the mitt spans well past its cuff, so the
+ * spacing has to be worked out from the arc, not the cuff.
  */
 export default function PicksGloves({
   size = 22,
@@ -25,7 +30,7 @@ export default function PicksGloves({
 
       {/* laces */}
       <Path
-        d="M11.3 3.8 8.6 7.6M12.7 3.8l2.7 3.8"
+        d="M11.2 3.9 6.9 7.4M12.8 3.9l4.3 3.5"
         stroke={color}
         strokeWidth={1.6}
         strokeLinecap="round"
@@ -33,7 +38,7 @@ export default function PicksGloves({
 
       {/* left glove — cuff, then the mitt swelling below it */}
       <Path
-        d="M6.4 7.6h4.2v3.6a4.6 4.6 0 1 1-4.2 0z"
+        d="M4.8 7.6h3.4v3.4a4 4 0 1 1-3.4 0z"
         stroke={color}
         strokeWidth={2}
         strokeLinejoin="round"
@@ -41,7 +46,7 @@ export default function PicksGloves({
 
       {/* right glove */}
       <Path
-        d="M13.4 7.6h4.2v3.6a4.6 4.6 0 1 1-4.2 0z"
+        d="M15.8 7.6h3.4v3.4a4 4 0 1 1-3.4 0z"
         stroke={color}
         strokeWidth={2}
         strokeLinejoin="round"
