@@ -41,6 +41,3 @@ app-example
 # generated native folders
 /ios
 /android
-
-# Design notes — local working document, not part of the repo
-design.md
