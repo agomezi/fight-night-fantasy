@@ -3,18 +3,18 @@ import { Circle, Path, Svg } from "react-native-svg";
 /*
  * Picks tab — a hanging pair.
  *
- * The recognisable thing about gloves isn't a single glove, it's the pair
- * slung by their laces. That silhouette — two round masses with cords
- * converging to a point above — survives being shrunk in a way an accurate
- * single glove does not, which is what sank the last two attempts.
+ * The previous version read as handcuffs, and the geometry says why: a
+ * narrow cuff feeding a near-perfect circle is a link and a ring. Two of
+ * them on cords is a cuff, not a glove.
  *
- * Each glove is a narrow cuff opening into a round mitt below. The laces do
- * most of the identifying work, so they stay thin and the mitts stay heavy.
+ * The fix is proportion, not detail. Each glove is now one body 7.2 wide the
+ * whole way down — squared shoulders at the top, straight sides, and only
+ * the bottom rounded off. Nothing narrows, so there's no link to read, and
+ * the flat top edge stops it closing into a ring.
  *
- * Mitt radius is 4 on a 24 grid with the cuffs at 4.8 and 15.8, which leaves
- * a 3-unit gap between them. At 4.6 they overlapped by 2 and merged into one
- * mass — with a large-arc flag the mitt spans well past its cuff, so the
- * spacing has to be worked out from the arc, not the cuff.
+ * A strap line across the wrist does the rest of the work: it's the detail
+ * that says glove, and it breaks the silhouette so the shape can't collapse
+ * back into a circle at size.
  */
 export default function PicksGloves({
   size = 22,
@@ -26,31 +26,33 @@ export default function PicksGloves({
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       {/* the hook they hang from */}
-      <Circle cx={12} cy={2.6} r={1.4} stroke={color} strokeWidth={1.6} />
+      <Circle cx={12} cy={2.4} r={1.3} stroke={color} strokeWidth={1.5} />
 
       {/* laces */}
       <Path
-        d="M11.2 3.9 6.9 7.4M12.8 3.9l4.3 3.5"
+        d="M11.2 3.5 7.6 6.9M12.8 3.5l3.6 3.4"
         stroke={color}
-        strokeWidth={1.6}
+        strokeWidth={1.5}
         strokeLinecap="round"
       />
 
-      {/* left glove — cuff, then the mitt swelling below it */}
+      {/* left glove — square shoulders, round bottom, no waist */}
       <Path
-        d="M4.8 7.6h3.4v3.4a4 4 0 1 1-3.4 0z"
+        d="M4.9 7h4.2a1.5 1.5 0 0 1 1.5 1.5v4a3.6 3.6 0 0 1-7.2 0v-4A1.5 1.5 0 0 1 4.9 7z"
         stroke={color}
         strokeWidth={2}
         strokeLinejoin="round"
       />
+      <Path d="M3.6 10.3h6.8" stroke={color} strokeWidth={1.5} />
 
       {/* right glove */}
       <Path
-        d="M15.8 7.6h3.4v3.4a4 4 0 1 1-3.4 0z"
+        d="M14.9 7h4.2a1.5 1.5 0 0 1 1.5 1.5v4a3.6 3.6 0 0 1-7.2 0v-4A1.5 1.5 0 0 1 14.9 7z"
         stroke={color}
         strokeWidth={2}
         strokeLinejoin="round"
       />
+      <Path d="M13.6 10.3h6.8" stroke={color} strokeWidth={1.5} />
     </Svg>
   );
 }
