@@ -13,7 +13,7 @@ import { G, Rect, Svg } from "react-native-svg";
  * separations cut through it, and separations survive shrinking in a way
  * that a traced contour does not.
  *
- * Proportion matters more than detail here: the fist stands 9.2 tall against
+ * Proportion matters more than detail here: the fist stands 10.8 tall against
  * about 5 of visible finger above it. An earlier pass had those the other way
  * round and the icon read as a hand of fingers with no palm.
  *
@@ -34,18 +34,18 @@ export default function PicksGloves({
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <G transform="rotate(-6 12 12)">
         {/* three fingers — three, not four, so the gaps stay visible at size */}
-        <Rect x={5.8} y={3.4} width={3.6} height={9.2} rx={1.6} fill={color} />
-        <Rect x={10.6} y={3} width={3.6} height={9.6} rx={1.6} fill={color} />
-        <Rect x={15.4} y={3.7} width={3.6} height={8.9} rx={1.6} fill={color} />
+        <Rect x={5.8} y={2.2} width={3.6} height={9.2} rx={1.6} fill={color} />
+        <Rect x={10.6} y={1.8} width={3.6} height={9.6} rx={1.6} fill={color} />
+        <Rect x={15.4} y={2.5} width={3.6} height={8.9} rx={1.6} fill={color} />
 
         {/* thumb, tucked at the side */}
-        <Rect x={2.6} y={10.4} width={3.8} height={6.4} rx={1.9} fill={color} />
+        <Rect x={2.6} y={9.2} width={3.8} height={7.4} rx={1.9} fill={color} />
 
         {/* the fist itself */}
-        <Rect x={5.2} y={8.4} width={15} height={9.2} rx={2.8} fill={color} />
+        <Rect x={5.2} y={7.2} width={15} height={10.8} rx={2.8} fill={color} />
 
         {/* wrist strap, held off the fist so the gap reads */}
-        <Rect x={6.3} y={19} width={13} height={3} rx={1.5} fill={color} />
+        <Rect x={6.3} y={19.4} width={13} height={2.8} rx={1.4} fill={color} />
       </G>
     </Svg>
   );
