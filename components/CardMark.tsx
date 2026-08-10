@@ -1,11 +1,11 @@
 import { View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
-import { Belt, Bell, Glove, Octagon, Trophy } from "./marks";
+import { Belt, Bell, Glove, Octagon, Trophy } from "./svg/marks";
 
 /*
  * Positions a mark faintly behind a card's content.
  *
- * The drawing itself lives in components/marks — this only decides where it
+ * The drawing itself lives in components/svg/marks — this only decides where it
  * sits and how quiet it is. Keeping those apart means a mark can be used at
  * full strength elsewhere (the octagon is the home tab icon) without any of
  * this card-specific placement following it around.

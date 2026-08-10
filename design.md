@@ -246,3 +246,44 @@ One addition, one retention. No wholesale swap.
    that was already rejected once when done first
 
 Steps 1–4 are where the "generated" read actually comes from.
+
+---
+
+# Empty states — the shipping default
+
+`constants/league.ts` exports a single `DEMO` flag. It is now **`false`**, which
+is the real state of a brand-new account: no league, no standings, no rivalry,
+no scored picks, no notifications, no history. Flip it to `true` to design
+against sample data; nothing else changes.
+
+Two rules the screens follow, and both exist because breaking them is what made
+earlier passes read as fake:
+
+**1. Never print a number you don't have.** A watermark, a ghosted rank or a
+hardcoded count sitting behind an em-dash is worse than blank space — it tells
+the user the app is guessing. Everything numeric traces back to the data, so a
+new account genuinely shows `—`, not a decorative `#4`.
+
+**2. Never claim a relationship that doesn't exist.** Social proof ("8 people in
+your league picked Holloway") is meaningless with no league, so it is gated on
+`LEAGUE` rather than shown with invented names. Same reason league-settings
+replaces itself entirely when you aren't in one: an invite code hands out a seat
+in a league that doesn't exist.
+
+Where each screen lands with nothing in it:
+
+| Screen | Empty state |
+| --- | --- |
+| home | Carousel drops the league, unfinished-card and live cards; gains a **START YOUR CARD** prompt. Last-event card looks forward to your first event instead of back at a score of zero. |
+| picks | The card itself is real — it exists whether or not you have an account. Social proof lines are dropped; the lock confirmation invites you to a league instead of naming strangers. |
+| leagues | Whole screen becomes onboarding: create / join, plus what joining unlocks. |
+| league-settings | Whole screen replaced — you cannot configure a league you aren't in. Scoring rules stay, since they're worth reading before you commit. |
+| league-standings | Skeleton scorecard with a caption, not a blank table. |
+| matchup | Prompt — opponents are assigned when an event opens. |
+| history | Full-bleed prompt with a route into picks. |
+| notifications | "All quiet." |
+| profile | Zeros and `—` throughout, achievements locked, results replaced by an `EmptyState`. |
+
+An empty state is an instruction, not an apology. Each one names the single
+action that ends it, and the screens that are useless without data say so with
+the whole screen rather than a shrug in the middle of a live-looking layout.

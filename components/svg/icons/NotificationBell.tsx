@@ -1,5 +1,5 @@
 import { Circle, Path, Svg } from "react-native-svg";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../../context/ThemeContext";
 
 /** Header bell. The dot only appears when there's something to see. */
 export default function NotificationBell({

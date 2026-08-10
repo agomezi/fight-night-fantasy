@@ -27,6 +27,7 @@ import HeaderBar from "../components/HeaderBar";
 import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
 import RoundLane, { LanePick } from "../components/RoundLane";
+import { LEAGUE } from "../constants/league";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
@@ -357,7 +358,10 @@ export default function Picks() {
                 onPick={(next) => setLanePick(MAIN_EVENT, next)}
                 disabled={lockedIn}
               />
-              {MAIN_EVENT.proof && (
+              {/* Social proof is about your league. With no league there is
+                  nobody to compare against, so the line is dropped rather
+                  than invented. */}
+              {LEAGUE && MAIN_EVENT.proof && (
                 <Text style={styles.proofText}>{MAIN_EVENT.proof}</Text>
               )}
             </Animated.View>
@@ -429,7 +433,9 @@ export default function Picks() {
                     onPick={(next) => setLanePick(fight, next)}
                     disabled={lockedIn}
                   />
-                  {fight.proof && <Text style={styles.proofText}>{fight.proof}</Text>}
+                  {LEAGUE && fight.proof && (
+                    <Text style={styles.proofText}>{fight.proof}</Text>
+                  )}
                 </Animated.View>
               )}
             </Animated.View>
@@ -534,22 +540,32 @@ export default function Picks() {
                 ))}
               </View>
 
-              <View style={styles.proof}>
-                <View style={styles.proofAvatars}>
-                  {["#E8A020", "#9B59B6", "#3a7bd5"].map((c, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.proofDot,
-                        { backgroundColor: c, marginLeft: i === 0 ? 0 : -8 },
-                      ]}
-                    />
-                  ))}
+              {LEAGUE ? (
+                <View style={styles.proof}>
+                  <View style={styles.proofAvatars}>
+                    {["#E8A020", "#9B59B6", "#3a7bd5"].map((dot, i) => (
+                      <View
+                        key={dot}
+                        style={[
+                          styles.proofDot,
+                          { backgroundColor: dot, marginLeft: i === 0 ? 0 : -8 },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.proofText}>
+                    Vince and 6 others in {LEAGUE.name} are locked in
+                  </Text>
                 </View>
-                <Text style={styles.proofText}>
-                  Vince and 6 others in Fight Night Crew are locked in
-                </Text>
-              </View>
+              ) : (
+                /* Nobody to be locked in alongside yet — so the line points
+                   at what would change that. */
+                <View style={styles.proof}>
+                  <Text style={styles.proofText}>
+                    Join a league and you can watch this card against friends
+                  </Text>
+                </View>
+              )}
 
               <PressableScale style={styles.shareBtn} onPress={shareCard}>
                 <Ionicons name="share-social" size={18} color="#FFFFFF" />

@@ -20,7 +20,7 @@ import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
 import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
-import { LEAGUE, SEASON_STANDINGS } from "../constants/league";
+import { DEMO, LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
@@ -228,7 +228,9 @@ export default function Home() {
   // --- carousel -----------------------------------------------------------
   // Two always-on cards, then two that only appear when they're relevant.
   const myStanding = SEASON_STANDINGS.find((s) => s.isMe);
-  const picksStarted = 3;
+  // A brand-new account has touched nothing, so this is 0 and the carousel
+  // shows the "start your card" prompt instead of a progress ring.
+  const picksStarted = DEMO ? 3 : 0;
   const picksTotal = 12;
   const eventIsLive = false;
   // Until scoring exists this comes from the demo standings, or is simply zero.
@@ -269,7 +271,8 @@ export default function Home() {
     carouselCards.push({
       tag: "YOUR LEAGUE",
       tagColor: "#E8A020",
-      serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
+
+      serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -299,6 +302,54 @@ export default function Home() {
                   : "Holding position"}
             </Text>
           </View>
+        </View>
+      ),
+    });
+  }
+
+  /*
+   * Nothing picked yet. This is the single most important card on a new
+   * account's home screen, so it gets a place in the carousel rather than
+   * being left to the nav bar to suggest.
+   */
+  if (picksStarted === 0) {
+    carouselCards.push({
+      tag: "GET STARTED",
+      tagColor: c.red,
+      serial: "LOCKS 14H",
+      content: (
+        <View style={{ flex: 1, justifyContent: "flex-end", gap: 12 }}>
+          <View>
+            <Text style={{ color: c.text, fontSize: 26, fontWeight: "800" }}>
+              Make your first picks
+            </Text>
+            <Text
+              style={{ color: c.textMuted, fontSize: 13, lineHeight: 19, marginTop: 4 }}
+            >
+              {picksTotal} bouts on the card. Call the winner, the method and
+              the round — the closer you get, the more it scores.
+            </Text>
+          </View>
+          <PressableScale
+            onPress={() => router.push("/picks")}
+            style={{
+              backgroundColor: c.red,
+              borderRadius: 10,
+              paddingVertical: 12,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: "#FFFFFF",
+                fontSize: 12,
+                fontWeight: "800",
+                letterSpacing: 1,
+              }}
+            >
+              START YOUR CARD
+            </Text>
+          </PressableScale>
         </View>
       ),
     });

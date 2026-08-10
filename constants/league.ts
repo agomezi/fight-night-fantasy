@@ -58,7 +58,7 @@ export type LeagueStat = {
  * Flip this one line; nothing else changes. The empty-state work stays intact
  * either way. Remove the demo branches once a backend supplies this.
  */
-export const DEMO = true;
+export const DEMO = false;
 
 export const LEAGUE: League | null = DEMO
   ? { name: "The Alpha League", kind: "PRIVATE LEAGUE", members: 12, week: 7 }

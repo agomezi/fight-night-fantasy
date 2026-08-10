@@ -1,5 +1,5 @@
 import { Circle, Path, Svg } from "react-native-svg";
-import { useTheme } from "../../context/ThemeContext";
+import { useTheme } from "../../../context/ThemeContext";
 
 /** The account avatar in every screen header. */
 export default function ProfileBadge({ size = 36 }: { size?: number }) {

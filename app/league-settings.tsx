@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Alert, ScrollView, Share, Switch, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
+import EmptyState from "../components/EmptyState";
 import PressableScale from "../components/PressableScale";
 import { ScoreRow, Scorecard } from "../components/Scorecard";
 import { LEAGUE, SEASON_STANDINGS } from "../constants/league";
@@ -90,6 +91,63 @@ export default function LeagueSettings() {
     },
   ];
 
+  const header = (
+    <>
+      <View style={commonStyles.row}>
+        <PressableScale onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="chevron-back" size={26} color={c.text} />
+        </PressableScale>
+        <Text style={commonStyles.headerLogo}>League</Text>
+        <View style={{ width: 26 }} />
+      </View>
+      <View style={commonStyles.divider} />
+    </>
+  );
+
+  /*
+   * Nothing on this screen means anything without a league: an invite code
+   * hands out a seat that doesn't exist, the member list is blank, and the
+   * scoring table describes rules nobody is playing by. So the whole screen
+   * becomes the one thing that is actually true — you need a league first.
+   */
+  if (!LEAGUE) {
+    return (
+      <SafeAreaView
+        style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
+        edges={["top", "left", "right"]}
+      >
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: 20, paddingBottom: 32 }}
+        >
+          {header}
+
+          <EmptyState
+            icon="settings-outline"
+            title="No league to set up"
+            message="Create a league or join one with a code — the invite link, scoring and member list all live here once you're in."
+            actionLabel="GO TO LEAGUES"
+            onAction={() => router.replace("/leagues")}
+          />
+
+          {/* The rules are worth reading before you commit to a league, so
+              they stay visible even with nothing joined. */}
+          <Text style={sectionLabel}>HOW SCORING WORKS</Text>
+          <Scorecard>
+            <ScoreRow index={0} label="Correct winner" value="+100" />
+            <ScoreRow index={1} label="Correct method" value="+50" />
+            <ScoreRow index={2} label="Correct round" value="+30" />
+            <ScoreRow index={3} label="Underdog bonus" value="1.5x" />
+            <ScoreRow index={4} label="Missed pick" value="0" last />
+          </Scorecard>
+        </ScrollView>
+
+        <View style={{ height: insets.bottom }} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView
       style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
@@ -100,14 +158,7 @@ export default function LeagueSettings() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 32 }}
       >
-        <View style={commonStyles.row}>
-          <PressableScale onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="chevron-back" size={26} color={c.text} />
-          </PressableScale>
-          <Text style={commonStyles.headerLogo}>League</Text>
-          <View style={{ width: 26 }} />
-        </View>
-        <View style={commonStyles.divider} />
+        {header}
 
         <Animated.View entering={appear(0)}>
           <Text
@@ -212,6 +263,14 @@ export default function LeagueSettings() {
         <Text style={sectionLabel}>
           MEMBERS · {SEASON_STANDINGS.length || (LEAGUE ? LEAGUE.members : 0)}
         </Text>
+        {SEASON_STANDINGS.length === 0 && (
+          <EmptyState
+            compact
+            icon="person-add-outline"
+            title="Just you so far"
+            message="Share the code above and your league fills up here."
+          />
+        )}
         {SEASON_STANDINGS.map((s, i) => (
           <Animated.View
             key={s.id}

@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
-import { NotificationBell, ProfileBadge } from "./icons";
+import { NotificationBell, ProfileBadge } from "./svg/icons";
 import PressableScale from "./PressableScale";
 
 /*
