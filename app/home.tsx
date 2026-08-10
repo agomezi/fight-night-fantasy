@@ -550,7 +550,9 @@ export default function Home() {
                   }
                 : {
                     serial: "NO LEAGUE",
-                    mark: <CardMark name="trophy" color={c.gold} opacity={1} />,
+                    // No mark on the empty card. A mark is sized to sit beside
+                    // a short numeral; the prompt runs to prose and a button,
+                    // and the two collide.
                     tag: "LEAGUES",
                     tagColor: "#E8A020",
                     title: "Find your people",
@@ -630,7 +632,8 @@ export default function Home() {
                   }
                 : {
                     serial: "IN 2 DAYS",
-                    mark: <CardMark name="belt" top={44} color={c.textFaint} accent={c.gold} opacity={1} />,
+                    // Same reason as the league card above — no room for it
+                    // once the card carries a sentence instead of a score.
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
                     title: "UFC 300",
