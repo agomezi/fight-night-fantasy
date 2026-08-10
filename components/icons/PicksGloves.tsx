@@ -1,24 +1,23 @@
-import { Circle, G, Path, Svg } from "react-native-svg";
+import { Circle, G, Rect, Svg } from "react-native-svg";
 
 /*
- * Picks tab — a hanging pair.
+ * Picks tab — one glove.
  *
- * Redrawn against a reference of real hanging gloves. Two things there that
- * my upright version was missing, and both are why it read as luggage:
+ * Four attempts drew a hanging pair, and the pair is the problem. Two
+ * gloves plus cuffs, thumbs, laces and a hook is six elements inside 22px,
+ * which gives each glove about nine pixels. Nothing survives that.
  *
- * 1. They dangle at an angle. Gloves on a lace tilt away from each other,
- *    they don't hang plumb. Each side gets 13 degrees of lean, which is what
- *    turns two bags into a hanging pair. The lean swings the bodies toward
- *    each other, so they sit a unit further apart than upright to keep a
- *    3-unit gap — at a 2-wide stroke anything less and the edges touch.
+ * So: one glove, filling the frame, and solid rather than outlined. A
+ * stroke at this size spends most of its width on the outline itself and
+ * leaves almost nothing inside; a filled silhouette keeps its shape all the
+ * way down. It carries more weight than the other tabs, which is fine —
+ * this is the tab the app is for.
  *
- * 2. The thumb. It's a lobe on the outer edge, low, and without it the body
- *    is just a rounded bag — that's the whole difference between a glove and
- *    a pouch. It's cut into the outline rather than stacked on top, so no
- *    two strokes cross.
- *
- * Body stays one width top to bottom with a flat top edge, which is what
- * stopped an earlier version reading as handcuffs.
+ * Built from three overlapping shapes rather than one traced path. Fills
+ * merge into a single silhouette with no seams, so the geometry can't go
+ * subtly wrong the way a hand-written outline can. Mitt, thumb below it,
+ * and the wrist cuff set back with a gap so the glove reads as a glove
+ * rather than one undifferentiated blob.
  */
 export default function PicksGloves({
   size = 22,
@@ -29,35 +28,16 @@ export default function PicksGloves({
 }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      {/* the hook they hang from */}
-      <Circle cx={12} cy={2.2} r={1.2} stroke={color} strokeWidth={1.4} />
+      {/* leaning slightly, the way a glove sits rather than stands */}
+      <G transform="rotate(-8 12 12)">
+        {/* wrist cuff, held off the mitt so the join reads */}
+        <Rect x={2} y={8.4} width={5.4} height={7.6} rx={2} fill={color} />
 
-      {/* laces, out to each cuff */}
-      <Path
-        d="M11.3 3.2 5.9 6.3M12.7 3.2l5.4 3.1"
-        stroke={color}
-        strokeWidth={1.4}
-        strokeLinecap="round"
-      />
+        {/* mitt */}
+        <Circle cx={15} cy={11.2} r={6.6} fill={color} />
 
-      {/* left glove, leaning out */}
-      <G transform="rotate(-13 6.6 12)">
-        <Path
-          d="M5.2 6.6H8a1.4 1.4 0 0 1 1.4 1.4v6.4a2.8 2.8 0 0 1-2.8 2.8 2.8 2.8 0 0 1-2.7-2.1 2.2 2.2 0 0 1-1.9-2.2 2.2 2.2 0 0 1 1.8-2V8a1.4 1.4 0 0 1 1.4-1.4z"
-          stroke={color}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
-      </G>
-
-      {/* right glove, mirrored and leaning the other way */}
-      <G transform="rotate(13 17.4 12)">
-        <Path
-          d="M18.8 6.6H16a1.4 1.4 0 0 0-1.4 1.4v6.4a2.8 2.8 0 0 0 2.8 2.8 2.8 2.8 0 0 0 2.7-2.1 2.2 2.2 0 0 0 1.9-2.2 2.2 2.2 0 0 0-1.8-2V8a1.4 1.4 0 0 0-1.4-1.4z"
-          stroke={color}
-          strokeWidth={2}
-          strokeLinejoin="round"
-        />
+        {/* thumb */}
+        <Circle cx={11.6} cy={17} r={3.1} fill={color} />
       </G>
     </Svg>
   );
