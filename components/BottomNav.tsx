@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
-import { Path, Svg } from "react-native-svg";
+import PicksGloves from "./svg/icons/PicksGloves";
+import { Octagon } from "./svg/marks";
 import { useTheme } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import PressableScale from "./PressableScale";
@@ -17,21 +18,14 @@ const TABS: { key: TabKey; label: string; route: string }[] = [
 ];
 
 function TabIcon({ tab, color }: { tab: TabKey; color: string }) {
-  if (tab === "home") return <Ionicons name="home-outline" size={22} color={color} />;
+  // Home is the cage, not a house — the one nav slot that should say what
+  // kind of app this is rather than borrowing the generic icon.
+  if (tab === "home") {
+    return <Octagon size={22} color={color} strokeWidth={6} />;
+  }
   if (tab === "leagues") return <Ionicons name="medal-outline" size={22} color={color} />;
   if (tab === "profile") return <Ionicons name="person-outline" size={22} color={color} />;
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 4a5 5 0 100 10 5 5 0 000-10z"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  );
+  return <PicksGloves size={22} color={color} />;
 }
 
 function Tab({

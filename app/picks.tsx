@@ -7,10 +7,8 @@ import {
   Platform,
   ScrollView,
   Share,
-  StyleProp,
   Text,
   View,
-  ViewStyle,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -25,9 +23,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import BottomNav from "../components/BottomNav";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import HeaderBar from "../components/HeaderBar";
 import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
+import RoundLane, { LanePick } from "../components/RoundLane";
+import { LEAGUE } from "../constants/league";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
@@ -38,6 +38,8 @@ type Fighter = { id: string; name: string; initials: string; record: string };
 type Fight = {
   id: string;
   division: string;
+  /** Scheduled length. Championship and main events go 5. */
+  rounds: 3 | 5;
   a: Fighter;
   b: Fighter;
   proof?: string;
@@ -46,6 +48,7 @@ type Fight = {
 const MAIN_EVENT: Fight = {
   id: "main",
   division: "LIGHT HEAVYWEIGHT",
+  rounds: 5,
   a: { id: "pereira", name: "PEREIRA", initials: "AP", record: "12-2" },
   b: { id: "hill", name: "HILL", initials: "JH", record: "12-1" },
   proof: "Vince and 2 others picked Hill",
@@ -55,6 +58,7 @@ const UNDERCARD: Fight[] = [
   {
     id: "zhang-yan",
     division: "STRAWWEIGHT",
+    rounds: 3,
     a: { id: "zhang", name: "ZHANG", initials: "ZW", record: "24-3" },
     b: { id: "yan", name: "YAN", initials: "XY", record: "17-4" },
     proof: "Vince and 4 others picked Zhang",
@@ -62,6 +66,7 @@ const UNDERCARD: Fight[] = [
   {
     id: "gaethje-holloway",
     division: "LIGHTWEIGHT",
+    rounds: 3,
     a: { id: "gaethje", name: "GAETHJE", initials: "JG", record: "25-4" },
     b: { id: "holloway", name: "HOLLOWAY", initials: "MH", record: "26-7" },
     proof: "8 people in your league picked Holloway",
@@ -69,14 +74,13 @@ const UNDERCARD: Fight[] = [
   {
     id: "oliveira-tsarukyan",
     division: "LIGHTWEIGHT",
+    rounds: 3,
     a: { id: "oliveira", name: "OLIVEIRA", initials: "CO", record: "34-9" },
     b: { id: "tsarukyan", name: "TSARUKYAN", initials: "AT", record: "21-3" },
     proof: "Split 50/50 in your league",
   },
 ];
 
-const METHODS = ["KO/TKO", "SUB", "DEC"] as const;
-const ROUNDS = [1, 2, 3, 4, 5] as const;
 
 const EVENT_START = new Date(Date.now() + (3 * 24 + 14) * 60 * 60 * 1000);
 const LOCK_LEAD_MS = 10 * 60 * 1000;
@@ -101,8 +105,6 @@ function titleCase(s: string) {
 }
 
 type PickMap = Record<string, string>;
-type MethodMap = Record<string, string>;
-type RoundMap = Record<string, number>;
 
 function Avatar({
   initials,
@@ -187,107 +189,6 @@ function Chevron({ open, size = 18 }: { open: boolean; size?: number }) {
   );
 }
 
-/** Method / round chip whose fill and label ease between states. */
-function Segment({
-  active,
-  onPress,
-  style,
-  label,
-}: {
-  active: boolean;
-  onPress: () => void;
-  style: StyleProp<ViewStyle>;
-  label: string | number;
-}) {
-  const { c } = useTheme();
-  const styles = useThemedStyles(makePicksStyles);
-  const progress = useToggleProgress(active);
-
-  const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [c.input, c.red]),
-    borderColor: interpolateColor(progress.value, [0, 1], [c.border, c.red]),
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 1], [c.text2, "#FFFFFF"]),
-  }));
-
-  return (
-    <PressableScale onPress={onPress} style={[style, boxStyle]} scaleTo={0.93}>
-      <Animated.Text style={[styles.segText, textStyle]}>{label}</Animated.Text>
-    </PressableScale>
-  );
-}
-
-function FightControls({
-  method,
-  round,
-  proof,
-  onMethod,
-  onRound,
-}: {
-  method?: string;
-  round?: number;
-  proof?: string;
-  onMethod: (m: string) => void;
-  onRound: (r: number) => void;
-}) {
-  const styles = useThemedStyles(makePicksStyles);
-  return (
-    <>
-      <Text style={styles.groupLabel}>METHOD OF VICTORY</Text>
-      <View style={styles.segRow}>
-        {METHODS.map((m) => (
-          <Segment
-            key={m}
-            label={m}
-            active={method === m}
-            onPress={() => onMethod(m)}
-            style={styles.seg}
-          />
-        ))}
-      </View>
-
-      {method !== "DEC" && (
-        <Animated.View
-          entering={FadeIn.duration(180)}
-          exiting={FadeOut.duration(120)}
-          layout={LinearTransition.duration(200)}
-        >
-          <Text style={styles.groupLabel}>ROUND</Text>
-          <View style={styles.segRow}>
-            {ROUNDS.map((r) => (
-              <Segment
-                key={r}
-                label={r}
-                active={round === r}
-                onPress={() => onRound(r)}
-                style={styles.roundBox}
-              />
-            ))}
-          </View>
-        </Animated.View>
-      )}
-
-      {proof && (
-        <View style={styles.proof}>
-          <View style={styles.proofAvatars}>
-            {["#E8A020", "#9B59B6", "#3a7bd5"].map((c, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.proofDot,
-                  { backgroundColor: c, marginLeft: i === 0 ? 0 : -8 },
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={styles.proofText}>{proof}</Text>
-        </View>
-      )}
-    </>
-  );
-}
 
 export default function Picks() {
   const insets = useSafeAreaInsets();
@@ -298,35 +199,40 @@ export default function Picks() {
   const [picks, setPicks] = useState<PickMap>(
     fighter ? { [MAIN_EVENT.id]: fighter } : {}
   );
-  const [methods, setMethods] = useState<MethodMap>({});
-  const [rounds, setRounds] = useState<RoundMap>({});
+  // One lane pick per fight replaces the old picks/methods/rounds triple —
+  // winner, method and round are a single decision now.
+  const [lane, setLane] = useState<Record<string, LanePick>>(() =>
+    // Quick Pick on home hands off a fighter id — seed the lane so the
+    // main event arrives already showing that pick, round uncalled.
+    fighter
+      ? {
+          [MAIN_EVENT.id]: {
+            corner: fighter === MAIN_EVENT.a.id ? "red" : "blue",
+            finish: "ANY",
+          },
+        }
+      : {},
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ main: true });
   const [lockedIn, setLockedIn] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
 
-  const setPick = (fightId: string, fighterId: string) => {
+  const setLanePick = (fight: Fight, next: LanePick | null) => {
     if (lockedIn) return;
-    setPicks((p) => ({ ...p, [fightId]: fighterId }));
-    setExpanded((p) => ({ ...p, [fightId]: true }));
-  };
-  const setMethod = (fightId: string, m: string) => {
-    if (lockedIn) return;
-    setMethods((p) => {
-      if (p[fightId] === m) {
-        const { [fightId]: _, ...rest } = p;
+    setLane((p) => {
+      if (!next) {
+        const { [fight.id]: _drop, ...rest } = p;
         return rest;
       }
-      return { ...p, [fightId]: m };
+      return { ...p, [fight.id]: next };
     });
-  };
-  const setRound = (fightId: string, r: number) => {
-    if (lockedIn) return;
-    setRounds((p) => {
-      if (p[fightId] === r) {
-        const { [fightId]: _, ...rest } = p;
+    // Keep the legacy winner map in step so the summary and counter work.
+    setPicks((p) => {
+      if (!next) {
+        const { [fight.id]: _drop, ...rest } = p;
         return rest;
       }
-      return { ...p, [fightId]: r };
+      return { ...p, [fight.id]: next.corner === "red" ? fight.a.id : fight.b.id };
     });
   };
   const toggle = (fightId: string) =>
@@ -344,14 +250,22 @@ export default function Picks() {
         .map((f) => {
           const winner = picks[f.id] === f.a.id ? f.a : f.b;
           const loser = picks[f.id] === f.a.id ? f.b : f.a;
-          const method = methods[f.id];
-          const round = rounds[f.id];
-          const detail =
-            method && method !== "DEC" && round
-              ? `${method === "KO/TKO" ? "KO" : "Sub"} · Round ${round}`
-              : method === "DEC"
-                ? "Decision"
-                : undefined;
+          const lp = lane[f.id];
+          const how = lp?.method
+            ? lp.method === "KO"
+              ? "KO/TKO"
+              : "Sub"
+            : undefined;
+          // Winner-only picks have no detail line; each refinement adds one.
+          const detail = !lp
+            ? undefined
+            : lp.finish === "DEC"
+              ? "Decision"
+              : lp.finish === "ANY"
+                ? how
+                : how
+                  ? `${how} · Round ${lp.finish}`
+                  : `Round ${lp.finish}`;
           return {
             id: f.id,
             winner: titleCase(winner.name),
@@ -359,7 +273,7 @@ export default function Picks() {
             detail,
           };
         }),
-    [allFights, picks, methods, rounds]
+    [allFights, picks, lane]
   );
 
   const shakeX = useSharedValue(0);
@@ -412,12 +326,7 @@ export default function Picks() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 20 }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <ProfileBadge />
-          <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell />
-        </View>
-        <View style={commonStyles.divider} />
+        <HeaderBar />
 
         <Text style={styles.eventTitle}>UFC 300</Text>
         <Text style={styles.eventSub}>Make your picks. Lock them in.</Text>
@@ -441,37 +350,20 @@ export default function Picks() {
               exiting={FadeOut.duration(120)}
               style={{ padding: 18, paddingTop: 4 }}
             >
-              <View style={styles.fighterRow}>
-                <PressableScale
-                  style={styles.fighterCol}
-                  onPress={() => setPick(MAIN_EVENT.id, MAIN_EVENT.a.id)}
-                >
-                  <Avatar
-                    initials={MAIN_EVENT.a.initials}
-                    selected={picks[MAIN_EVENT.id] === MAIN_EVENT.a.id}
-                  />
-                  <Text style={styles.fighterName}>{MAIN_EVENT.a.name}</Text>
-                </PressableScale>
-                <Text style={styles.vs}>VS</Text>
-                <PressableScale
-                  style={styles.fighterCol}
-                  onPress={() => setPick(MAIN_EVENT.id, MAIN_EVENT.b.id)}
-                >
-                  <Avatar
-                    initials={MAIN_EVENT.b.initials}
-                    selected={picks[MAIN_EVENT.id] === MAIN_EVENT.b.id}
-                  />
-                  <Text style={styles.fighterName}>{MAIN_EVENT.b.name}</Text>
-                </PressableScale>
-              </View>
-
-              <FightControls
-                method={methods[MAIN_EVENT.id]}
-                round={rounds[MAIN_EVENT.id]}
-                proof={MAIN_EVENT.proof}
-                onMethod={(m) => setMethod(MAIN_EVENT.id, m)}
-                onRound={(r) => setRound(MAIN_EVENT.id, r)}
+              <RoundLane
+                rounds={MAIN_EVENT.rounds}
+                red={{ name: titleCase(MAIN_EVENT.a.name), record: MAIN_EVENT.a.record }}
+                blue={{ name: titleCase(MAIN_EVENT.b.name), record: MAIN_EVENT.b.record }}
+                pick={lane[MAIN_EVENT.id]}
+                onPick={(next) => setLanePick(MAIN_EVENT, next)}
+                disabled={lockedIn}
               />
+              {/* Social proof is about your league. With no league there is
+                  nobody to compare against, so the line is dropped rather
+                  than invented. */}
+              {LEAGUE && MAIN_EVENT.proof && (
+                <Text style={styles.proofText}>{MAIN_EVENT.proof}</Text>
+              )}
             </Animated.View>
           )}
         </Animated.View>
@@ -486,20 +378,19 @@ export default function Picks() {
               layout={LinearTransition.duration(220)}
               style={styles.rowCard}
             >
-              <View style={styles.row}>
-                <PressableScale
-                  style={styles.rowFighter}
-                  onPress={() => setPick(fight.id, fight.a.id)}
-                >
-                  <Avatar initials={fight.a.initials} selected={picked === fight.a.id} size={40} />
+              {/* Collapsed row is a readout; all picking happens in the lane. */}
+              <PressableScale style={styles.row} onPress={() => toggle(fight.id)}>
+                <View style={styles.rowFighter}>
+                  <Avatar initials={fight.a.initials} selected={picked === fight.a.id} size={36} />
                   <Text
                     style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
+                    numberOfLines={1}
                   >
                     {fight.a.name}
                   </Text>
-                </PressableScale>
+                </View>
 
-                <PressableScale style={styles.rowCenter} onPress={() => toggle(fight.id)}>
+                <View style={styles.rowCenter}>
                   <Text style={styles.rowDivision}>{fight.division}</Text>
                   {picked ? (
                     <Animated.View entering={popIn}>
@@ -511,24 +402,22 @@ export default function Picks() {
                     </Animated.Text>
                   )}
                   <Chevron open={!!isOpen} size={14} />
-                </PressableScale>
+                </View>
 
-                <PressableScale
-                  style={[styles.rowFighter, { justifyContent: "flex-end" }]}
-                  onPress={() => setPick(fight.id, fight.b.id)}
-                >
+                <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
                   <Text
                     style={[
                       styles.rowName,
                       { textAlign: "right" },
                       picked === fight.b.id && styles.rowNamePicked,
                     ]}
+                    numberOfLines={1}
                   >
                     {fight.b.name}
                   </Text>
-                  <Avatar initials={fight.b.initials} selected={picked === fight.b.id} size={40} />
-                </PressableScale>
-              </View>
+                  <Avatar initials={fight.b.initials} selected={picked === fight.b.id} size={36} />
+                </View>
+              </PressableScale>
 
               {isOpen && (
                 <Animated.View
@@ -536,13 +425,17 @@ export default function Picks() {
                   exiting={FadeOut.duration(120)}
                   style={styles.rowBody}
                 >
-                  <FightControls
-                    method={methods[fight.id]}
-                    round={rounds[fight.id]}
-                    proof={fight.proof}
-                    onMethod={(m) => setMethod(fight.id, m)}
-                    onRound={(r) => setRound(fight.id, r)}
+                  <RoundLane
+                    rounds={fight.rounds}
+                    red={{ name: titleCase(fight.a.name), record: fight.a.record }}
+                    blue={{ name: titleCase(fight.b.name), record: fight.b.record }}
+                    pick={lane[fight.id]}
+                    onPick={(next) => setLanePick(fight, next)}
+                    disabled={lockedIn}
                   />
+                  {LEAGUE && fight.proof && (
+                    <Text style={styles.proofText}>{fight.proof}</Text>
+                  )}
                 </Animated.View>
               )}
             </Animated.View>
@@ -578,7 +471,7 @@ export default function Picks() {
                 style={[styles.lockBtn, madePicks < totalFights && styles.lockBtnDisabled]}
                 onPress={lockIn}
               >
-                <Ionicons name="lock-closed" size={18} color="#fff" />
+                <Ionicons name="lock-closed" size={18} color="#FFFFFF" />
                 <Text style={styles.lockText}>LOCK IN PICKS</Text>
                 <Text style={styles.lockCount}>
                   {madePicks}/{totalFights}
@@ -612,7 +505,7 @@ export default function Picks() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.badgeWrap}>
                 <View style={styles.badge}>
-                  <Ionicons name="lock-closed" size={26} color="#fff" />
+                  <Ionicons name="lock-closed" size={26} color="#FFFFFF" />
                 </View>
                 <View style={styles.badgeCheck}>
                   <Ionicons name="checkmark" size={12} color="#0A0A0A" />
@@ -647,25 +540,35 @@ export default function Picks() {
                 ))}
               </View>
 
-              <View style={styles.proof}>
-                <View style={styles.proofAvatars}>
-                  {["#E8A020", "#9B59B6", "#3a7bd5"].map((c, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.proofDot,
-                        { backgroundColor: c, marginLeft: i === 0 ? 0 : -8 },
-                      ]}
-                    />
-                  ))}
+              {LEAGUE ? (
+                <View style={styles.proof}>
+                  <View style={styles.proofAvatars}>
+                    {["#E8A020", "#9B59B6", "#3a7bd5"].map((dot, i) => (
+                      <View
+                        key={dot}
+                        style={[
+                          styles.proofDot,
+                          { backgroundColor: dot, marginLeft: i === 0 ? 0 : -8 },
+                        ]}
+                      />
+                    ))}
+                  </View>
+                  <Text style={styles.proofText}>
+                    Vince and 6 others in {LEAGUE.name} are locked in
+                  </Text>
                 </View>
-                <Text style={styles.proofText}>
-                  Vince and 6 others in Fight Night Crew are locked in
-                </Text>
-              </View>
+              ) : (
+                /* Nobody to be locked in alongside yet — so the line points
+                   at what would change that. */
+                <View style={styles.proof}>
+                  <Text style={styles.proofText}>
+                    Join a league and you can watch this card against friends
+                  </Text>
+                </View>
+              )}
 
               <PressableScale style={styles.shareBtn} onPress={shareCard}>
-                <Ionicons name="share-social" size={18} color="#fff" />
+                <Ionicons name="share-social" size={18} color="#FFFFFF" />
                 <Text style={styles.lockText}>SHARE YOUR CARD</Text>
               </PressableScale>
               <PressableScale

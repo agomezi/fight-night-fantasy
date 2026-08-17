@@ -18,6 +18,14 @@ export type Palette = {
   textMuted: string;
   textFaint: string;
   red: string;
+  /**
+   * Championship gold — trophy and belt.
+   *
+   * Theme-aware because a pale gold disappears on white: on a light ground
+   * "brighter" has to mean more chroma, not more lightness, so light mode
+   * trades a little lightness for saturation to stay vivid.
+   */
+  gold: string;
   green: string;
   blue: string;
   logoText: string;
@@ -43,6 +51,7 @@ export const darkPalette: Palette = {
   textMuted: "#888888",
   textFaint: "#666666",
   red: "#E8003D",
+  gold: "#FFCA3A",
   green: "#2ecc71",
   blue: "#5aa9e6",
   logoText: "#f5d0c5",
@@ -68,6 +77,7 @@ export const lightPalette: Palette = {
   textMuted: "#5A5A5A",
   textFaint: "#8A8A90",
   red: "#E8003D",
+  gold: "#E8960C",
   green: "#009E42",
   blue: "#2F6FB0",
   logoText: "#C2412C",

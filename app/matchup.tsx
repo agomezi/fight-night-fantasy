@@ -127,8 +127,8 @@ export default function Matchup() {
           </View>
         </Animated.View>
 
-        {/* Projection bar */}
-        <View style={styles.card}>
+        {/* Projection — read, not tapped, so no box. */}
+        <View style={{ marginTop: 22 }}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardMeta}>PROJECTED FINISH</Text>
             <Text style={styles.cardMeta}>

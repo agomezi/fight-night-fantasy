@@ -13,11 +13,14 @@ import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
+import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import HeaderBar from "../components/HeaderBar";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
-import SwipeableCards from "../components/SwipeableCards";
+import ProgressRing from "../components/ProgressRing";
+import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
+import { DEMO, LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
@@ -196,6 +199,12 @@ function VoteButton({
   );
 }
 
+function ordinal(n: number) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -216,6 +225,212 @@ export default function Home() {
     };
   });
 
+  // --- carousel -----------------------------------------------------------
+  // Two always-on cards, then two that only appear when they're relevant.
+  const myStanding = SEASON_STANDINGS.find((s) => s.isMe);
+  // A brand-new account has touched nothing, so this is 0 and the carousel
+  // shows the "start your card" prompt instead of a progress ring.
+  const picksStarted = DEMO ? 3 : 0;
+  const picksTotal = 12;
+  const eventIsLive = false;
+  // Until scoring exists this comes from the demo standings, or is simply zero.
+  const lastEventPoints = myStanding ? 218 : 0;
+  // The player directly above and directly below you.
+  const neighbours = myStanding
+    ? SEASON_STANDINGS.filter(
+        (s) => s.rank === myStanding.rank - 1 || s.rank === myStanding.rank + 1,
+      )
+    : [];
+
+  const carouselCards: CarouselCard[] = [
+    {
+      tag: "NEXT EVENT",
+      tagColor: c.red,
+      serial: "SAT · 10PM ET",
+      // Content sits low in the card rather than crowding the header rule —
+      // the event name is what you should land on, not the label above it.
+      content: (
+        <View style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20 }}>
+          <Text style={[commonStyles.cardTitle, { textAlign: "left", fontSize: 34 }]}>
+            UFC 300
+          </Text>
+          <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
+            PEREIRA VS HILL
+          </Text>
+          <StatBoxRow inline>
+            <StatBox value="02" label="DAYS" />
+            <StatBox value="14" label="HOURS" />
+            <StatBox value="45" label="MINS" />
+          </StatBoxRow>
+        </View>
+      ),
+    },
+  ];
+
+  if (LEAGUE && myStanding) {
+    carouselCards.push({
+      tag: "YOUR LEAGUE",
+      tagColor: "#E8A020",
+
+      serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
+      content: (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <ProgressRing
+            value={LEAGUE.members - myStanding.rank + 1}
+            total={LEAGUE.members}
+            center={ordinal(myStanding.rank)}
+            caption={`of ${LEAGUE.members}`}
+            size={116}
+            color="#E8A020"
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text, fontSize: 19, fontWeight: "800" }}>
+              {LEAGUE.name}
+            </Text>
+            <Text
+              style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}
+            >
+              {myStanding.points.toLocaleString()} pts · week {LEAGUE.week}
+            </Text>
+            <Text
+              style={{ color: c.green, fontSize: 12.5, fontWeight: "700", marginTop: 6 }}
+            >
+              {myStanding.move > 0
+                ? `Up ${myStanding.move} this week`
+                : myStanding.move < 0
+                  ? `Down ${Math.abs(myStanding.move)} this week`
+                  : "Holding position"}
+            </Text>
+          </View>
+        </View>
+      ),
+    });
+  }
+
+  /*
+   * Nothing picked yet. This is the single most important card on a new
+   * account's home screen, so it gets a place in the carousel rather than
+   * being left to the nav bar to suggest.
+   */
+  if (picksStarted === 0) {
+    carouselCards.push({
+      tag: "GET STARTED",
+      tagColor: c.red,
+      serial: "LOCKS 14H",
+      content: (
+        <View style={{ flex: 1, justifyContent: "flex-end", gap: 12 }}>
+          <View>
+            <Text style={{ color: c.text, fontSize: 26, fontWeight: "800" }}>
+              Make your first picks
+            </Text>
+            <Text
+              style={{ color: c.textMuted, fontSize: 13, lineHeight: 19, marginTop: 4 }}
+            >
+              {picksTotal} bouts on the card. Call the winner, the method and
+              the round — the closer you get, the more it scores.
+            </Text>
+          </View>
+          <PressableScale
+            onPress={() => router.push("/picks")}
+            style={{
+              backgroundColor: c.red,
+              borderRadius: 10,
+              paddingVertical: 12,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: "#FFFFFF",
+                fontSize: 12,
+                fontWeight: "800",
+                letterSpacing: 1,
+              }}
+            >
+              START YOUR CARD
+            </Text>
+          </PressableScale>
+        </View>
+      ),
+    });
+  }
+
+  // Only if they started a card and walked away without submitting.
+  if (picksStarted > 0 && picksStarted < picksTotal) {
+    carouselCards.push({
+      tag: "UNFINISHED CARD",
+      tagColor: c.red,
+      serial: "LOCKS 14H",
+      content: (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <ProgressRing
+            value={picksStarted}
+            total={picksTotal}
+            center={`${picksStarted}`}
+            caption={`of ${picksTotal}`}
+            size={116}
+          />
+          <View style={{ flex: 1, gap: 10 }}>
+            <View>
+              <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
+                Still open
+              </Text>
+              <Text
+                style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 3 }}
+              >
+                {picksTotal - picksStarted} bouts left · locks in 14h
+              </Text>
+            </View>
+            <PressableScale
+              onPress={() => router.push("/picks")}
+              style={{
+                backgroundColor: c.red,
+                borderRadius: 10,
+                paddingVertical: 11,
+                alignItems: "center",
+              }}
+            >
+              <Text
+                style={{
+                  color: "#FFFFFF",
+                  fontSize: 12,
+                  fontWeight: "800",
+                  letterSpacing: 1,
+                }}
+              >
+                FINISH YOUR CARD
+              </Text>
+            </PressableScale>
+          </View>
+        </View>
+      ),
+    });
+  }
+
+  // Only while a card is actually being fought.
+  if (eventIsLive) {
+    carouselCards.push({
+      tag: "LIVE",
+      tagColor: c.red,
+      serial: "IN PROGRESS",
+      content: (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <ProgressRing value={4} total={7} center="4" caption="of 7" size={116} color={c.green} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
+              Running accuracy
+            </Text>
+            <Text
+              style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}
+            >
+              4 of 7 scored bouts called · 5 to go
+            </Text>
+          </View>
+        </View>
+      ),
+    });
+  }
+
   const fullCardFights = [
     { matchup: "Pereira vs Hill", division: "TITLE FIGHT" },
     { matchup: "Holloway vs Gaethje", division: "Lightweight" },
@@ -231,38 +446,14 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <ProfileBadge />
-          <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell />
-        </View>
-        <View style={commonStyles.divider} />
+        <HeaderBar />
 
-        <SwipeableCards
-          cards={[
-            {
-              tag: "NEXT EVENT",
-              tagColor: c.red,
-              title: "UFC 300",
-              subtitle: "PEREIRA VS HILL",
-              aspectRatio: 1.2,
-              footer: (
-                <StatBoxRow>
-                  <StatBox value="02" label="DAYS" />
-                  <StatBox value="14" label="HOURS" />
-                  <StatBox value="45" label="MINS" />
-                </StatBoxRow>
-              ),
-            },
-            {
-              tag: "YOUR LEAGUE",
-              tagColor: "#E8A020",
-              title: "NO LEAGUE",
-              subtitle: "Create or join one to start competing",
-              aspectRatio: 1.2,
-            },
-          ]}
-        />
+        {/*
+          Cards earn their place — each one only appears when it has something
+          to say. A card that reads "no league" or "0 picked" is noise, so it
+          simply isn't there.
+        */}
+        <SwipeableCards minHeight={252} cards={carouselCards} />
         <View
           style={[
             commonStyles.cardWrapper,
@@ -277,73 +468,185 @@ export default function Home() {
           >
             Your Performance
           </Text>
-          <Text
-            style={[
-              commonStyles.cardSubtitle,
-              { marginTop: 9, paddingRight: 3 },
-            ]}
-          >
-            View History
-          </Text>
+          <PressableScale onPress={() => router.push("/history")} hitSlop={10}>
+            <Text
+              style={[commonStyles.cardSubtitle, { marginTop: 9, paddingRight: 3 }]}
+            >
+              View History
+            </Text>
+          </PressableScale>
         </View>
         <InfoCards
           cards={[
             {
-              tag: "CURRENT LEAGUE RANK",
-              tagColor: c.textMuted,
-              title: "—",
-              titleSize: 50,
-              footer: (
-                <Text
-                  style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
-                >
-                  Unranked · join a league to get on the board
-                </Text>
-              ),
+              /*
+               * Empty here is not "rank: —". A stat card with nothing in it is
+               * dead space, so when there's no league the card stops being a
+               * stat and becomes the thing that would fill it.
+               */
+              ...(myStanding && LEAGUE
+                ? {
+                    serial: LEAGUE.name.toUpperCase(),
+                    mark: <CardMark name="trophy" color={c.gold} opacity={1} />,
+                    tag: "CURRENT LEAGUE RANK",
+                    tagColor: c.textMuted,
+                    title: ordinal(myStanding.rank),
+                    titleSize: 50,
+                    footer: (
+                      <>
+                        <Text
+                          style={[
+                            commonStyles.cardSubtitle,
+                            { textAlign: "left", marginBottom: 12 },
+                          ]}
+                        >
+                          {myStanding.team} · {LEAGUE.members} in the league
+                        </Text>
+                        {/* Who you're chasing and who's chasing you — worth
+                            more than restating the rank in ghost type. */}
+                        {neighbours.map((n) => (
+                          <View
+                            key={n.id}
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 10,
+                              paddingVertical: 8,
+                              borderTopWidth: 1,
+                              borderTopColor: c.border,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: n.rank < myStanding.rank ? c.green : c.textFaint,
+                                fontSize: 12,
+                                fontWeight: "800",
+                                width: 12,
+                              }}
+                            >
+                              {n.rank < myStanding.rank ? "↑" : "↓"}
+                            </Text>
+                            <Text
+                              style={{ flex: 1, color: c.text2, fontSize: 13 }}
+                              numberOfLines={1}
+                            >
+                              {n.name}
+                            </Text>
+                            <Text
+                              style={{
+                                color: c.textMuted,
+                                fontSize: 12.5,
+                                fontWeight: "700",
+                                fontVariant: ["tabular-nums"],
+                              }}
+                            >
+                              {n.points > myStanding.points ? "+" : ""}
+                              {Math.round(n.points - myStanding.points)}
+                            </Text>
+                          </View>
+                        ))}
+                      </>
+                    ),
+                  }
+                : {
+                    serial: "NO LEAGUE",
+                    // No mark on the empty card. A mark is sized to sit beside
+                    // a short numeral; the prompt runs to prose and a button,
+                    // and the two collide.
+                    tag: "LEAGUES",
+                    tagColor: "#E8A020",
+                    title: "Find your people",
+                    titleSize: 32,
+                    footer: (
+                      <>
+                        <Text
+                          style={[
+                            commonStyles.cardSubtitle,
+                            { textAlign: "left", marginBottom: 14 },
+                          ]}
+                        >
+                          Rank, records and weekly matchups all start once
+                          you&apos;re in a league.
+                        </Text>
+                        <PressableScale
+                          onPress={() => router.push("/leagues")}
+                          style={{
+                            backgroundColor: c.red,
+                            borderRadius: 10,
+                            paddingVertical: 12,
+                            alignItems: "center",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#FFFFFF",
+                              fontSize: 12,
+                              fontWeight: "800",
+                              letterSpacing: 1,
+                            }}
+                          >
+                            CREATE OR JOIN
+                          </Text>
+                        </PressableScale>
+                      </>
+                    ),
+                  }),
             },
             {
-              tag: "LAST EVENT POINTS",
-              tagColor: c.textMuted,
-              title: "0",
-              titleUnit: "PTS",
-              titleSize: 50,
-              footer: (
-                <>
-                  <View
-                    style={[
-                      commonStyles.divider,
-                      { marginTop: 6, marginBottom: 10 },
-                    ]}
-                  />
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={[
-                        commonStyles.cardSubtitle,
-                        { textAlign: "left", marginBottom: 0 },
-                      ]}
-                    >
-                      Avg. Score
-                    </Text>
-                    <Text
-                      style={[
-                        commonStyles.cardSubtitle,
-                        {
-                          textAlign: "right",
-                          marginBottom: 0,
-                        },
-                      ]}
-                    >
-                      —
-                    </Text>
-                  </View>
-                </>
-              ),
+              /*
+               * Same rule: zero points is not a stat worth a tile. Before the
+               * first event this card looks forward instead of back.
+               */
+              ...(lastEventPoints > 0
+                ? {
+                    serial: "UFC 299",
+                    mark: <CardMark name="belt" top={44} color={c.textFaint} accent={c.gold} opacity={1} />,
+                    tag: "LAST EVENT POINTS",
+                    tagColor: c.textMuted,
+                    title: String(lastEventPoints),
+                    titleUnit: "PTS",
+                    titleSize: 50,
+                    footer: (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginTop: 12,
+                          paddingTop: 12,
+                          borderTopWidth: 1,
+                          borderTopColor: c.border,
+                        }}
+                      >
+                        <Text
+                          style={[commonStyles.cardSubtitle, { textAlign: "left", marginBottom: 0 }]}
+                        >
+                          Avg. score
+                        </Text>
+                        <Text
+                          style={[commonStyles.cardSubtitle, { textAlign: "right", marginBottom: 0 }]}
+                        >
+                          197
+                        </Text>
+                      </View>
+                    ),
+                  }
+                : {
+                    serial: "IN 2 DAYS",
+                    // Same reason as the league card above — no room for it
+                    // once the card carries a sentence instead of a score.
+                    tag: "YOUR FIRST EVENT",
+                    tagColor: c.red,
+                    title: "UFC 300",
+                    titleSize: 40,
+                    footer: (
+                      <Text
+                        style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
+                      >
+                        Pereira vs Hill. Get a card in before Saturday and this
+                        becomes your score.
+                      </Text>
+                    ),
+                  }),
             },
             {
               tag: "Last Event Recap",

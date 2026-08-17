@@ -7,10 +7,9 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
-import { appear } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import EmptyState from "../components/EmptyState";
+import { EmptyScorecard, ScoreRow, Scorecard } from "../components/Scorecard";
 import StandingRow from "../components/StandingRow";
 import {
     EVENT_STANDINGS,
@@ -122,20 +121,20 @@ export default function LeagueStandings() {
           ))}
         </View>
 
-        <View style={styles.card}>
+        {/* Standings are read, not tapped — no box. */}
+        <View style={{ marginTop: 22 }}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Full Standings</Text>
             <Text style={styles.cardMeta}>{rows.length} PLAYERS</Text>
           </View>
 
           {rows.length === 0 ? (
-            <EmptyState
-              icon="podium-outline"
-              title="No standings yet"
-              message={
+            <EmptyScorecard
+              rows={4}
+              caption={
                 scope === "season"
-                  ? "Join a league and make your first picks — season standings build from there."
-                  : "Nothing has been scored yet. Event standings appear after fight night."
+                  ? "Join a league and make your first picks — the table fills from there."
+                  : "Nothing scored yet. Event standings appear after fight night."
               }
             />
           ) : (
@@ -153,29 +152,22 @@ export default function LeagueStandings() {
           )}
         </View>
 
-        {LEAGUE_STATS.map((stat, i) => (
-          <Animated.View key={stat.id} entering={appear(i)} style={styles.statCard}>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-            <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 10 }}>
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text
-                style={[
-                  styles.statDelta,
-                  {
-                    color:
-                      stat.positive === null
-                        ? c.textFaint
-                        : stat.positive
-                          ? c.green
-                          : c.red,
-                  },
-                ]}
-              >
-                {stat.delta}
-              </Text>
-            </View>
-          </Animated.View>
-        ))}
+        {/* Four bordered tiles became one card you can read down. */}
+        <Scorecard style={{ marginTop: 22 }}>
+          {LEAGUE_STATS.map((stat, i) => (
+            <ScoreRow
+              key={stat.id}
+              index={i}
+              label={stat.label}
+              value={stat.value}
+              note={stat.delta}
+              noteTone={
+                stat.positive === null ? "muted" : stat.positive ? "up" : "down"
+              }
+              last={i === LEAGUE_STATS.length - 1}
+            />
+          ))}
+        </Scorecard>
 
         <PressableScale style={styles.primaryButton} onPress={inviteFriends}>
           <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />

@@ -28,6 +28,9 @@ function ThemedApp() {
         <Stack.Screen name="leagues" />
         <Stack.Screen name="league-standings" />
         <Stack.Screen name="matchup" />
+        <Stack.Screen name="history" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="league-settings" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="edit-profile" />
       </Stack>

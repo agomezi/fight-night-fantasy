@@ -8,7 +8,9 @@ import { appear } from "../constants/motion";
 import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
-import { NotificationBell, ProfileBadge } from "../components/HeaderIcons";
+import ResultRow from "../components/ResultRow";
+import HeaderBar from "../components/HeaderBar";
+import { RECENT_RESULTS } from "../constants/league";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
@@ -81,12 +83,7 @@ export default function Profile() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 20 }}
       >
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <ProfileBadge />
-          <Text style={commonStyles.headerLogo}>Fight Night</Text>
-          <NotificationBell />
-        </View>
-        <View style={commonStyles.divider} />
+        <HeaderBar />
 
         <Animated.View entering={appear(0)} style={styles.heroCard}>
           <View style={styles.avatar}>
@@ -133,10 +130,15 @@ export default function Profile() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>RECENT PICKS</Text>
-          <Text style={styles.viewHistory}>VIEW HISTORY</Text>
+          <PressableScale onPress={() => router.push("/history")} hitSlop={10}>
+            <Text style={styles.viewHistory}>VIEW HISTORY</Text>
+          </PressableScale>
         </View>
 
-        {RECENT_PICKS.length === 0 && (
+        {/* History uses the method-as-headline row: the finish is the
+            headline, the fighter sits under it, and your call is stamped
+            beside it. Same shape the lane predicts. */}
+        {RECENT_RESULTS.length === 0 ? (
           <EmptyState
             icon="clipboard-outline"
             title="No picks yet"
@@ -144,6 +146,21 @@ export default function Profile() {
             actionLabel="MAKE YOUR PICKS"
             onAction={() => router.push("/picks")}
           />
+        ) : (
+          RECENT_RESULTS.map((r, i) => (
+            <ResultRow
+              key={r.id}
+              index={i}
+              red={r.red}
+              blue={r.blue}
+              meta="Final"
+              detail={r.detail}
+              points={r.points}
+              verdict={r.verdict}
+              verdictNote={r.verdictNote}
+              last={i === RECENT_RESULTS.length - 1}
+            />
+          ))
         )}
 
         {RECENT_PICKS.map((pick) => (

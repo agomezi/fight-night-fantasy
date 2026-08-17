@@ -12,14 +12,23 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import FightCard from "./FightCard";
 import { makeCommonStyles } from "../styles/common";
 
 export interface Card {
   tag: string;
   tagColor: string;
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   aspectRatio?: number;
+  /** Replaces title/subtitle entirely — used for the picks ring. */
+  content?: React.ReactNode;
+  /** Small mono text on the right of the header band. */
+  serial?: string;
+  /** Full-bleed zone under the header — fighter art. */
+  media?: React.ReactNode;
+  /** Large faint graphic behind the body. */
+  mark?: React.ReactNode;
   footer?: React.ReactNode;
 }
 
@@ -28,7 +37,14 @@ const SETTLE = { damping: 20, stiffness: 220, mass: 0.6 };
 const SWIPE_DISTANCE = 55;
 const SWIPE_VELOCITY = 450;
 
-const SwipeableCards = ({ cards }: { cards: Card[] }) => {
+const SwipeableCards = ({
+  cards,
+  minHeight,
+}: {
+  cards: Card[];
+  /** Holds one height across cards so swiping doesn't jolt the page. */
+  minHeight?: number;
+}) => {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const { width: windowWidth } = useWindowDimensions();
@@ -136,20 +152,31 @@ const SwipeableCards = ({ cards }: { cards: Card[] }) => {
     <View>
       <GestureDetector gesture={panGesture}>
         <Animated.View style={animatedStyle}>
-          <View
-            style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio }]}
+          <FightCard
+            label={card.tag}
+            labelColor={card.tagColor}
+            serial={card.serial}
+            media={card.media}
+            mark={card.mark}
+            minHeight={minHeight}
+            style={{ aspectRatio: card.aspectRatio }}
           >
-            <Text style={[commonStyles.label, { color: card.tagColor }]}>
-              {card.tag}
-            </Text>
-            <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
-              {card.title}
-            </Text>
-            <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
-              {card.subtitle}
-            </Text>
+            {card.content ?? (
+              <>
+                {card.title ? (
+                  <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
+                    {card.title}
+                  </Text>
+                ) : null}
+                {card.subtitle ? (
+                  <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
+                    {card.subtitle}
+                  </Text>
+                ) : null}
+              </>
+            )}
             {card.footer}
-          </View>
+          </FightCard>
         </Animated.View>
       </GestureDetector>
 

@@ -4,6 +4,7 @@ import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
 import { useThemedStyles } from "../context/ThemeContext";
+import FightCard from "./FightCard";
 import { makeCommonStyles } from "../styles/common";
 
 export interface Card {
@@ -15,6 +16,12 @@ export interface Card {
   titleUnit?: string;
   subtitle?: string;
   aspectRatio?: number;
+  /** Small mono text on the right of the header band. */
+  serial?: string;
+  /** Full-bleed zone under the header — fighter art. */
+  media?: React.ReactNode;
+  /** Large faint graphic behind the body. */
+  mark?: React.ReactNode;
   delta?: number;
   footer?: React.ReactNode;
 }
@@ -26,19 +33,15 @@ export function InfoCards({ cards }: { cards: Card[] }) {
   return (
     <View style={{ gap: 12 }}>
       {cards.map((card, i) => (
-        <Animated.View
-          key={i}
-          entering={appear(i)}
-          style={[commonStyles.homeCard, { aspectRatio: card.aspectRatio }]}
-        >
-          <Text
-            style={[
-              commonStyles.label,
-              { color: card.tagColor, fontSize: card.tagSize },
-            ]}
+        <Animated.View key={i} entering={appear(i)}>
+          <FightCard
+            label={card.tag ?? ""}
+            labelColor={card.tagColor ?? "#666"}
+            serial={card.serial}
+            media={card.media}
+            mark={card.mark}
+            style={{ aspectRatio: card.aspectRatio }}
           >
-            {card.tag}
-          </Text>
           <View style={commonStyles.infoCardTitleRow}>
             <Text
               style={[
@@ -82,6 +85,7 @@ export function InfoCards({ cards }: { cards: Card[] }) {
             </Text>
           ) : null}
           {card.footer}
+          </FightCard>
         </Animated.View>
       ))}
     </View>
