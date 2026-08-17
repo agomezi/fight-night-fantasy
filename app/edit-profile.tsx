@@ -122,7 +122,9 @@ export default function EditProfile() {
         <Text style={styles.fieldLabel}>EMAIL</Text>
         <TextInput
           style={[styles.input, styles.inputDisabled]}
-          value="fighter@example.com"
+          value=""
+          placeholder="Set once you sign in"
+          placeholderTextColor={c.textFaint}
           editable={false}
         />
         <Text style={styles.hint}>Your email is used for sign-in and can&apos;t be changed here.</Text>
