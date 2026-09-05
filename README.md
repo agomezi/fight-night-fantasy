@@ -1,50 +1,33 @@
-# Welcome to your Expo app 👋
+# Fight Night Fantasy
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A UFC pick'em app for predicting fight outcomes with friends.
 
-## Get started
+## What it does
 
-1. Install dependencies
+- Pick the winner, method (KO/TKO, submission, decision), and round for every fight on a UFC main card
+- Picks lock automatically once a fight starts
+- Scores calculate automatically and leaderboards update as events happen
+- Bonus points for a perfect pick (winner + method + round all correct)
 
-   ```bash
-   npm install
-   ```
+## Features
 
-2. Start the app
+- Global, per-event, and season-long leaderboards
+- Private groups, so you can run pick'em with friends instead of the whole platform
+- (In progress) A fight outcome prediction model, being built from scratch as its own project, that will eventually feed into the app
 
-   ```bash
-   npx expo start
-   ```
+## Status
 
-In the output, you'll find options to open the app in a
+Actively in progress, not a finished product. Current focus:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Core pick flow and home screen
+- Redesigning the pick grid (the round-by-round grid per fighter is the main visual centerpiece of the app)
+- Locking in a live UFC data source for fight cards and results
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Tech stack
 
-## Get a fresh project
+- React Native + Expo (mobile, iOS-first MVP)
+- Firebase (auth, data, scoring)
 
-When you're ready, run:
+## Why I'm building it
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+I wanted to build something real from scratch on my own, in something I actually care about instead of another tutorial project. UFC pick'em with friends is something I already do informally, so I figured I'd build the actual product for it. It's also meant to eventually plug into a fight prediction model I'm building separately, so the picks in the app can eventually be backed by real data instead of just gut feel.
