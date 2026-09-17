@@ -50,3 +50,6 @@ app-example
 
 # kept locally, never pushed
 components/FighterFace.tsx
+
+# parser test fixtures — third-party HTML, fetched with scripts/fetch-fixtures.sh
+services/ingestion/__fixtures__/*.html
