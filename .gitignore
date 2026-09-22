@@ -53,3 +53,6 @@ components/FighterFace.tsx
 
 # parser test fixtures — third-party HTML, fetched with scripts/fetch-fixtures.sh
 services/ingestion/__fixtures__/*.html
+
+# phase 0 latency probe logs
+phase0-latency-*.log
