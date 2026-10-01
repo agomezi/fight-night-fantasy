@@ -14,7 +14,7 @@ import PressableScale from "./PressableScale";
  * screen forgetting to wire them.
  */
 export default function HeaderBar({
-  title = "Fight Night",
+  title = "Fight Night Fantasy",
   hasNotifications = false,
 }: {
   title?: string;
@@ -35,7 +35,9 @@ export default function HeaderBar({
           <ProfileBadge />
         </PressableScale>
 
-        <Text style={commonStyles.headerLogo}>{title}</Text>
+        <Text style={commonStyles.headerLogo} numberOfLines={1} adjustsFontSizeToFit>
+          {title}
+        </Text>
 
         <PressableScale
           onPress={() => router.push("/notifications")}

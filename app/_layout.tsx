@@ -1,3 +1,4 @@
+import { Anton_400Regular } from "@expo-google-fonts/anton";
 import { BebasNeue_400Regular, useFonts } from "@expo-google-fonts/bebas-neue";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -57,6 +58,7 @@ function ThemedApp() {
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     BebasNeue: BebasNeue_400Regular,
+    Anton: Anton_400Regular,
   });
 
   if (!fontsLoaded) return null;

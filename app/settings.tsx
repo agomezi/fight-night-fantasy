@@ -3,20 +3,19 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
 import { ActivityIndicator, Alert, Modal, ScrollView, Switch, Text, View } from "react-native";
-import Animated, { ZoomIn } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
+import { PRIVACY_URL, TERMS_URL } from "../constants/legal";
 import { appear } from "../constants/motion";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
-const PRIVACY_URL = "https://example.com/privacy";
-const TERMS_URL = "https://example.com/terms";
 
 export default function Settings() {
   const router = useRouter();
-  const { c, mode, toggle } = useTheme();
+  const { c, mode, preference, setPreference } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
 
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -78,20 +77,36 @@ export default function Settings() {
         <Animated.View entering={appear(0)} style={styles.card}>
           <View style={styles.row}>
             <View style={styles.rowIcon}>
-              <Ionicons name="contrast-outline" size={20} color={c.text2} />
+              <Ionicons name="phone-portrait-outline" size={20} color={c.text2} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>Light Mode</Text>
-              <Text style={styles.rowSub}>
-                {mode === "light" ? "Light theme is on" : "Using dark theme"}
-              </Text>
+              <Text style={styles.rowLabel}>Match System</Text>
+              <Text style={styles.rowSub}>Follow your phone&apos;s light or dark setting</Text>
             </View>
             <Switch
-              value={mode === "light"}
-              onValueChange={toggle}
+              value={preference === "system"}
+              onValueChange={(on) => setPreference(on ? "system" : mode)}
               {...switchColors}
             />
           </View>
+          {preference !== "system" && (
+            <View style={[styles.row, styles.rowBorder]}>
+              <View style={styles.rowIcon}>
+                <Ionicons name="contrast-outline" size={20} color={c.text2} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowLabel}>Light Mode</Text>
+                <Text style={styles.rowSub}>
+                  {mode === "light" ? "Light theme is on" : "Using dark theme"}
+                </Text>
+              </View>
+              <Switch
+                value={mode === "light"}
+                onValueChange={(on) => setPreference(on ? "light" : "dark")}
+                {...switchColors}
+              />
+            </View>
+          )}
         </Animated.View>
 
         <Text style={styles.sectionLabel}>NOTIFICATIONS & CONSENT</Text>
@@ -174,7 +189,7 @@ export default function Settings() {
       >
         <View style={styles.modalOverlay}>
           <Animated.View
-            entering={ZoomIn.springify().damping(18).stiffness(220)}
+            entering={appear()}
             style={styles.modalCard}
           >
             <View style={styles.modalIcon}>

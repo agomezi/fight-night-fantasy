@@ -53,8 +53,8 @@ export default function Leagues() {
   const inviteFriends = () => {
     Share.share({
       message: LEAGUE
-        ? `Join "${LEAGUE.name}" on Fight Night and take your shot at the #1 spot 🥊`
-        : "Join me on Fight Night and take your shot at the #1 spot 🥊",
+        ? `Join "${LEAGUE.name}" on Fight Night Fantasy and take your shot at the #1 spot 🥊`
+        : "Join me on Fight Night Fantasy and take your shot at the #1 spot 🥊",
     }).catch(() => {});
   };
 

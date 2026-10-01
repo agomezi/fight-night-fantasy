@@ -59,7 +59,7 @@ export default function Profile() {
 
   const shareProfile = () => {
     Share.share({
-      message: `${profile.username} just joined Fight Night 🥊`,
+      message: `${profile.username} just joined Fight Night Fantasy 🥊`,
     }).catch(() => {});
   };
 

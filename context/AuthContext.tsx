@@ -4,10 +4,12 @@ import {
   isSuccessResponse,
   statusCodes,
 } from "@react-native-google-signin/google-signin";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Session } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { profileStorageKey } from "../constants/storage";
 import { supabase } from "../services/supabase";
 
 GoogleSignin.configure({
@@ -91,8 +93,12 @@ async function signOut() {
 }
 
 async function deleteAccount() {
+  const { data } = await supabase.auth.getSession();
   const { error } = await supabase.rpc("delete_account");
   if (error) throw error;
+  if (data.session) {
+    await AsyncStorage.removeItem(profileStorageKey(data.session.user.id)).catch(() => {});
+  }
   await forgetGoogle();
   // The account no longer exists server-side, so only the local session is left to clear.
   await supabase.auth.signOut({ scope: "local" });
