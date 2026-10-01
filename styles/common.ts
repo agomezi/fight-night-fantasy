@@ -53,9 +53,9 @@ export const makeCommonStyles = (c: Palette) =>
     },
     headerLogo: {
       fontFamily: "BebasNeue",
-      fontSize: 26,
+      fontSize: 24,
       color: c.logoText,
-      letterSpacing: 5,
+      letterSpacing: 3,
       textAlign: "center",
       transform: [{ skewX: "-8deg" }],
     },

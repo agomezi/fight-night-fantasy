@@ -8,3 +8,4 @@
 export { default as NotificationBell } from "./NotificationBell";
 export { default as PicksGloves } from "./PicksGloves";
 export { default as ProfileBadge } from "./ProfileBadge";
+export { default as GoogleG } from "./GoogleG";

@@ -42,8 +42,8 @@ export default function LeagueSettings() {
   const shareInvite = () => {
     Share.share({
       message: LEAGUE
-        ? `Join "${LEAGUE.name}" on Fight Night. Code: ${INVITE_CODE}`
-        : `Join me on Fight Night. Code: ${INVITE_CODE}`,
+        ? `Join "${LEAGUE.name}" on Fight Night Fantasy. Code: ${INVITE_CODE}`
+        : `Join me on Fight Night Fantasy. Code: ${INVITE_CODE}`,
     }).catch(() => {});
   };
 

@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-
-const STORAGE_KEY = "fnf.profile";
+import { LEGACY_PROFILE_KEY, profileStorageKey } from "../constants/storage";
+import { useAuth } from "./AuthContext";
 
 export type Profile = {
   username: string;
@@ -26,21 +26,38 @@ type ProfileContextValue = {
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
+  const { session } = useAuth();
+  const userId = session?.user.id;
   const [profile, setProfile] = useState<Profile>(DEFAULT_PROFILE);
   const [ready, setReady] = useState(false);
 
+  // Reload whenever the signed-in account changes, so one account's profile
+  // never carries over to the next.
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
+    AsyncStorage.removeItem(LEGACY_PROFILE_KEY).catch(() => {});
+    setProfile(DEFAULT_PROFILE);
+    if (!userId) {
+      setReady(true);
+      return;
+    }
+    setReady(false);
+    let current = true;
+    AsyncStorage.getItem(profileStorageKey(userId))
       .then((saved) => {
-        if (saved) setProfile({ ...DEFAULT_PROFILE, ...JSON.parse(saved) });
+        if (current && saved) setProfile({ ...DEFAULT_PROFILE, ...JSON.parse(saved) });
       })
       .catch(() => {})
-      .finally(() => setReady(true));
-  }, []);
+      .finally(() => current && setReady(true));
+    return () => {
+      current = false;
+    };
+  }, [userId]);
 
   const updateProfile = (next: Profile) => {
     setProfile(next);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
+    if (userId) {
+      AsyncStorage.setItem(profileStorageKey(userId), JSON.stringify(next)).catch(() => {});
+    }
   };
 
   const value = useMemo<ProfileContextValue>(
