@@ -2,11 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useState } from "react";
-import { Alert, Modal, ScrollView, Switch, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, ScrollView, Switch, Text, View } from "react-native";
 import Animated, { ZoomIn } from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -21,6 +22,8 @@ export default function Settings() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [analytics, setAnalytics] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { deleteAccount } = useAuth();
 
   const switchColors = {
     trackColor: { false: c.borderStrong, true: c.red },
@@ -40,9 +43,20 @@ export default function Settings() {
     WebBrowser.openBrowserAsync(url).catch(() => {});
   };
 
-  const confirmDelete = () => {
-    setShowDelete(false);
-    router.replace("/login");
+  // On success the session is cleared and the route guard returns to login.
+  const confirmDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await deleteAccount();
+    } catch (e) {
+      setDeleting(false);
+      setShowDelete(false);
+      Alert.alert(
+        "Couldn't delete your account",
+        e instanceof Error ? e.message : "Please try again."
+      );
+    }
   };
 
   return (
@@ -145,8 +159,9 @@ export default function Settings() {
           </PressableScale>
         </Animated.View>
         <Text style={styles.hint}>
-          Deleting your account permanently removes your picks, stats, and league history. This
-          cannot be undone.
+          Deleting your account erases your name and sign-in details right away and removes you
+          from global rankings. Your leagues show you as a former member until the season ends,
+          then your picks and history are removed. This cannot be undone.
         </Text>
       </ScrollView>
 
@@ -155,7 +170,7 @@ export default function Settings() {
         transparent
         animationType="fade"
         statusBarTranslucent
-        onRequestClose={() => setShowDelete(false)}
+        onRequestClose={() => !deleting && setShowDelete(false)}
       >
         <View style={styles.modalOverlay}>
           <Animated.View
@@ -167,13 +182,21 @@ export default function Settings() {
             </View>
             <Text style={styles.modalTitle}>Delete Account?</Text>
             <Text style={styles.modalText}>
-              This permanently deletes your account and all associated data. You can&apos;t undo
-              this action.
+              Your account and personal details are deleted right away. You can&apos;t undo this
+              action.
             </Text>
-            <PressableScale style={styles.deleteBtn} onPress={confirmDelete}>
-              <Text style={styles.deleteBtnText}>DELETE PERMANENTLY</Text>
+            <PressableScale style={styles.deleteBtn} onPress={confirmDelete} disabled={deleting}>
+              {deleting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.deleteBtnText}>DELETE PERMANENTLY</Text>
+              )}
             </PressableScale>
-            <PressableScale style={styles.cancelBtn} onPress={() => setShowDelete(false)}>
+            <PressableScale
+              style={styles.cancelBtn}
+              onPress={() => setShowDelete(false)}
+              disabled={deleting}
+            >
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </PressableScale>
           </Animated.View>

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { ScrollView, Share, Text, View } from "react-native";
+import { Alert, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
@@ -11,6 +11,7 @@ import EmptyState from "../components/EmptyState";
 import ResultRow from "../components/ResultRow";
 import HeaderBar from "../components/HeaderBar";
 import { RECENT_RESULTS } from "../constants/league";
+import { useAuth } from "../context/AuthContext";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
@@ -47,6 +48,14 @@ export default function Profile() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeProfileStyles);
   const { profile } = useProfile();
+  const { signOut } = useAuth();
+
+  // The route guard returns to the login screen once the session is gone.
+  const handleSignOut = () => {
+    signOut().catch((e) =>
+      Alert.alert("Couldn't sign out", e instanceof Error ? e.message : "Please try again.")
+    );
+  };
 
   const shareProfile = () => {
     Share.share({
@@ -68,7 +77,7 @@ export default function Profile() {
       id: "signout",
       icon: "log-out-outline",
       label: "Sign Out",
-      onPress: () => router.replace("/login"),
+      onPress: handleSignOut,
       danger: true,
     },
   ];
