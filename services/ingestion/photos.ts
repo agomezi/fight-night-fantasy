@@ -92,3 +92,45 @@ export function matchPhotos(bouts: CardPair[], payload: unknown): PhotoMatch[] {
   }
   return matches;
 }
+
+/**
+ * Fallback for a fighter the date match could not reach, usually because
+ * API-Sports does not list their bout: look them up by name instead.
+ *
+ * Without an opponent to corroborate it, this is stricter than the bout
+ * match. Names must be identical once accents, punctuation and suffixes are
+ * set aside, with no first-initial leeway. Two API-Sports fighters with the
+ * same name are told apart by weight class only when exactly one is in the
+ * bout's class; otherwise the fighter is skipped.
+ */
+export function matchByName(
+  fighter: { ufcFighterId: string; name: string; weightClass: string | null },
+  payload: unknown,
+): PhotoMatch | null {
+  const response = payload && typeof payload === "object" ? (payload as Record<string, unknown>).response : null;
+  if (!Array.isArray(response)) return null;
+  const key = nameKey(fighter.name);
+  if (!key.includes(" ")) return null; // a single name is too easy to collide on
+  const candidates = response.filter(
+    (r): r is Record<string, unknown> => !!r && typeof r === "object" && typeof (r as Record<string, unknown>).name === "string",
+  ).filter((r) => nameKey(r.name as string) === key);
+
+  let chosen = candidates;
+  if (chosen.length > 1 && fighter.weightClass) {
+    const weight = nameKey(fighter.weightClass);
+    chosen = chosen.filter((r) => typeof r.category === "string" && nameKey(r.category) === weight);
+  }
+  if (chosen.length !== 1) return null;
+  const api = apiFighter(chosen[0]);
+  if (!api?.photo) return null;
+  return { ufcFighterId: fighter.ufcFighterId, apisportsFighterId: api.id, photoUrl: api.photo };
+}
+
+/** What to search API-Sports for: the surname, or the longest word if that is too short. */
+export function searchTerm(name: string): string | null {
+  const words = nameKey(name).split(" ").filter(Boolean);
+  if (!words.length) return null;
+  const last = words[words.length - 1];
+  const term = last.length >= 3 ? last : words.reduce((a, b) => (b.length > a.length ? b : a));
+  return term.length >= 3 ? term : null;
+}

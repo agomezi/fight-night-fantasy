@@ -7,21 +7,23 @@
 // `sync_event_card`. One card failing never stops the others.
 //
 // A full sync also fills in fighter photos from API-Sports when
-// APISPORTS_KEY is set: one request per card date, only for cards with a
-// fighter still missing one, and each fighter is matched once.
+// APISPORTS_KEY is set: first by card date, matching both fighters of a bout,
+// then by name for anyone still missing. Each fighter is matched once.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { eventFmid, parseCard, upcomingEventSlugs, type IngestedCard } from "../../../services/ingestion/card.ts";
-import { matchPhotos } from "../../../services/ingestion/photos.ts";
+import { matchByName, matchPhotos, searchTerm, type PhotoMatch } from "../../../services/ingestion/photos.ts";
 
 const UFC_SITE = "https://www.ufc.com";
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36";
 const SOON = 7 * 24 * 60 * 60 * 1000;
 // A card that started within the last day may still be running.
 const RECENT = 24 * 60 * 60 * 1000;
-const APISPORTS = "https://v1.mma.api-sports.io";
-// The free plan allows 100 requests a day; a full sync stays well inside it.
-const PHOTO_REQUEST_BUDGET = 20;
+// Overridable only so the photo step can be tested against a local mock.
+const APISPORTS = (Deno.env.get("APISPORTS_BASE_URL") ?? "https://v1.mma.api-sports.io").replace(/\/+$/, "");
+// The free plan allows 100 requests a day. A full sync runs once a day and
+// uses at most this many, leaving room for manual runs.
+const PHOTO_REQUEST_BUDGET = 40;
 const DAY = 24 * 60 * 60 * 1000;
 
 function env(name: string): string {
@@ -146,6 +148,9 @@ type PhotoReport = {
   matchedBouts: number;
   /** Card dates outside the plan's window, left for a later run. */
   deferredDates: number;
+  /** Fallback lookups by name, and fighters matched that way. */
+  nameSearches: number;
+  nameMatched: number;
   /** Field names on one API-Sports fighter, to confirm where the photo is. */
   sampleFighterFields?: string[];
 };
@@ -178,18 +183,47 @@ async function syncPhotos(
   cards: IngestedCard[],
   fail: (source: string, error: unknown) => void,
 ): Promise<PhotoReport> {
-  const report: PhotoReport = { set: 0, fetchedFights: 0, matchedBouts: 0, deferredDates: 0 };
+  const report: PhotoReport = { set: 0, fetchedFights: 0, matchedBouts: 0, deferredDates: 0, nameSearches: 0, nameMatched: 0 };
   const ids = [...new Set(cards.flatMap(c => c.bouts.flatMap(b => [b.red.ufcFighterId, b.blue.ufcFighterId])))];
   if (!ids.length) return report;
   const { data, error } = await db.from("fighters").select("ufc_fighter_id").in("ufc_fighter_id", ids).is("photo_url", null);
   if (error) throw new Error(error.message);
   const missing = new Set((data ?? []).map(r => r.ufc_fighter_id as string));
 
+  let requests = 0;
+  let stopped = false;
+  // One request, within budget. Returns null when it should not or could not be made.
+  const request = async (path: string, source: string): Promise<unknown | null> => {
+    if (stopped || requests >= PHOTO_REQUEST_BUDGET) return null;
+    requests++;
+    try {
+      return await apisports(key, path);
+    } catch (error) {
+      if (error instanceof ApiSportsDateOutOfPlan) {
+        report.deferredDates++;
+        return null;
+      }
+      fail(source, error);
+      if (error instanceof ApiSportsUnavailable) stopped = true;
+      return null;
+    }
+  };
+  const save = async (matches: PhotoMatch[], source: string) => {
+    if (!matches.length) return;
+    const { data: count, error: setError } = await db.rpc("set_fighter_photos", { photos: matches });
+    if (setError) return fail(source, setError.message);
+    report.set += count as number;
+    for (const m of matches) missing.delete(m.ufcFighterId);
+  };
+
+  // Nearest card first, so a tight budget is spent on the card people are
+  // picking now.
+  const byDate = [...cards].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const today = Date.now();
   const inPlan = (date: string) => paidPlan || Math.abs(Date.parse(`${date}T12:00:00Z`) - today) <= 1.5 * DAY;
 
-  let requests = 0;
-  for (const card of cards) {
+  // 1. By card date: both fighters of a bout must match.
+  for (const card of byDate) {
     const bouts = card.bouts.filter(b => missing.has(b.red.ufcFighterId) || missing.has(b.blue.ufcFighterId));
     if (!bouts.length) continue;
     // A card runs across midnight UTC, so API-Sports may file it under either date.
@@ -201,19 +235,8 @@ async function syncPhotos(
         report.deferredDates++;
         continue;
       }
-      if (requests >= PHOTO_REQUEST_BUDGET) return report;
-      requests++;
-      try {
-        const payload = await apisports(key, `fights?date=${date}`);
-        response.push(...(((payload as { response?: unknown[] }).response) ?? []));
-      } catch (error) {
-        if (error instanceof ApiSportsDateOutOfPlan) {
-          report.deferredDates++;
-          continue;
-        }
-        fail(`photos ${card.name} ${date}`, error);
-        if (error instanceof ApiSportsUnavailable) return report;
-      }
+      const payload = await request(`fights?date=${date}`, `photos ${card.name} ${date}`);
+      response.push(...(((payload as { response?: unknown[] } | null)?.response) ?? []));
     }
     report.fetchedFights += response.length;
     if (!report.sampleFighterFields) {
@@ -224,10 +247,31 @@ async function syncPhotos(
     report.matchedBouts += new Set(
       bouts.filter(b => matches.some(m => m.ufcFighterId === b.red.ufcFighterId || m.ufcFighterId === b.blue.ufcFighterId)).map(b => b.ufcFightId),
     ).size;
-    if (!matches.length) continue;
-    const { data: count, error: setError } = await db.rpc("set_fighter_photos", { photos: matches });
-    if (setError) fail(`photos ${card.name}`, setError.message);
-    else report.set += count as number;
+    await save(matches, `photos ${card.name}`);
+  }
+
+  // 2. By name, for anyone the date match could not reach. Each surname is
+  // searched once per run.
+  const searched = new Map<string, unknown>();
+  for (const card of byDate) {
+    const matches: PhotoMatch[] = [];
+    for (const bout of card.bouts) {
+      for (const fighter of [bout.red, bout.blue]) {
+        if (!missing.has(fighter.ufcFighterId)) continue;
+        const term = searchTerm(fighter.name);
+        if (!term) continue;
+        if (!searched.has(term)) {
+          const payload = await request(`fighters?search=${encodeURIComponent(term)}`, `photos search ${term}`);
+          if (payload === null) continue;
+          report.nameSearches++;
+          searched.set(term, payload);
+        }
+        const match = matchByName({ ...fighter, weightClass: bout.weightClass }, searched.get(term));
+        if (match) matches.push(match);
+      }
+    }
+    report.nameMatched += matches.length;
+    await save(matches, `photos by name ${card.name}`);
   }
   return report;
 }

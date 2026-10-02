@@ -83,5 +83,11 @@ swapped; a wrong face is worse than initials. Names compare without accents,
 punctuation or "Jr.", and the same surname with the same first initial counts
 as the same person ("Alex" / "Alexandre Pereira").
 
+Fighters the date match cannot reach — usually because API-Sports does not
+list their bout — are then looked up by name (`matchByName`). With no
+opponent to corroborate, that match is stricter: identical full names only,
+no first-initial leeway, and two API-Sports fighters with one name are told
+apart by weight class or skipped. Single-word names are never matched by name.
+
 The sync fills each fighter in once (`set_fighter_photos`) and never
 overwrites a photo after that. Without `APISPORTS_KEY` the step is skipped.
