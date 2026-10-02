@@ -11,6 +11,8 @@
 // fighters of a bout together, then by name for anyone still missing, and
 // each fighter is matched once. The free plan allows 10 requests a minute and
 // 100 a day, so photo runs are spaced out, capped, and kept off the card sync.
+// API-Sports also hands out photo URLs that 404, so an image is checked before
+// it is saved, and stored ones are re-checked each run.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { eventFmid, parseCard, upcomingEventSlugs } from "../../../services/ingestion/card.ts";
@@ -203,8 +205,11 @@ type PhotoReport = {
   /** Fallback lookups by name, and fighters matched that way. */
   nameSearches: number;
   nameMatched: number;
-  /** Searched by name without a match; skipped for a week. */
+  /** Searched by name without a match, or matched to an image that does
+   * not exist; skipped for a week. */
   notFound?: number;
+  /** Stored photos that stopped loading, cleared to be looked for again. */
+  brokenCleared?: number;
   /** Field names on one API-Sports fighter, to confirm where the photo is. */
   sampleFighterFields?: string[];
 };
@@ -229,6 +234,33 @@ async function apisports(key: string, path: string): Promise<unknown> {
   return payload;
 }
 
+/** Whether an image URL actually serves an image. Null when it could not be
+ * told (a network error), so nothing is saved or cleared on a guess. These are
+ * requests to API-Sports' media host, not its API, so they do not count
+ * against the API quota.
+ */
+async function imageExists(url: string): Promise<boolean | null> {
+  try {
+    const response = await fetch(url, { method: "HEAD", signal: AbortSignal.timeout(10_000) });
+    if (response.status === 404 || response.status === 410) return false;
+    if (!response.ok) return null;
+    return (response.headers.get("content-type") ?? "").startsWith("image/");
+  } catch {
+    return null;
+  }
+}
+
+/** Checks many URLs, a few at a time. */
+async function checkImages(urls: string[]): Promise<Map<string, boolean | null>> {
+  const results = new Map<string, boolean | null>();
+  for (let i = 0; i < urls.length; i += 8) {
+    const batch = urls.slice(i, i + 8);
+    const checked = await Promise.all(batch.map(imageExists));
+    batch.forEach((url, j) => results.set(url, checked[j]));
+  }
+  return results;
+}
+
 /** Fills in photos for fighters on these cards who have none yet. */
 async function syncPhotos(
   db: Db,
@@ -240,6 +272,19 @@ async function syncPhotos(
   const report: PhotoReport = { set: 0, fetchedFights: 0, matchedBouts: 0, deferredDates: 0, nameSearches: 0, nameMatched: 0 };
   const ids = [...new Set(cards.flatMap(c => c.bouts.flatMap(b => [b.red.ufcFighterId, b.blue.ufcFighterId])))];
   if (!ids.length) return report;
+
+  // 0. Clear stored API-Sports photos that no longer load, so they are looked
+  // for again instead of showing initials forever.
+  const { data: stored, error: storedError } = await db.from("fighters").select("ufc_fighter_id, photo_url")
+    .in("ufc_fighter_id", ids).like("photo_url", "https://media.api-sports.io/%");
+  if (storedError) throw new Error(storedError.message);
+  const storedChecks = await checkImages((stored ?? []).map(r => r.photo_url as string));
+  const broken = (stored ?? []).filter(r => storedChecks.get(r.photo_url as string) === false).map(r => r.ufc_fighter_id as string);
+  if (broken.length) {
+    const { data: count, error: clearError } = await db.rpc("clear_broken_photos", { ufc_fighter_ids: broken });
+    if (clearError) fail("photos clear broken", clearError.message);
+    else report.brokenCleared = count as number;
+  }
   // Skip fighters a name search failed to find in the last week; debut
   // fighters are often not in API-Sports yet, and re-searching them every
   // run would spend the budget before later cards are reached.
@@ -269,7 +314,17 @@ async function syncPhotos(
       return null;
     }
   };
-  const save = async (matches: PhotoMatch[], source: string) => {
+  const notFound: string[] = [];
+  const save = async (found: PhotoMatch[], source: string) => {
+    // A match only counts if its image exists; a 404 is treated as not found.
+    const checks = await checkImages(found.map(m => m.photoUrl));
+    const matches = found.filter(m => checks.get(m.photoUrl) === true);
+    // The right fighter, but API-Sports has no image for them yet; a name
+    // search would only find the same missing image, so stop looking this run.
+    for (const m of found.filter(m => checks.get(m.photoUrl) === false)) {
+      notFound.push(m.ufcFighterId);
+      missing.delete(m.ufcFighterId);
+    }
     if (!matches.length) return;
     const { data: count, error: setError } = await db.rpc("set_fighter_photos", { photos: matches });
     if (setError) return fail(source, setError.message);
@@ -314,7 +369,6 @@ async function syncPhotos(
   // 2. By name, for anyone the date match could not reach. Each surname is
   // searched once per run.
   const searched = new Map<string, unknown>();
-  const notFound: string[] = [];
   for (const card of byDate) {
     const matches: PhotoMatch[] = [];
     for (const bout of card.bouts) {
