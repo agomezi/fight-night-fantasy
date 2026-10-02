@@ -419,3 +419,6 @@ enabled = true
 # Called by pg_cron with a shared secret, not a user's JWT.
 [functions.sync-fight-cards]
 verify_jwt = false
+
+[functions.sync-results]
+verify_jwt = false
