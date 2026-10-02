@@ -91,3 +91,32 @@ apart by weight class or skipped. Single-word names are never matched by name.
 
 The sync fills each fighter in once (`set_fighter_photos`) and never
 overwrites a photo after that. Without `APISPORTS_KEY` the step is skipped.
+
+# Live results
+
+`results.ts` reads each bout's result from the UFC stats feed for the
+`sync-results` Edge Function. A result is used as soon as `Result.Method` is
+set: the bout can still read "Live" or "Over" for about ten minutes after
+that. Until the bout reads "Final" the result is provisional, because the feed
+corrects itself (a round was changed three minutes after first publishing).
+
+A draw is published as the decision that produced it ("Decision -
+Unanimous"), so it is read from both fighters' outcomes being "Draw". "Could
+Not Continue" with both outcomes "No Contest" is a No Contest. Method prose
+goes through the same `normalizeMethod` and `METHOD_RULINGS` as the event-page
+parser, now in `methods.ts` so Deno can import them.
+
+Results are written only when they change, so polling every 30 seconds adds no
+revisions. Manual corrections are never overwritten. After every poll the
+whole card is re-scored from what is stored (`services/eventScoring.ts`) and
+its scores replaced, so corrections, cancellations and fighter swaps all come
+out right without patching anything.
+
+Each event stores when it is next due. The function polls every 30 seconds
+while a fight is on, every minute between fights, every 5 minutes before the
+card, every 2 minutes until every result is final, then every 6 hours for a
+week to catch overturned results. pg_cron checks every 30 seconds and only
+calls the function when an event is due.
+
+The feed carries no betting odds, so `bouts.underdog_corner` is never set
+here and the underdog bonus does not apply until another source fills it.

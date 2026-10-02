@@ -15,7 +15,7 @@
  * two cannot drift.
  */
 
-import type { Corner, LanePick, Method } from "../components/RoundLane";
+import type { Corner, LanePick, Method } from "./pickTypes.ts";
 
 /* ------------------------------------------------------------------ *
  * Rulebook

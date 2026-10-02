@@ -3,29 +3,9 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useTheme } from "../context/ThemeContext";
 import PressableScale from "./PressableScale";
 
-export type Corner = "red" | "blue";
-export type Method = "KO" | "SUB";
-/**
- * How the fight ends:
- *   number — inside the distance, in that round
- *   "ANY"  — inside the distance, round not called
- *   "DEC"  — goes to the judges
- *
- * "ANY" exists because calling the method is a different confidence level from
- * calling the round. Plenty of picks are "he gets finished" without a view on
- * when, and forcing a round on those makes people guess.
- */
-export type Finish = number | "DEC" | "ANY";
-
-export type LanePick = {
-  corner: Corner;
-  finish: Finish;
-  /**
-   * Optional on purpose. "Pereira to win" is a complete pick; method and round
-   * are refinements on top of it, and each can be given independently.
-   */
-  method?: Method;
-};
+// The pick types live with scoring, which the server also runs.
+import type { Corner, Finish, LanePick, Method } from "../services/pickTypes";
+export type { Corner, Finish, LanePick, Method };
 
 export type LaneFighter = { name: string; record: string };
 
