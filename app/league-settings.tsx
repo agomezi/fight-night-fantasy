@@ -6,7 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated from "react-native-reanimated";
 import EmptyState from "../components/EmptyState";
 import PressableScale from "../components/PressableScale";
-import { ScoreRow, Scorecard } from "../components/Scorecard";
+import ScoringRules from "../components/ScoringRules";
 import { LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -134,13 +134,7 @@ export default function LeagueSettings() {
           {/* The rules are worth reading before you commit to a league, so
               they stay visible even with nothing joined. */}
           <Text style={sectionLabel}>HOW SCORING WORKS</Text>
-          <Scorecard>
-            <ScoreRow index={0} label="Correct winner" value="+100" />
-            <ScoreRow index={1} label="Correct method" value="+50" />
-            <ScoreRow index={2} label="Correct round" value="+30" />
-            <ScoreRow index={3} label="Underdog bonus" value="1.5x" />
-            <ScoreRow index={4} label="Missed pick" value="0" last />
-          </Scorecard>
+          <ScoringRules />
         </ScrollView>
 
         <View style={{ height: insets.bottom }} />
@@ -226,13 +220,7 @@ export default function LeagueSettings() {
         </Animated.View>
 
         <Text style={sectionLabel}>SCORING</Text>
-        <Scorecard>
-          <ScoreRow index={0} label="Correct winner" value="+100" />
-          <ScoreRow index={1} label="Correct method" value="+50" />
-          <ScoreRow index={2} label="Correct round" value="+30" />
-          <ScoreRow index={3} label="Underdog bonus" value="1.5x" />
-          <ScoreRow index={4} label="Missed pick" value="0" last />
-        </Scorecard>
+        <ScoringRules />
 
         <Text style={sectionLabel}>NOTIFY ME ABOUT</Text>
         {toggles.map((row, i) => (
