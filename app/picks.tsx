@@ -254,9 +254,9 @@ export default function Picks() {
           seeded[main.id] = { corner: fighter === main.red.id ? "red" : "blue", finish: "ANY" };
         }
         setLane(seeded);
-        // A complete saved card opens locked in; anything less (a bout added
-        // or a fighter replaced since) opens for editing.
-        setLockedIn(event.bouts.every((b) => saved[b.id]));
+        // A saved card opens locked in. One missing its main event (a fighter
+        // replaced since) opens for editing, since that pick has to be redone.
+        setLockedIn(!!main && !!saved[main.id]);
       })
       .catch(() => {});
     return () => {
@@ -291,6 +291,9 @@ export default function Picks() {
 
   const totalFights = allFights.length;
   const madePicks = Object.keys(picks).length;
+  // Outside a league only the main event is required; the rest of the card is
+  // optional. League tiers will set their own minimum here.
+  const canLockIn = !!MAIN_EVENT && !!picks[MAIN_EVENT.id];
 
   const summary = useMemo(
     () =>
@@ -345,7 +348,7 @@ export default function Picks() {
 
   const lockIn = async () => {
     if (!event || !session || saving) return;
-    if (madePicks < totalFights) {
+    if (!canLockIn) {
       shake();
       return;
     }
@@ -573,7 +576,7 @@ export default function Picks() {
                 style={{ marginBottom: 10 }}
               />
               <PressableScale
-                style={[styles.lockBtn, (madePicks < totalFights || saving) && styles.lockBtnDisabled]}
+                style={[styles.lockBtn, (!canLockIn || saving) && styles.lockBtnDisabled]}
                 onPress={lockIn}
               >
                 <Ionicons name="lock-closed" size={18} color="#FFFFFF" />

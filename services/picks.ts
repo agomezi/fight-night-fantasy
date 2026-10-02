@@ -57,14 +57,26 @@ export async function loadPicks(bouts: EventBout[]): Promise<Record<string, Lane
 
 export class PicksLockedError extends Error {}
 
-/** Saves the whole card in one request. The server rejects it once the event
- * has locked, whatever this device's clock says.
+function check(error: { hint?: string; message: string } | null) {
+  if (error?.hint === "locked") throw new PicksLockedError("Picks are locked for this card.");
+  if (error) throw new Error(error.message);
+}
+
+/** Saves the card as it stands: every pick made is upserted, and any bout
+ * left unpicked has its saved pick removed, since a card can be partial. The
+ * server rejects both once the event has locked, whatever this device's
+ * clock says.
  */
 export async function savePicks(userId: string, bouts: EventBout[], picks: Record<string, LanePick>): Promise<void> {
   const rows = bouts.filter((b) => picks[b.id]).map((b) => ({ user_id: userId, ...toPickRow(b, picks[b.id]) }));
-  if (!rows.length) return;
+  const cleared = bouts.filter((b) => !picks[b.id]).map((b) => b.id);
   const { supabase } = await import("./supabase");
-  const { error } = await supabase.from("picks").upsert(rows, { onConflict: "user_id,bout_id" });
-  if (error?.hint === "locked") throw new PicksLockedError("Picks are locked for this card.");
-  if (error) throw new Error(error.message);
+  if (rows.length) {
+    const { error } = await supabase.from("picks").upsert(rows, { onConflict: "user_id,bout_id" });
+    check(error);
+  }
+  if (cleared.length) {
+    const { error } = await supabase.from("picks").delete().eq("user_id", userId).in("bout_id", cleared);
+    check(error);
+  }
 }
