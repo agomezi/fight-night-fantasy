@@ -30,6 +30,7 @@ import PressableScale from "../components/PressableScale";
 import RoundLane, { LanePick } from "../components/RoundLane";
 import Skeleton from "../components/Skeleton";
 import EmptyState from "../components/EmptyState";
+import FighterPhoto from "../components/FighterPhoto";
 import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
@@ -41,7 +42,7 @@ import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
 import { makePicksStyles } from "../styles/picks";
 
-type Fighter = { id: string; name: string; initials: string; record: string };
+type Fighter = { id: string; name: string; initials: string; record: string; photoUrl: string | null };
 type Fight = {
   id: string;
   division: string;
@@ -61,6 +62,7 @@ function toFight(bout: EventBout): Fight {
     initials: initials(f.name),
     // No records stored yet; the nickname fills the slot under the name.
     record: f.nickname ?? "",
+    photoUrl: f.photoUrl,
   });
   return {
     id: bout.id,
@@ -95,10 +97,12 @@ function titleCase(s: string) {
 
 function Avatar({
   initials,
+  photoUrl,
   selected,
   size = 96,
 }: {
   initials: string;
+  photoUrl?: string | null;
   selected?: boolean;
   size?: number;
 }) {
@@ -133,9 +137,12 @@ function Avatar({
         animatedStyle,
       ]}
     >
-      <Text style={{ color: c.text, fontWeight: "700", fontSize: size / 3 }}>
-        {initials}
-      </Text>
+      <FighterPhoto
+        uri={photoUrl}
+        initials={initials}
+        radius={14}
+        textStyle={{ color: c.text, fontWeight: "700", fontSize: size / 3 }}
+      />
 
       {selected && (
         <Animated.View
@@ -486,7 +493,7 @@ export default function Picks() {
                 {/* Collapsed row is a readout; all picking happens in the lane. */}
                 <PressableScale style={styles.row} onPress={() => toggle(fight.id)}>
                   <View style={styles.rowFighter}>
-                    <Avatar initials={fight.a.initials} selected={picked === fight.a.id} size={36} />
+                    <Avatar initials={fight.a.initials} photoUrl={fight.a.photoUrl} selected={picked === fight.a.id} size={36} />
                     <Text
                       style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
                       numberOfLines={1}
@@ -520,7 +527,7 @@ export default function Picks() {
                     >
                       {fight.b.name}
                     </Text>
-                    <Avatar initials={fight.b.initials} selected={picked === fight.b.id} size={36} />
+                    <Avatar initials={fight.b.initials} photoUrl={fight.b.photoUrl} selected={picked === fight.b.id} size={36} />
                   </View>
                 </PressableScale>
 

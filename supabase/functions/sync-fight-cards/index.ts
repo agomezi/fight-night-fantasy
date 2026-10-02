@@ -5,15 +5,23 @@
 //
 // Each card is read from the UFC stats feed, parsed, and written through
 // `sync_event_card`. One card failing never stops the others.
+//
+// A full sync also fills in fighter photos from API-Sports when
+// APISPORTS_KEY is set: one request per card date, only for cards with a
+// fighter still missing one, and each fighter is matched once.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { eventFmid, parseCard, upcomingEventSlugs } from "../../../services/ingestion/card.ts";
+import { eventFmid, parseCard, upcomingEventSlugs, type IngestedCard } from "../../../services/ingestion/card.ts";
+import { matchPhotos } from "../../../services/ingestion/photos.ts";
 
 const UFC_SITE = "https://www.ufc.com";
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36";
 const SOON = 7 * 24 * 60 * 60 * 1000;
 // A card that started within the last day may still be running.
 const RECENT = 24 * 60 * 60 * 1000;
+const APISPORTS = "https://v1.mma.api-sports.io";
+// The free plan allows 100 requests a day; a full sync stays well inside it.
+const PHOTO_REQUEST_BUDGET = 20;
 
 function env(name: string): string {
   const value = Deno.env.get(name);
@@ -89,10 +97,12 @@ Deno.serve(async request => {
   }
 
   const synced: unknown[] = [];
+  const cards: IngestedCard[] = [];
   for (const fmid of fmids) {
     try {
       const card = parseCard(JSON.parse(await get(`${feed}/${fmid}.json`)));
       if (!card) continue;
+      cards.push(card);
       const { data, error } = await db.rpc("sync_event_card", { card });
       if (error) throw new Error(error.message);
       synced.push({ fmid, name: card.name, ...data, ...(card.issues.length ? { issues: card.issues } : {}) });
@@ -104,7 +114,76 @@ Deno.serve(async request => {
   const { data: slotted, error: slotError } = await db.rpc("assign_season_slots");
   if (slotError) fail("season slots", slotError);
 
-  const report = { mode, synced, awaitingFeed, slotted: slotted ?? 0, errors };
+  const apisportsKey = Deno.env.get("APISPORTS_KEY");
+  let photos: number | string = "skipped";
+  if (mode === "full" && apisportsKey) {
+    try {
+      photos = await syncPhotos(db, apisportsKey, cards, fail);
+    } catch (error) {
+      fail("photos", error);
+    }
+  }
+
+  const report = { mode, synced, awaitingFeed, slotted: slotted ?? 0, photos, errors };
   console.log(JSON.stringify(report));
   return Response.json(report, { status: errors.length ? 207 : 200 });
 });
+
+type Db = ReturnType<typeof createClient>;
+
+/** A bad key or a spent quota: every further request would fail the same way. */
+class ApiSportsUnavailable extends Error {}
+
+async function apisports(key: string, path: string): Promise<unknown> {
+  const response = await fetch(`${APISPORTS}/${path}`, { headers: { "x-apisports-key": key }, signal: AbortSignal.timeout(30_000) });
+  if (response.status === 401 || response.status === 403 || response.status === 429) {
+    throw new ApiSportsUnavailable(`HTTP ${response.status} from API-Sports (check the key and daily quota)`);
+  }
+  if (!response.ok) throw new Error(`HTTP ${response.status} from API-Sports`);
+  const payload = await response.json();
+  // API-Sports reports bad keys and exhausted quotas in `errors` with a 200.
+  const apiErrors = (payload as { errors?: unknown }).errors;
+  if (apiErrors && (Array.isArray(apiErrors) ? apiErrors.length : Object.keys(apiErrors).length)) {
+    const message = `API-Sports: ${JSON.stringify(apiErrors)}`;
+    // Key and quota problems come back as `token` / `requests` errors.
+    throw /token|requests|access/i.test(JSON.stringify(apiErrors)) ? new ApiSportsUnavailable(message) : new Error(message);
+  }
+  return payload;
+}
+
+/** Fills in photos for fighters on these cards who have none yet. Returns how many were set. */
+async function syncPhotos(db: Db, key: string, cards: IngestedCard[], fail: (source: string, error: unknown) => void) {
+  const ids = [...new Set(cards.flatMap(c => c.bouts.flatMap(b => [b.red.ufcFighterId, b.blue.ufcFighterId])))];
+  if (!ids.length) return 0;
+  const { data, error } = await db.from("fighters").select("ufc_fighter_id").in("ufc_fighter_id", ids).is("photo_url", null);
+  if (error) throw new Error(error.message);
+  const missing = new Set((data ?? []).map(r => r.ufc_fighter_id as string));
+
+  let requests = 0;
+  let set = 0;
+  for (const card of cards) {
+    const bouts = card.bouts.filter(b => missing.has(b.red.ufcFighterId) || missing.has(b.blue.ufcFighterId));
+    if (!bouts.length) continue;
+    // A card runs across midnight UTC, so API-Sports may file it under either date.
+    const start = new Date(card.startsAt);
+    const dates = [start, new Date(start.getTime() + 24 * 60 * 60 * 1000)].map(d => d.toISOString().slice(0, 10));
+    const response: unknown[] = [];
+    for (const date of dates) {
+      if (requests >= PHOTO_REQUEST_BUDGET) return set;
+      requests++;
+      try {
+        const payload = await apisports(key, `fights?date=${date}`);
+        response.push(...(((payload as { response?: unknown[] }).response) ?? []));
+      } catch (error) {
+        fail(`photos ${card.name} ${date}`, error);
+        if (error instanceof ApiSportsUnavailable) return set;
+      }
+    }
+    const matches = matchPhotos(bouts, { response }).filter(m => missing.has(m.ufcFighterId));
+    if (!matches.length) continue;
+    const { data: count, error: setError } = await db.rpc("set_fighter_photos", { photos: matches });
+    if (setError) fail(`photos ${card.name}`, setError.message);
+    else set += count as number;
+  }
+  return set;
+}

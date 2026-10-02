@@ -2,7 +2,7 @@
 // they can be tested without a database.
 
 export type CardSegment = "main" | "prelims" | "early_prelims";
-export type EventFighter = { id: string; name: string; nickname: string | null };
+export type EventFighter = { id: string; name: string; nickname: string | null; photoUrl: string | null };
 export type EventBout = {
   id: string;
   order: number;
@@ -31,8 +31,8 @@ export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status,
   bouts (
     id, fight_order, card_segment, scheduled_rounds, weight_class, version, status,
-    red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname ),
-    blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname )
+    red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url ),
+    blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url )
   )`;
 
 type Row = {

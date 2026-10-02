@@ -73,3 +73,15 @@ event pages: they are Eastern time labelled as UTC.
 
 The feed's base URL is a Supabase secret (`UFC_FEED_BASE_URL`) and is never
 committed, so the card tests use hand-built payloads rather than saved ones.
+
+# Photo matching
+
+`photos.ts` matches card fighters to API-Sports fighters for their photos.
+A fighter is only matched when one API-Sports fight on the card's date holds
+**both** of the bout's fighters, so two fighters sharing a surname cannot be
+swapped; a wrong face is worse than initials. Names compare without accents,
+punctuation or "Jr.", and the same surname with the same first initial counts
+as the same person ("Alex" / "Alexandre Pereira").
+
+The sync fills each fighter in once (`set_fighter_photos`) and never
+overwrites a photo after that. Without `APISPORTS_KEY` the step is skipped.

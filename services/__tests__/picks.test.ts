@@ -9,8 +9,8 @@ const bout: EventBout = {
   scheduledRounds: 5,
   weightClass: "Women's Flyweight",
   version: 2,
-  red: { id: "silva", name: "Natalia Silva", nickname: null },
-  blue: { id: "cong", name: "Wang Cong", nickname: "The Joker" },
+  red: { id: "silva", name: "Natalia Silva", nickname: null, photoUrl: null },
+  blue: { id: "cong", name: "Wang Cong", nickname: "The Joker", photoUrl: null },
 };
 
 describe("pick rows", () => {
