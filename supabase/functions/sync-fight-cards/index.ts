@@ -22,6 +22,7 @@ const RECENT = 24 * 60 * 60 * 1000;
 const APISPORTS = "https://v1.mma.api-sports.io";
 // The free plan allows 100 requests a day; a full sync stays well inside it.
 const PHOTO_REQUEST_BUDGET = 20;
+const DAY = 24 * 60 * 60 * 1000;
 
 function env(name: string): string {
   const value = Deno.env.get(name);
@@ -115,10 +116,12 @@ Deno.serve(async request => {
   if (slotError) fail("season slots", slotError);
 
   const apisportsKey = Deno.env.get("APISPORTS_KEY");
-  let photos: number | string = "skipped";
+  let photos: PhotoReport | "skipped" = "skipped";
   if (mode === "full" && apisportsKey) {
     try {
-      photos = await syncPhotos(db, apisportsKey, cards, fail);
+      // The free plan only serves fights from yesterday to tomorrow, so photos
+      // arrive the day before each card. APISPORTS_PLAN=paid lifts the window.
+      photos = await syncPhotos(db, apisportsKey, Deno.env.get("APISPORTS_PLAN") === "paid", cards, fail);
     } catch (error) {
       fail("photos", error);
     }
@@ -133,6 +136,19 @@ type Db = ReturnType<typeof createClient>;
 
 /** A bad key or a spent quota: every further request would fail the same way. */
 class ApiSportsUnavailable extends Error {}
+/** The plan does not serve this date; later runs will reach it. */
+class ApiSportsDateOutOfPlan extends Error {}
+
+type PhotoReport = {
+  set: number;
+  /** API-Sports fights received, and card bouts matched to one. */
+  fetchedFights: number;
+  matchedBouts: number;
+  /** Card dates outside the plan's window, left for a later run. */
+  deferredDates: number;
+  /** Field names on one API-Sports fighter, to confirm where the photo is. */
+  sampleFighterFields?: string[];
+};
 
 async function apisports(key: string, path: string): Promise<unknown> {
   const response = await fetch(`${APISPORTS}/${path}`, { headers: { "x-apisports-key": key }, signal: AbortSignal.timeout(30_000) });
@@ -145,45 +161,73 @@ async function apisports(key: string, path: string): Promise<unknown> {
   const apiErrors = (payload as { errors?: unknown }).errors;
   if (apiErrors && (Array.isArray(apiErrors) ? apiErrors.length : Object.keys(apiErrors).length)) {
     const message = `API-Sports: ${JSON.stringify(apiErrors)}`;
-    // Key and quota problems come back as `token` / `requests` errors.
-    throw /token|requests|access/i.test(JSON.stringify(apiErrors)) ? new ApiSportsUnavailable(message) : new Error(message);
+    const text = JSON.stringify(apiErrors);
+    // A `plan` error refuses one date. Key and quota problems come back as
+    // `token` / `requests` errors and would refuse everything.
+    if (/"plan"/i.test(text)) throw new ApiSportsDateOutOfPlan(message);
+    throw /token|requests/i.test(text) ? new ApiSportsUnavailable(message) : new Error(message);
   }
   return payload;
 }
 
-/** Fills in photos for fighters on these cards who have none yet. Returns how many were set. */
-async function syncPhotos(db: Db, key: string, cards: IngestedCard[], fail: (source: string, error: unknown) => void) {
+/** Fills in photos for fighters on these cards who have none yet. */
+async function syncPhotos(
+  db: Db,
+  key: string,
+  paidPlan: boolean,
+  cards: IngestedCard[],
+  fail: (source: string, error: unknown) => void,
+): Promise<PhotoReport> {
+  const report: PhotoReport = { set: 0, fetchedFights: 0, matchedBouts: 0, deferredDates: 0 };
   const ids = [...new Set(cards.flatMap(c => c.bouts.flatMap(b => [b.red.ufcFighterId, b.blue.ufcFighterId])))];
-  if (!ids.length) return 0;
+  if (!ids.length) return report;
   const { data, error } = await db.from("fighters").select("ufc_fighter_id").in("ufc_fighter_id", ids).is("photo_url", null);
   if (error) throw new Error(error.message);
   const missing = new Set((data ?? []).map(r => r.ufc_fighter_id as string));
 
+  const today = Date.now();
+  const inPlan = (date: string) => paidPlan || Math.abs(Date.parse(`${date}T12:00:00Z`) - today) <= 1.5 * DAY;
+
   let requests = 0;
-  let set = 0;
   for (const card of cards) {
     const bouts = card.bouts.filter(b => missing.has(b.red.ufcFighterId) || missing.has(b.blue.ufcFighterId));
     if (!bouts.length) continue;
     // A card runs across midnight UTC, so API-Sports may file it under either date.
     const start = new Date(card.startsAt);
-    const dates = [start, new Date(start.getTime() + 24 * 60 * 60 * 1000)].map(d => d.toISOString().slice(0, 10));
+    const dates = [start, new Date(start.getTime() + DAY)].map(d => d.toISOString().slice(0, 10));
     const response: unknown[] = [];
     for (const date of dates) {
-      if (requests >= PHOTO_REQUEST_BUDGET) return set;
+      if (!inPlan(date)) {
+        report.deferredDates++;
+        continue;
+      }
+      if (requests >= PHOTO_REQUEST_BUDGET) return report;
       requests++;
       try {
         const payload = await apisports(key, `fights?date=${date}`);
         response.push(...(((payload as { response?: unknown[] }).response) ?? []));
       } catch (error) {
+        if (error instanceof ApiSportsDateOutOfPlan) {
+          report.deferredDates++;
+          continue;
+        }
         fail(`photos ${card.name} ${date}`, error);
-        if (error instanceof ApiSportsUnavailable) return set;
+        if (error instanceof ApiSportsUnavailable) return report;
       }
     }
+    report.fetchedFights += response.length;
+    if (!report.sampleFighterFields) {
+      const first = (response[0] as { fighters?: { first?: object } } | undefined)?.fighters?.first;
+      if (first) report.sampleFighterFields = Object.keys(first);
+    }
     const matches = matchPhotos(bouts, { response }).filter(m => missing.has(m.ufcFighterId));
+    report.matchedBouts += new Set(
+      bouts.filter(b => matches.some(m => m.ufcFighterId === b.red.ufcFighterId || m.ufcFighterId === b.blue.ufcFighterId)).map(b => b.ufcFightId),
+    ).size;
     if (!matches.length) continue;
     const { data: count, error: setError } = await db.rpc("set_fighter_photos", { photos: matches });
     if (setError) fail(`photos ${card.name}`, setError.message);
-    else set += count as number;
+    else report.set += count as number;
   }
-  return set;
+  return report;
 }
