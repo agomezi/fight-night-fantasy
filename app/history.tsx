@@ -18,7 +18,6 @@ import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useHistory } from "../hooks/useHistory";
 import { useToggleProgress } from "../hooks/useToggleProgress";
-import Skeleton from "../components/Skeleton";
 import { makeCommonStyles } from "../styles/common";
 
 /** Disclosure arrow that rotates open. */
@@ -76,19 +75,7 @@ export default function History() {
         </View>
         <View style={commonStyles.divider} />
 
-        {!history ? (
-          state.status === "error" ? (
-            <Text style={{ color: c.textMuted, fontSize: 14, paddingTop: 40 }}>
-              Couldn&apos;t load your history. Pull back in a moment.
-            </Text>
-          ) : (
-            <View style={{ paddingTop: 20, gap: 14 }}>
-              <Skeleton height={150} radius={14} />
-              <Skeleton height={64} radius={10} />
-              <Skeleton height={64} radius={10} />
-            </View>
-          )
-        ) : past.length === 0 ? (
+        {past.length === 0 ? (
           <View style={{ paddingTop: 40 }}>
             <Text style={{ color: c.text, fontSize: 22, fontWeight: "800" }}>
               Nothing here yet
