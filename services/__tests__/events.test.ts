@@ -1,6 +1,6 @@
 import { countdown, initials, lastName, lockLabel, splitEventName, startLabel, toNextEvent } from "../events";
 
-const fighter = (id: string, name: string) => ({ id, name, nickname: null });
+const fighter = (id: string, name: string) => ({ id, name, nickname: null, photoUrl: null });
 const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "scheduled") => ({
   id,
   fight_order: order,

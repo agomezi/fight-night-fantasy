@@ -14,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import BottomNav from "../components/BottomNav";
 import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
+import FighterPhoto from "../components/FighterPhoto";
 import HeaderBar from "../components/HeaderBar";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
@@ -66,12 +67,14 @@ function FighterChoice({
   initials,
   name,
   record,
+  photoUrl,
   selected,
   onPress,
 }: {
   initials: string;
   name: string;
   record: string;
+  photoUrl?: string | null;
   selected: boolean;
   onPress: () => void;
 }) {
@@ -113,7 +116,12 @@ function FighterChoice({
           ringStyle,
         ]}
       >
-        <Text style={{ color: c.text, fontWeight: "700" }}>{initials}</Text>
+        <FighterPhoto
+          uri={photoUrl}
+          initials={initials}
+          radius={26}
+          textStyle={{ color: c.text, fontWeight: "700" }}
+        />
 
         {selected && (
           <Animated.View
@@ -816,6 +824,7 @@ export default function Home() {
                   initials={initials(mainEvent.red.name)}
                   name={lastName(mainEvent.red.name).toUpperCase()}
                   record={mainEvent.red.nickname ?? `${mainEvent.scheduledRounds} RDS`}
+                  photoUrl={mainEvent.red.photoUrl}
                   selected={quickPick === mainEvent.red.id}
                   onPress={() => setQuickPick(mainEvent.red.id)}
                 />
@@ -826,6 +835,7 @@ export default function Home() {
                   initials={initials(mainEvent.blue.name)}
                   name={lastName(mainEvent.blue.name).toUpperCase()}
                   record={mainEvent.blue.nickname ?? `${mainEvent.scheduledRounds} RDS`}
+                  photoUrl={mainEvent.blue.photoUrl}
                   selected={quickPick === mainEvent.blue.id}
                   onPress={() => setQuickPick(mainEvent.blue.id)}
                 />
