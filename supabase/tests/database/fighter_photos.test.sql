@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(12);
 
 insert into public.fighters (ufc_fighter_id, name) values ('1', 'Natalia Silva'), ('2', 'Wang Cong'), ('3', 'Bruno Silva');
 
@@ -44,9 +44,14 @@ select is(
   public.set_fighter_photos('[{"ufcFighterId": "unknown", "apisportsFighterId": 41, "photoUrl": "https://example.test/41.png"}]'::jsonb),
   0, 'an unknown fighter changes nothing'
 );
+
+-- A fighter searched for without a match is marked, so runs skip them for a while.
+select is(public.mark_photo_checked(array['3', '1']), 1, 'only fighters still without a photo are marked');
+select ok((select photo_checked_at is not null from public.fighters where ufc_fighter_id = '3'), 'the unmatched fighter is marked');
 reset role;
 
 select ok(not has_function_privilege('authenticated', 'public.set_fighter_photos(jsonb)', 'execute'), 'users cannot set photos');
+select ok(not has_function_privilege('authenticated', 'public.mark_photo_checked(text[])', 'execute'), 'users cannot mark fighters');
 
 select * from finish();
 rollback;
