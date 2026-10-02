@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -27,7 +28,13 @@ import HeaderBar from "../components/HeaderBar";
 import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
 import RoundLane, { LanePick } from "../components/RoundLane";
+import Skeleton from "../components/Skeleton";
+import EmptyState from "../components/EmptyState";
 import { LEAGUE } from "../constants/league";
+import { useAuth } from "../context/AuthContext";
+import { useNextEvent } from "../hooks/useNextEvent";
+import { initials, lastName, splitEventName, type CardSegment, type EventBout } from "../services/events";
+import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
@@ -40,57 +47,39 @@ type Fight = {
   division: string;
   /** Scheduled length. Championship and main events go 5. */
   rounds: 3 | 5;
+  segment: CardSegment | null;
   a: Fighter;
   b: Fighter;
+  /** League social proof; none until leagues exist. */
   proof?: string;
 };
 
-const MAIN_EVENT: Fight = {
-  id: "main",
-  division: "LIGHT HEAVYWEIGHT",
-  rounds: 5,
-  a: { id: "pereira", name: "PEREIRA", initials: "AP", record: "12-2" },
-  b: { id: "hill", name: "HILL", initials: "JH", record: "12-1" },
-  proof: "Vince and 2 others picked Hill",
-};
-
-const UNDERCARD: Fight[] = [
-  {
-    id: "zhang-yan",
-    division: "STRAWWEIGHT",
-    rounds: 3,
-    a: { id: "zhang", name: "ZHANG", initials: "ZW", record: "24-3" },
-    b: { id: "yan", name: "YAN", initials: "XY", record: "17-4" },
-    proof: "Vince and 4 others picked Zhang",
-  },
-  {
-    id: "gaethje-holloway",
-    division: "LIGHTWEIGHT",
-    rounds: 3,
-    a: { id: "gaethje", name: "GAETHJE", initials: "JG", record: "25-4" },
-    b: { id: "holloway", name: "HOLLOWAY", initials: "MH", record: "26-7" },
-    proof: "8 people in your league picked Holloway",
-  },
-  {
-    id: "oliveira-tsarukyan",
-    division: "LIGHTWEIGHT",
-    rounds: 3,
-    a: { id: "oliveira", name: "OLIVEIRA", initials: "CO", record: "34-9" },
-    b: { id: "tsarukyan", name: "TSARUKYAN", initials: "AT", record: "21-3" },
-    proof: "Split 50/50 in your league",
-  },
-];
-
-
-const EVENT_START = new Date(Date.now() + (3 * 24 + 14) * 60 * 60 * 1000);
-const LOCK_LEAD_MS = 10 * 60 * 1000;
-
-function canEditPicks(now: Date = new Date()) {
-  return now.getTime() < EVENT_START.getTime() - LOCK_LEAD_MS;
+function toFight(bout: EventBout): Fight {
+  const fighter = (f: EventBout["red"]): Fighter => ({
+    id: f.id,
+    name: lastName(f.name).toUpperCase(),
+    initials: initials(f.name),
+    // No records stored yet; the nickname fills the slot under the name.
+    record: f.nickname ?? "",
+  });
+  return {
+    id: bout.id,
+    division: (bout.weightClass ?? "").toUpperCase(),
+    rounds: bout.scheduledRounds === 5 ? 5 : 3,
+    segment: bout.segment,
+    a: fighter(bout.red),
+    b: fighter(bout.blue),
+  };
 }
 
-function countdownLabel(now: Date = new Date()) {
-  let ms = EVENT_START.getTime() - now.getTime();
+const SEGMENT_LABELS: Record<CardSegment, string> = {
+  main: "MAIN CARD",
+  prelims: "PRELIMS",
+  early_prelims: "EARLY PRELIMS",
+};
+
+function countdownLabel(target: Date, now: Date) {
+  const ms = target.getTime() - now.getTime();
   if (ms <= 0) return "Live now";
   const d = Math.floor(ms / 86400000);
   const h = Math.floor((ms % 86400000) / 3600000);
@@ -103,8 +92,6 @@ function countdownLabel(now: Date = new Date()) {
 function titleCase(s: string) {
   return s.charAt(0) + s.slice(1).toLowerCase();
 }
-
-type PickMap = Record<string, string>;
 
 function Avatar({
   initials,
@@ -173,6 +160,44 @@ function Avatar({
   );
 }
 
+/** The card's shape while it loads: title, the open main event, then rows. */
+function CardSkeleton() {
+  const styles = useThemedStyles(makePicksStyles);
+  return (
+    <View>
+      <Skeleton width="45%" height={40} radius={8} style={{ marginBottom: 10 }} />
+      <Skeleton width="60%" height={13} style={{ marginBottom: 22 }} />
+      <View style={styles.mainCard}>
+        <View style={styles.mainHeader}>
+          <Skeleton width="50%" height={12} />
+        </View>
+        <View style={{ padding: 18, gap: 14 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <Skeleton width="40%" height={44} radius={10} />
+            <Skeleton width="40%" height={44} radius={10} />
+          </View>
+          <Skeleton height={36} radius={8} />
+        </View>
+      </View>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <View key={i} style={styles.rowCard}>
+          <View style={styles.row}>
+            <View style={styles.rowFighter}>
+              <Skeleton width={36} height={36} radius={10} />
+              <Skeleton width="45%" height={13} />
+            </View>
+            <Skeleton width={56} height={10} />
+            <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
+              <Skeleton width="45%" height={13} />
+              <Skeleton width={36} height={36} radius={10} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 /** Disclosure arrow that rotates between open and closed. */
 function Chevron({ open, size = 18 }: { open: boolean; size?: number }) {
   const { c } = useTheme();
@@ -196,29 +221,63 @@ export default function Picks() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makePicksStyles);
   const { fighter } = useLocalSearchParams<{ fighter?: string }>();
-  const [picks, setPicks] = useState<PickMap>(
-    fighter ? { [MAIN_EVENT.id]: fighter } : {}
-  );
-  // One lane pick per fight replaces the old picks/methods/rounds triple —
-  // winner, method and round are a single decision now.
-  const [lane, setLane] = useState<Record<string, LanePick>>(() =>
-    // Quick Pick on home hands off a fighter id — seed the lane so the
-    // main event arrives already showing that pick, round uncalled.
-    fighter
-      ? {
-          [MAIN_EVENT.id]: {
-            corner: fighter === MAIN_EVENT.a.id ? "red" : "blue",
-            finish: "ANY",
-          },
-        }
-      : {},
-  );
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ main: true });
+  const { session } = useAuth();
+  const next = useNextEvent();
+  const event = next.status === "ready" ? next.event : null;
+  const eventName = event ? splitEventName(event.name) : null;
+  const allFights = useMemo(() => (event ? event.bouts.map(toFight) : []), [event]);
+  const MAIN_EVENT = allFights[0] as Fight | undefined;
+  const UNDERCARD = allFights.slice(1);
+  // The server decides; this only mirrors it so the screen stops offering edits.
+  const canEditPicks = !!event && next.now.getTime() < event.locksAt.getTime();
+
+  // One lane pick per bout — winner, method and round are a single decision.
+  const [lane, setLane] = useState<Record<string, LanePick>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [lockedIn, setLockedIn] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
 
+  // Load what this user already saved for the card. Quick Pick on home hands
+  // off a fighter id, which seeds the main event if nothing is saved there.
+  const eventId = event?.id;
+  useEffect(() => {
+    if (!event) return;
+    let cancelled = false;
+    const main = event.bouts[0];
+    setExpanded(main ? { [main.id]: true } : {});
+    loadPicks(event.bouts)
+      .then((saved) => {
+        if (cancelled) return;
+        const seeded = { ...saved };
+        if (main && fighter && !seeded[main.id] && (fighter === main.red.id || fighter === main.blue.id)) {
+          seeded[main.id] = { corner: fighter === main.red.id ? "red" : "blue", finish: "ANY" };
+        }
+        setLane(seeded);
+        // A saved card opens locked in. One missing its main event (a fighter
+        // replaced since) opens for editing, since that pick has to be redone.
+        setLockedIn(!!main && !!saved[main.id]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // Reload only when the card itself changes, not on every refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId, fighter]);
+
+  // Winner per bout, for the counter, the rows and the summary.
+  const picks = useMemo(() => {
+    const winners: Record<string, string> = {};
+    for (const f of allFights) {
+      const lp = lane[f.id];
+      if (lp) winners[f.id] = lp.corner === "red" ? f.a.id : f.b.id;
+    }
+    return winners;
+  }, [allFights, lane]);
+
   const setLanePick = (fight: Fight, next: LanePick | null) => {
-    if (lockedIn) return;
+    if (lockedIn || !canEditPicks) return;
     setLane((p) => {
       if (!next) {
         const { [fight.id]: _drop, ...rest } = p;
@@ -226,22 +285,15 @@ export default function Picks() {
       }
       return { ...p, [fight.id]: next };
     });
-    // Keep the legacy winner map in step so the summary and counter work.
-    setPicks((p) => {
-      if (!next) {
-        const { [fight.id]: _drop, ...rest } = p;
-        return rest;
-      }
-      return { ...p, [fight.id]: next.corner === "red" ? fight.a.id : fight.b.id };
-    });
   };
   const toggle = (fightId: string) =>
     setExpanded((p) => ({ ...p, [fightId]: !p[fightId] }));
 
-  const totalFights = 1 + UNDERCARD.length;
-  const madePicks = useMemo(() => Object.keys(picks).length, [picks]);
-
-  const allFights = useMemo(() => [MAIN_EVENT, ...UNDERCARD], []);
+  const totalFights = allFights.length;
+  const madePicks = Object.keys(picks).length;
+  // Outside a league only the main event is required; the rest of the card is
+  // optional. League tiers will set their own minimum here.
+  const canLockIn = !!MAIN_EVENT && !!picks[MAIN_EVENT.id];
 
   const summary = useMemo(
     () =>
@@ -294,17 +346,33 @@ export default function Picks() {
     );
   };
 
-  const lockIn = () => {
-    if (madePicks < totalFights) {
+  const lockIn = async () => {
+    if (!event || !session || saving) return;
+    if (!canLockIn) {
       shake();
       return;
     }
-    setLockedIn(true);
-    setShowLockedModal(true);
+    setSaving(true);
+    try {
+      await savePicks(session.user.id, event.bouts, lane);
+      setLockedIn(true);
+      setShowLockedModal(true);
+    } catch (e) {
+      shake();
+      Alert.alert(
+        e instanceof PicksLockedError ? "Picks are locked" : "Couldn't save your picks",
+        e instanceof PicksLockedError
+          ? "This card has started, so picks can no longer change."
+          : "Check your connection and try again.",
+      );
+      if (e instanceof PicksLockedError) next.reload();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const changePicks = () => {
-    if (!canEditPicks()) return;
+    if (!canEditPicks) return;
     setLockedIn(false);
     setShowLockedModal(false);
   };
@@ -313,7 +381,7 @@ export default function Picks() {
     const lines = summary
       .map((s) => `${s.winner} def. ${s.loser}${s.detail ? ` (${s.detail})` : ""}`)
       .join("\n");
-    Share.share({ message: `My UFC 300 picks 🥊\n\n${lines}` }).catch(() => {});
+    Share.share({ message: `My ${eventName?.title ?? "UFC"} picks 🥊\n\n${lines}` }).catch(() => {});
   };
 
   return (
@@ -328,130 +396,170 @@ export default function Picks() {
       >
         <HeaderBar />
 
-        <Text style={styles.eventTitle}>UFC 300</Text>
-        <Text style={styles.eventSub}>Make your picks. Lock them in.</Text>
+        {next.status === "loading" ? (
+          <CardSkeleton />
+        ) : (
+          <Text style={styles.eventTitle}>
+            {eventName?.title ?? "Picks"}
+          </Text>
+        )}
+        {next.status !== "loading" && (
+          <Text style={styles.eventSub}>
+            {!event
+              ? " "
+              : canEditPicks
+                ? `${eventName?.headline ?? "Make your picks"}. Lock them in.`
+                : `${eventName?.headline ?? "This card"} · picks are locked`}
+          </Text>
+        )}
 
-        <Animated.View
-          entering={appear(0)}
-          layout={LinearTransition.duration(220)}
-          style={styles.mainCard}
-        >
-          <PressableScale style={styles.mainHeader} onPress={() => toggle(MAIN_EVENT.id)}>
-            <Text style={styles.mainHeaderText}>
-              MAIN EVENT{"  "}
-              <Text style={{ color: c.red }}>{MAIN_EVENT.division}</Text>
-            </Text>
-            <Chevron open={!!expanded[MAIN_EVENT.id]} />
-          </PressableScale>
+        {next.status !== "loading" && !MAIN_EVENT && (
+          <EmptyState
+            icon="calendar-outline"
+            title={next.status === "error" ? "Couldn't load the card" : "No card yet"}
+            message={
+              next.status === "error"
+                ? "Check your connection, then come back to this screen."
+                : "Picks open as soon as the next card is announced."
+            }
+          />
+        )}
 
-          {expanded[MAIN_EVENT.id] && (
-            <Animated.View
-              entering={FadeIn.duration(180)}
-              exiting={FadeOut.duration(120)}
-              style={{ padding: 18, paddingTop: 4 }}
-            >
-              <RoundLane
-                rounds={MAIN_EVENT.rounds}
-                red={{ name: titleCase(MAIN_EVENT.a.name), record: MAIN_EVENT.a.record }}
-                blue={{ name: titleCase(MAIN_EVENT.b.name), record: MAIN_EVENT.b.record }}
-                pick={lane[MAIN_EVENT.id]}
-                onPick={(next) => setLanePick(MAIN_EVENT, next)}
-                disabled={lockedIn}
-              />
-              {/* Social proof is about your league. With no league there is
-                  nobody to compare against, so the line is dropped rather
-                  than invented. */}
-              {LEAGUE && MAIN_EVENT.proof && (
-                <Text style={styles.proofText}>{MAIN_EVENT.proof}</Text>
-              )}
-            </Animated.View>
-          )}
-        </Animated.View>
+        {MAIN_EVENT && (
+          <Animated.View
+            entering={appear(0)}
+            layout={LinearTransition.duration(220)}
+            style={styles.mainCard}
+          >
+            <PressableScale style={styles.mainHeader} onPress={() => toggle(MAIN_EVENT.id)}>
+              <Text style={styles.mainHeaderText}>
+                MAIN EVENT{"  "}
+                <Text style={{ color: c.red }}>{MAIN_EVENT.division}</Text>
+              </Text>
+              <Chevron open={!!expanded[MAIN_EVENT.id]} />
+            </PressableScale>
+
+            {expanded[MAIN_EVENT.id] && (
+              <Animated.View
+                entering={FadeIn.duration(180)}
+                exiting={FadeOut.duration(120)}
+                style={{ padding: 18, paddingTop: 4 }}
+              >
+                <RoundLane
+                  rounds={MAIN_EVENT.rounds}
+                  red={{ name: titleCase(MAIN_EVENT.a.name), record: MAIN_EVENT.a.record }}
+                  blue={{ name: titleCase(MAIN_EVENT.b.name), record: MAIN_EVENT.b.record }}
+                  pick={lane[MAIN_EVENT.id]}
+                  onPick={(pick) => setLanePick(MAIN_EVENT, pick)}
+                  disabled={lockedIn || !canEditPicks}
+                />
+                {/* Social proof is about your league. With no league there is
+                    nobody to compare against, so the line is dropped rather
+                    than invented. */}
+                {LEAGUE && MAIN_EVENT.proof && (
+                  <Text style={styles.proofText}>{MAIN_EVENT.proof}</Text>
+                )}
+              </Animated.View>
+            )}
+          </Animated.View>
+        )}
 
         {UNDERCARD.map((fight, i) => {
           const picked = picks[fight.id];
           const isOpen = expanded[fight.id];
+          // Label each part of the card where it starts. The main event sits
+          // above, so the first label is for the rest of the main card.
+          const prev = i === 0 ? MAIN_EVENT : UNDERCARD[i - 1];
+          const label = fight.segment && fight.segment !== prev?.segment
+            ? SEGMENT_LABELS[fight.segment]
+            : i === 0 && fight.segment === "main"
+              ? SEGMENT_LABELS.main
+              : null;
           return (
-            <Animated.View
-              key={fight.id}
-              entering={appear(i + 1)}
-              layout={LinearTransition.duration(220)}
-              style={styles.rowCard}
-            >
-              {/* Collapsed row is a readout; all picking happens in the lane. */}
-              <PressableScale style={styles.row} onPress={() => toggle(fight.id)}>
-                <View style={styles.rowFighter}>
-                  <Avatar initials={fight.a.initials} selected={picked === fight.a.id} size={36} />
-                  <Text
-                    style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
-                    numberOfLines={1}
+            <View key={fight.id}>
+              {label && <Text style={[styles.groupLabel, { marginTop: 14 }]}>{label}</Text>}
+              <Animated.View
+                entering={appear(Math.min(i + 1, 6))}
+                layout={LinearTransition.duration(220)}
+                style={styles.rowCard}
+              >
+                {/* Collapsed row is a readout; all picking happens in the lane. */}
+                <PressableScale style={styles.row} onPress={() => toggle(fight.id)}>
+                  <View style={styles.rowFighter}>
+                    <Avatar initials={fight.a.initials} selected={picked === fight.a.id} size={36} />
+                    <Text
+                      style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
+                      numberOfLines={1}
+                    >
+                      {fight.a.name}
+                    </Text>
+                  </View>
+
+                  <View style={styles.rowCenter}>
+                    <Text style={styles.rowDivision}>{fight.division}</Text>
+                    {picked ? (
+                      <Animated.View entering={popIn}>
+                        <Ionicons name="checkmark-circle" size={16} color={c.red} />
+                      </Animated.View>
+                    ) : (
+                      <Animated.Text entering={FadeIn.duration(160)} style={styles.vsSmall}>
+                        VS
+                      </Animated.Text>
+                    )}
+                    <Chevron open={!!isOpen} size={14} />
+                  </View>
+
+                  <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
+                    <Text
+                      style={[
+                        styles.rowName,
+                        { textAlign: "right" },
+                        picked === fight.b.id && styles.rowNamePicked,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {fight.b.name}
+                    </Text>
+                    <Avatar initials={fight.b.initials} selected={picked === fight.b.id} size={36} />
+                  </View>
+                </PressableScale>
+
+                {isOpen && (
+                  <Animated.View
+                    entering={FadeIn.duration(180)}
+                    exiting={FadeOut.duration(120)}
+                    style={styles.rowBody}
                   >
-                    {fight.a.name}
-                  </Text>
-                </View>
-
-                <View style={styles.rowCenter}>
-                  <Text style={styles.rowDivision}>{fight.division}</Text>
-                  {picked ? (
-                    <Animated.View entering={popIn}>
-                      <Ionicons name="checkmark-circle" size={16} color={c.red} />
-                    </Animated.View>
-                  ) : (
-                    <Animated.Text entering={FadeIn.duration(160)} style={styles.vsSmall}>
-                      VS
-                    </Animated.Text>
-                  )}
-                  <Chevron open={!!isOpen} size={14} />
-                </View>
-
-                <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
-                  <Text
-                    style={[
-                      styles.rowName,
-                      { textAlign: "right" },
-                      picked === fight.b.id && styles.rowNamePicked,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {fight.b.name}
-                  </Text>
-                  <Avatar initials={fight.b.initials} selected={picked === fight.b.id} size={36} />
-                </View>
-              </PressableScale>
-
-              {isOpen && (
-                <Animated.View
-                  entering={FadeIn.duration(180)}
-                  exiting={FadeOut.duration(120)}
-                  style={styles.rowBody}
-                >
-                  <RoundLane
-                    rounds={fight.rounds}
-                    red={{ name: titleCase(fight.a.name), record: fight.a.record }}
-                    blue={{ name: titleCase(fight.b.name), record: fight.b.record }}
-                    pick={lane[fight.id]}
-                    onPick={(next) => setLanePick(fight, next)}
-                    disabled={lockedIn}
-                  />
-                  {LEAGUE && fight.proof && (
-                    <Text style={styles.proofText}>{fight.proof}</Text>
-                  )}
-                </Animated.View>
-              )}
+                    <RoundLane
+                      rounds={fight.rounds}
+                      red={{ name: titleCase(fight.a.name), record: fight.a.record }}
+                      blue={{ name: titleCase(fight.b.name), record: fight.b.record }}
+                      pick={lane[fight.id]}
+                      onPick={(pick) => setLanePick(fight, pick)}
+                      disabled={lockedIn || !canEditPicks}
+                    />
+                    {LEAGUE && fight.proof && (
+                      <Text style={styles.proofText}>{fight.proof}</Text>
+                    )}
+                  </Animated.View>
+                )}
             </Animated.View>
+            </View>
           );
         })}
       </ScrollView>
 
       <View style={styles.bottomBar}>
         <View style={styles.lockWrap}>
-          {lockedIn ? (
+          {!event ? null : lockedIn || !canEditPicks ? (
             <View style={styles.lockedRow}>
               <View style={styles.lockedPill}>
                 <Ionicons name="lock-closed" size={16} color={c.red} />
-                <Text style={styles.lockedPillText}>PICKS LOCKED</Text>
+                <Text style={styles.lockedPillText}>
+                  {lockedIn ? "PICKS LOCKED" : "CARD LOCKED"}
+                </Text>
               </View>
-              {canEditPicks() && (
+              {canEditPicks && (
                 <PressableScale style={styles.changeBtn} onPress={changePicks}>
                   <Text style={styles.changeBtnText}>CHANGE PICKS</Text>
                 </PressableScale>
@@ -468,11 +576,11 @@ export default function Picks() {
                 style={{ marginBottom: 10 }}
               />
               <PressableScale
-                style={[styles.lockBtn, madePicks < totalFights && styles.lockBtnDisabled]}
+                style={[styles.lockBtn, (!canLockIn || saving) && styles.lockBtnDisabled]}
                 onPress={lockIn}
               >
                 <Ionicons name="lock-closed" size={18} color="#FFFFFF" />
-                <Text style={styles.lockText}>LOCK IN PICKS</Text>
+                <Text style={styles.lockText}>{saving ? "SAVING…" : "LOCK IN PICKS"}</Text>
                 <Text style={styles.lockCount}>
                   {madePicks}/{totalFights}
                 </Text>
@@ -513,12 +621,14 @@ export default function Picks() {
               </View>
 
               <Text style={styles.modalTitle}>LOCKED IN</Text>
-              <Text style={styles.modalSub}>Your picks for UFC 300 are locked.</Text>
+              <Text style={styles.modalSub}>
+                Your picks for {eventName?.title ?? "this card"} are saved. You can change them until the card starts.
+              </Text>
 
               <View style={styles.countdownChip}>
                 <Ionicons name="time-outline" size={14} color={c.text2} />
                 <Text style={styles.countdownText}>
-                  Main card starts in {countdownLabel()}
+                  Card starts in {event ? countdownLabel(event.startsAt, next.now) : "—"}
                 </Text>
               </View>
 
@@ -577,7 +687,7 @@ export default function Picks() {
               >
                 <Text style={styles.backBtnText}>BACK TO PICKS</Text>
               </PressableScale>
-              {canEditPicks() && (
+              {canEditPicks && (
                 <PressableScale style={styles.editLink} onPress={changePicks}>
                   <Text style={styles.editLinkText}>
                     Changed your mind? Edit picks

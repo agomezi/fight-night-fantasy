@@ -7,7 +7,6 @@ import Animated, {
   interpolateColor,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import AnimatedBar from "../components/AnimatedBar";
 import PressableScale from "../components/PressableScale";
 import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
@@ -19,8 +18,11 @@ import HeaderBar from "../components/HeaderBar";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
+import Skeleton from "../components/Skeleton";
 import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
 import { DEMO, LEAGUE, SEASON_STANDINGS } from "../constants/league";
+import { useNextEvent } from "../hooks/useNextEvent";
+import { countdown, initials, lastName, lockLabel, splitEventName, startLabel } from "../services/events";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
@@ -212,7 +214,19 @@ export default function Home() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
   const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
-  const [quickPick, setQuickPick] = useState<"pereira" | "hill" | null>(null);
+  // The fighter id chosen in Quick Pick.
+  const [quickPick, setQuickPick] = useState<string | null>(null);
+
+  const next = useNextEvent();
+  const event = next.status === "ready" ? next.event : null;
+  const eventName = event ? splitEventName(event.name) : null;
+  const mainEvent = event?.bouts[0] ?? null;
+  const toStart = event ? countdown(event.startsAt, next.now) : null;
+  const locksIn = event ? lockLabel(event.locksAt, next.now) : "—";
+  const weekday = event
+    ? new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "long" }).format(event.startsAt)
+    : "the card";
+  const pad = (n: number) => String(n).padStart(2, "0");
 
   // Measured so the sliding underline matches whatever the tabs actually are.
   const [tabStripWidth, setTabStripWidth] = useState(0);
@@ -231,8 +245,8 @@ export default function Home() {
   // A brand-new account has touched nothing, so this is 0 and the carousel
   // shows the "start your card" prompt instead of a progress ring.
   const picksStarted = DEMO ? 3 : 0;
-  const picksTotal = 12;
-  const eventIsLive = false;
+  const picksTotal = event?.bouts.length ?? 0;
+  const eventIsLive = event?.status === "live";
   // Until scoring exists this comes from the demo standings, or is simply zero.
   const lastEventPoints = myStanding ? 218 : 0;
   // The player directly above and directly below you.
@@ -246,22 +260,36 @@ export default function Home() {
     {
       tag: "NEXT EVENT",
       tagColor: c.red,
-      serial: "SAT · 10PM ET",
+      serial: event ? startLabel(event.startsAt) : undefined,
       // Content sits low in the card rather than crowding the header rule —
       // the event name is what you should land on, not the label above it.
-      content: (
+      content: next.status === "loading" ? (
+        // Same footprint as the loaded card: title, headline, countdown.
+        <View style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20, gap: 10 }}>
+          <Skeleton width="55%" height={34} radius={8} />
+          <Skeleton width="40%" height={12} />
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height={52} radius={10} style={{ flex: 1 }} />
+            ))}
+          </View>
+        </View>
+      ) : (
         <View style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20 }}>
           <Text style={[commonStyles.cardTitle, { textAlign: "left", fontSize: 34 }]}>
-            UFC 300
+            {eventName?.title ?? (next.status === "error" ? "Card unavailable" : "No card yet")}
           </Text>
           <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
-            PEREIRA VS HILL
+            {eventName?.headline?.toUpperCase() ??
+              (next.status === "ready" && !event ? "The next card appears here once it's announced" : " ")}
           </Text>
-          <StatBoxRow inline>
-            <StatBox value="02" label="DAYS" />
-            <StatBox value="14" label="HOURS" />
-            <StatBox value="45" label="MINS" />
-          </StatBoxRow>
+          {toStart && (
+            <StatBoxRow inline>
+              <StatBox value={pad(toStart.days)} label="DAYS" />
+              <StatBox value={pad(toStart.hours)} label="HOURS" />
+              <StatBox value={pad(toStart.minutes)} label="MINS" />
+            </StatBoxRow>
+          )}
         </View>
       ),
     },
@@ -312,11 +340,11 @@ export default function Home() {
    * account's home screen, so it gets a place in the carousel rather than
    * being left to the nav bar to suggest.
    */
-  if (picksStarted === 0) {
+  if (event && picksStarted === 0) {
     carouselCards.push({
       tag: "GET STARTED",
       tagColor: c.red,
-      serial: "LOCKS 14H",
+      serial: `LOCKS ${locksIn}`,
       content: (
         <View style={{ flex: 1, justifyContent: "flex-end", gap: 12 }}>
           <View>
@@ -356,11 +384,11 @@ export default function Home() {
   }
 
   // Only if they started a card and walked away without submitting.
-  if (picksStarted > 0 && picksStarted < picksTotal) {
+  if (event && picksStarted > 0 && picksStarted < picksTotal) {
     carouselCards.push({
       tag: "UNFINISHED CARD",
       tagColor: c.red,
-      serial: "LOCKS 14H",
+      serial: `LOCKS ${locksIn}`,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
@@ -378,7 +406,7 @@ export default function Home() {
               <Text
                 style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 3 }}
               >
-                {picksTotal - picksStarted} bouts left · locks in 14h
+                {picksTotal - picksStarted} bouts left · locks in {locksIn.toLowerCase()}
               </Text>
             </View>
             <PressableScale
@@ -431,11 +459,11 @@ export default function Home() {
     });
   }
 
-  const fullCardFights = [
-    { matchup: "Pereira vs Hill", division: "TITLE FIGHT" },
-    { matchup: "Holloway vs Gaethje", division: "Lightweight" },
-    { matchup: "Poatan vs Ankalaev", division: "Light HW" },
-  ];
+  const fullCardFights = (event?.bouts ?? []).slice(0, 3).map((bout) => ({
+    id: bout.id,
+    matchup: `${lastName(bout.red.name)} vs ${lastName(bout.blue.name)}`,
+    division: bout.order === 1 ? "MAIN EVENT" : (bout.weightClass ?? ""),
+  }));
   return (
     <SafeAreaView
       style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
@@ -631,19 +659,26 @@ export default function Home() {
                     ),
                   }
                 : {
-                    serial: "IN 2 DAYS",
+                    serial: toStart
+                      ? toStart.days > 1
+                        ? `IN ${toStart.days} DAYS`
+                        : toStart.days === 1
+                          ? "TOMORROW"
+                          : "TODAY"
+                      : undefined,
                     // Same reason as the league card above — no room for it
                     // once the card carries a sentence instead of a score.
                     tag: "YOUR FIRST EVENT",
                     tagColor: c.red,
-                    title: "UFC 300",
+                    title: eventName?.title ?? "Coming soon",
                     titleSize: 40,
                     footer: (
                       <Text
                         style={[commonStyles.cardSubtitle, { textAlign: "left" }]}
                       >
-                        Pereira vs Hill. Get a card in before Saturday and this
-                        becomes your score.
+                        {eventName?.headline
+                          ? `${eventName.headline}. Get a card in before ${weekday} and this becomes your score.`
+                          : "Get a card in before the next event and this becomes your score."}
                       </Text>
                     ),
                   }),
@@ -692,7 +727,7 @@ export default function Home() {
               }}
             />
             <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
-              Locks in 14h
+              {locksIn === "LOCKED" ? "Locked" : `Locks in ${locksIn.toLowerCase()}`}
             </Text>
           </View>
         </View>
@@ -712,7 +747,7 @@ export default function Home() {
             }}
           >
             {(["quick", "full"] as const).map((tab) => {
-              const label = tab === "quick" ? "QUICK PICK" : "FULL CARD (12)";
+              const label = tab === "quick" ? "QUICK PICK" : `FULL CARD (${picksTotal})`;
               return (
                 <TabButton
                   key={tab}
@@ -739,7 +774,26 @@ export default function Home() {
             />
           </View>
 
-          {picksTab === "quick" ? (
+          {next.status === "loading" ? (
+            <View style={{ gap: 16 }}>
+              <Skeleton width="60%" height={11} />
+              <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center" }}>
+                {[0, 1].map((i) => (
+                  <View key={i} style={{ alignItems: "center", gap: 8 }}>
+                    <Skeleton width={52} height={52} radius={12} />
+                    <Skeleton width={70} height={11} />
+                  </View>
+                ))}
+              </View>
+              <Skeleton height={46} radius={10} />
+            </View>
+          ) : picksTab === "quick" && !mainEvent ? (
+            <EmptyState
+              icon="calendar-outline"
+              title="No card yet"
+              message="Picks open as soon as the next card is announced."
+            />
+          ) : picksTab === "quick" && mainEvent ? (
             <View>
               <Text
                 style={[
@@ -747,8 +801,8 @@ export default function Home() {
                   { color: c.textFaint, marginBottom: 20 },
                 ]}
               >
-                UFC 300 · MAIN EVENT —{" "}
-                <Text style={{ color: c.red }}>LHW TITLE</Text>
+                {eventName?.title} · MAIN EVENT —{" "}
+                <Text style={{ color: c.red }}>{mainEvent.weightClass?.toUpperCase()}</Text>
               </Text>
               <View
                 style={{
@@ -759,40 +813,22 @@ export default function Home() {
                 }}
               >
                 <FighterChoice
-                  initials="AP"
-                  name="PEREIRA"
-                  record="29-9 · C"
-                  selected={quickPick === "pereira"}
-                  onPress={() => setQuickPick("pereira")}
+                  initials={initials(mainEvent.red.name)}
+                  name={lastName(mainEvent.red.name).toUpperCase()}
+                  record={mainEvent.red.nickname ?? `${mainEvent.scheduledRounds} RDS`}
+                  selected={quickPick === mainEvent.red.id}
+                  onPress={() => setQuickPick(mainEvent.red.id)}
                 />
                 <Text style={{ color: c.textFaint, fontWeight: "700", fontSize: 13 }}>
                   VS
                 </Text>
                 <FighterChoice
-                  initials="JH"
-                  name="HILL"
-                  record="12-1 · #1"
-                  selected={quickPick === "hill"}
-                  onPress={() => setQuickPick("hill")}
+                  initials={initials(mainEvent.blue.name)}
+                  name={lastName(mainEvent.blue.name).toUpperCase()}
+                  record={mainEvent.blue.nickname ?? `${mainEvent.scheduledRounds} RDS`}
+                  selected={quickPick === mainEvent.blue.id}
+                  onPress={() => setQuickPick(mainEvent.blue.id)}
                 />
-              </View>
-
-              <View style={{ marginBottom: 20 }}>
-                <AnimatedBar percent={61} height={4} />
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    marginTop: 6,
-                  }}
-                >
-                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
-                    61% picking Pereira
-                  </Text>
-                  <Text style={[commonStyles.cardSubtitle, { marginBottom: 0, fontSize: 12 }]}>
-                    39% Hill
-                  </Text>
-                </View>
               </View>
 
               <PressableScale
@@ -828,7 +864,7 @@ export default function Home() {
             <View style={{ gap: 0 }}>
               {fullCardFights.map((fight, i) => (
                 <View
-                  key={i}
+                  key={fight.id}
                   style={{
                     flexDirection: "row",
                     alignItems: "center",
@@ -883,7 +919,9 @@ export default function Home() {
                 style={{ marginTop: 8, alignItems: "center" }}
               >
                 <Text style={[commonStyles.cardSubtitle, { marginBottom: 0 }]}>
-                  + 9 more fights →
+                  {picksTotal > fullCardFights.length
+                    ? `+ ${picksTotal - fullCardFights.length} more fights →`
+                    : "Open your card →"}
                 </Text>
               </PressableScale>
             </View>
@@ -910,8 +948,10 @@ export default function Home() {
             {
               tag: "TODAY'S CALL",
               tagColor: c.red,
-              title: "DOES PEREIRA FINISH HILL INSIDE 2 ROUNDS?",
-              subtitle: "UFC 300 main event · Sat night",
+              title: mainEvent
+                ? `Does ${lastName(mainEvent.red.name)} finish ${lastName(mainEvent.blue.name)} inside 2 rounds?`.toUpperCase()
+                : "NEXT CARD'S CALL DROPS SOON",
+              subtitle: mainEvent ? `${eventName?.title} main event · ${weekday}` : "Check back once the card is announced",
               footer: (
                 <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
                   {(["yes", "no"] as const).map((option) => (
