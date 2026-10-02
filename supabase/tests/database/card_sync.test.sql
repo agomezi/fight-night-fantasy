@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(55);
 
 -- A card in the shape parseCard produces. Fighters are named by UFC id.
 create function pg_temp.f(id text) returns jsonb language sql as $$
@@ -242,6 +242,37 @@ select ok(not has_function_privilege('authenticated', 'public.upsert_fighter(jso
 select ok(not has_function_privilege('authenticated', 'public.assign_season_slots()', 'execute'), 'users cannot assign season slots');
 select ok(not has_function_privilege('authenticated', 'public.invoke_card_sync(text)', 'execute'), 'users cannot trigger a sync');
 select ok(has_function_privilege('service_role', 'public.sync_event_card(jsonb)', 'execute'), 'ingestion can sync cards');
+
+-- Ingestion runs as service_role with only the grants it is given (a hosted
+-- project grants nothing by default), so exercise every write path as it.
+set local role service_role;
+select lives_ok(
+  $$select public.sync_event_card('{"ufcEventId": "900", "name": "Card 900", "startsAt": "2099-12-05T20:00Z",
+    "status": "scheduled", "issues": [], "bouts": [
+      {"ufcFightId": "9001", "order": 1, "segment": "main", "scheduledRounds": 5, "weightClass": "Lightweight",
+       "red": {"ufcFighterId": "r9001", "name": "Red", "nickname": null},
+       "blue": {"ufcFighterId": "b9001", "name": "Blue", "nickname": null}},
+      {"ufcFightId": "9002", "order": 2, "segment": "main", "scheduledRounds": 3, "weightClass": "Lightweight",
+       "red": {"ufcFighterId": "r9002", "name": "Red", "nickname": null},
+       "blue": {"ufcFighterId": "b9002", "name": "Blue", "nickname": null}}]}'::jsonb)$$,
+  'ingestion can add a card under its own grants'
+);
+select lives_ok(
+  $$select public.sync_event_card('{"ufcEventId": "900", "name": "Card 900 renamed", "startsAt": "2099-12-05T21:00Z",
+    "status": "scheduled", "issues": [], "bouts": [
+      {"ufcFightId": "9001", "order": 1, "segment": "main", "scheduledRounds": 5, "weightClass": "Lightweight",
+       "red": {"ufcFighterId": "r9001", "name": "Red Renamed", "nickname": null},
+       "blue": {"ufcFighterId": "x9001", "name": "Replacement", "nickname": null}}]}'::jsonb)$$,
+  'and update, substitute and cancel on it'
+);
+select is(
+  (select array_agg(b.status::text || ':' || b.version order by b.fight_order) from public.bouts b
+   join public.events e on e.id = b.event_id where e.ufc_event_id = '900'),
+  array['scheduled:2', 'cancelled:1'], 'with every change applied'
+);
+select lives_ok($$select public.assign_season_slots()$$, 'ingestion can assign season slots');
+select lives_ok($$select ufc_event_id from public.events where status = 'scheduled'$$, 'ingestion can list stored events');
+reset role;
 
 select * from finish();
 rollback;
