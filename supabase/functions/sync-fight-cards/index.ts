@@ -1,17 +1,19 @@
 // Fight-card sync, run on a schedule by pg_cron (see the card_sync migration).
 //
-//   { "mode": "full" }  every announced upcoming card, discovered from UFC.com
-//   { "mode": "soon" }  only cards already stored that start within a week
+//   { "mode": "full" }    every announced upcoming card, discovered from UFC.com
+//   { "mode": "soon" }    only cards already stored that start within a week
+//   { "mode": "photos" }  fighter photos for stored cards, from API-Sports
 //
 // Each card is read from the UFC stats feed, parsed, and written through
 // `sync_event_card`. One card failing never stops the others.
 //
-// A full sync also fills in fighter photos from API-Sports when
-// APISPORTS_KEY is set: first by card date, matching both fighters of a bout,
-// then by name for anyone still missing. Each fighter is matched once.
+// Photos need APISPORTS_KEY. They are matched first by card date, both
+// fighters of a bout together, then by name for anyone still missing, and
+// each fighter is matched once. The free plan allows 10 requests a minute and
+// 100 a day, so photo runs are spaced out, capped, and kept off the card sync.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { eventFmid, parseCard, upcomingEventSlugs, type IngestedCard } from "../../../services/ingestion/card.ts";
+import { eventFmid, parseCard, upcomingEventSlugs } from "../../../services/ingestion/card.ts";
 import { matchByName, matchPhotos, searchTerm, type PhotoMatch } from "../../../services/ingestion/photos.ts";
 
 const UFC_SITE = "https://www.ufc.com";
@@ -21,9 +23,11 @@ const SOON = 7 * 24 * 60 * 60 * 1000;
 const RECENT = 24 * 60 * 60 * 1000;
 // Overridable only so the photo step can be tested against a local mock.
 const APISPORTS = (Deno.env.get("APISPORTS_BASE_URL") ?? "https://v1.mma.api-sports.io").replace(/\/+$/, "");
-// The free plan allows 100 requests a day. A full sync runs once a day and
-// uses at most this many, leaving room for manual runs.
-const PHOTO_REQUEST_BUDGET = 40;
+// Free plan: 10 requests a minute, 100 a day. Photo runs are every 4 hours,
+// so 6 a day at this cap stays under the daily limit, and requests are spaced
+// to stay under the per-minute one. 15 spaced requests take about 105 seconds.
+const PHOTO_REQUEST_BUDGET = 15;
+const PHOTO_REQUEST_SPACING_MS = 7_000;
 const DAY = 24 * 60 * 60 * 1000;
 
 function env(name: string): string {
@@ -55,12 +59,32 @@ Deno.serve(async request => {
     return new Response("Unauthorized", { status: 401 });
   }
   const { mode } = await request.json().catch(() => ({}));
-  if (mode !== "full" && mode !== "soon") return new Response('Expected mode "full" or "soon"', { status: 400 });
+  if (mode !== "full" && mode !== "soon" && mode !== "photos") {
+    return new Response('Expected mode "full", "soon" or "photos"', { status: 400 });
+  }
 
-  const feed = env("UFC_FEED_BASE_URL").replace(/\/+$/, "");
   const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
   const errors: { source: string; error: string }[] = [];
   const fail = (source: string, error: unknown) => errors.push({ source, error: error instanceof Error ? error.message : String(error) });
+
+  if (mode === "photos") {
+    const apisportsKey = Deno.env.get("APISPORTS_KEY");
+    let photos: PhotoReport | "skipped" = "skipped";
+    if (apisportsKey) {
+      try {
+        // The free plan only serves fights from yesterday to tomorrow;
+        // APISPORTS_PLAN=paid lifts the window.
+        photos = await syncPhotos(db, apisportsKey, Deno.env.get("APISPORTS_PLAN") === "paid", await storedCards(db), fail);
+      } catch (error) {
+        fail("photos", error);
+      }
+    }
+    const report = { mode, photos, errors };
+    console.log(JSON.stringify(report));
+    return Response.json(report, { status: errors.length ? 207 : 200 });
+  }
+
+  const feed = env("UFC_FEED_BASE_URL").replace(/\/+$/, "");
 
   // Cards already stored and still open. In full mode these are synced even
   // if they have left the listing, so a postponed card is not stranded.
@@ -100,12 +124,10 @@ Deno.serve(async request => {
   }
 
   const synced: unknown[] = [];
-  const cards: IngestedCard[] = [];
   for (const fmid of fmids) {
     try {
       const card = parseCard(JSON.parse(await get(`${feed}/${fmid}.json`)));
       if (!card) continue;
-      cards.push(card);
       const { data, error } = await db.rpc("sync_event_card", { card });
       if (error) throw new Error(error.message);
       synced.push({ fmid, name: card.name, ...data, ...(card.issues.length ? { issues: card.issues } : {}) });
@@ -117,19 +139,7 @@ Deno.serve(async request => {
   const { data: slotted, error: slotError } = await db.rpc("assign_season_slots");
   if (slotError) fail("season slots", slotError);
 
-  const apisportsKey = Deno.env.get("APISPORTS_KEY");
-  let photos: PhotoReport | "skipped" = "skipped";
-  if (mode === "full" && apisportsKey) {
-    try {
-      // The free plan only serves fights from yesterday to tomorrow, so photos
-      // arrive the day before each card. APISPORTS_PLAN=paid lifts the window.
-      photos = await syncPhotos(db, apisportsKey, Deno.env.get("APISPORTS_PLAN") === "paid", cards, fail);
-    } catch (error) {
-      fail("photos", error);
-    }
-  }
-
-  const report = { mode, synced, awaitingFeed, slotted: slotted ?? 0, photos, errors };
+  const report = { mode, synced, awaitingFeed, slotted: slotted ?? 0, errors };
   console.log(JSON.stringify(report));
   return Response.json(report, { status: errors.length ? 207 : 200 });
 });
@@ -141,6 +151,48 @@ class ApiSportsUnavailable extends Error {}
 /** The plan does not serve this date; later runs will reach it. */
 class ApiSportsDateOutOfPlan extends Error {}
 
+/** The card fields the photo step reads, loaded from our own tables. */
+type PhotoCard = {
+  name: string;
+  startsAt: string;
+  bouts: {
+    ufcFightId: string;
+    weightClass: string | null;
+    red: { ufcFighterId: string; name: string };
+    blue: { ufcFighterId: string; name: string };
+  }[];
+};
+
+/** Upcoming and running cards as stored, so a photo run never touches the UFC feed. */
+async function storedCards(db: Db): Promise<PhotoCard[]> {
+  const { data, error } = await db
+    .from("events")
+    .select(`name, starts_at, bouts ( ufc_fight_id, weight_class, status,
+      red:fighters!bouts_red_fighter_id_fkey ( ufc_fighter_id, name ),
+      blue:fighters!bouts_blue_fighter_id_fkey ( ufc_fighter_id, name ) )`)
+    .in("status", ["scheduled", "live"])
+    .gte("starts_at", new Date(Date.now() - RECENT).toISOString());
+  if (error) throw new Error(error.message);
+  type Fighter = { ufc_fighter_id: string | null; name: string };
+  type Row = {
+    name: string;
+    starts_at: string;
+    bouts: { ufc_fight_id: string | null; weight_class: string | null; status: string; red: Fighter; blue: Fighter }[];
+  };
+  return ((data ?? []) as unknown as Row[]).map(e => ({
+    name: e.name,
+    startsAt: new Date(e.starts_at).toISOString(),
+    bouts: e.bouts
+      .filter(b => b.status === "scheduled" && b.ufc_fight_id && b.red.ufc_fighter_id && b.blue.ufc_fighter_id)
+      .map(b => ({
+        ufcFightId: b.ufc_fight_id!,
+        weightClass: b.weight_class,
+        red: { ufcFighterId: b.red.ufc_fighter_id!, name: b.red.name },
+        blue: { ufcFighterId: b.blue.ufc_fighter_id!, name: b.blue.name },
+      })),
+  }));
+}
+
 type PhotoReport = {
   set: number;
   /** API-Sports fights received, and card bouts matched to one. */
@@ -151,6 +203,8 @@ type PhotoReport = {
   /** Fallback lookups by name, and fighters matched that way. */
   nameSearches: number;
   nameMatched: number;
+  /** Searched by name without a match; skipped for a week. */
+  notFound?: number;
   /** Field names on one API-Sports fighter, to confirm where the photo is. */
   sampleFighterFields?: string[];
 };
@@ -167,10 +221,10 @@ async function apisports(key: string, path: string): Promise<unknown> {
   if (apiErrors && (Array.isArray(apiErrors) ? apiErrors.length : Object.keys(apiErrors).length)) {
     const message = `API-Sports: ${JSON.stringify(apiErrors)}`;
     const text = JSON.stringify(apiErrors);
-    // A `plan` error refuses one date. Key and quota problems come back as
-    // `token` / `requests` errors and would refuse everything.
+    // A `plan` error refuses one date. Key, quota and rate problems come back
+    // as `token`, `requests` or `rateLimit` errors and would refuse everything.
     if (/"plan"/i.test(text)) throw new ApiSportsDateOutOfPlan(message);
-    throw /token|requests/i.test(text) ? new ApiSportsUnavailable(message) : new Error(message);
+    throw /token|requests|ratelimit/i.test(text) ? new ApiSportsUnavailable(message) : new Error(message);
   }
   return payload;
 }
@@ -180,21 +234,28 @@ async function syncPhotos(
   db: Db,
   key: string,
   paidPlan: boolean,
-  cards: IngestedCard[],
+  cards: PhotoCard[],
   fail: (source: string, error: unknown) => void,
 ): Promise<PhotoReport> {
   const report: PhotoReport = { set: 0, fetchedFights: 0, matchedBouts: 0, deferredDates: 0, nameSearches: 0, nameMatched: 0 };
   const ids = [...new Set(cards.flatMap(c => c.bouts.flatMap(b => [b.red.ufcFighterId, b.blue.ufcFighterId])))];
   if (!ids.length) return report;
-  const { data, error } = await db.from("fighters").select("ufc_fighter_id").in("ufc_fighter_id", ids).is("photo_url", null);
+  // Skip fighters a name search failed to find in the last week; debut
+  // fighters are often not in API-Sports yet, and re-searching them every
+  // run would spend the budget before later cards are reached.
+  const recheckAfter = new Date(Date.now() - 7 * DAY).toISOString();
+  const { data, error } = await db.from("fighters").select("ufc_fighter_id").in("ufc_fighter_id", ids).is("photo_url", null)
+    .or(`photo_checked_at.is.null,photo_checked_at.lt.${recheckAfter}`);
   if (error) throw new Error(error.message);
   const missing = new Set((data ?? []).map(r => r.ufc_fighter_id as string));
 
   let requests = 0;
   let stopped = false;
-  // One request, within budget. Returns null when it should not or could not be made.
+  // One request, within budget and spaced under the per-minute limit.
+  // Returns null when it should not or could not be made.
   const request = async (path: string, source: string): Promise<unknown | null> => {
     if (stopped || requests >= PHOTO_REQUEST_BUDGET) return null;
+    if (requests > 0) await new Promise(resolve => setTimeout(resolve, PHOTO_REQUEST_SPACING_MS));
     requests++;
     try {
       return await apisports(key, path);
@@ -253,6 +314,7 @@ async function syncPhotos(
   // 2. By name, for anyone the date match could not reach. Each surname is
   // searched once per run.
   const searched = new Map<string, unknown>();
+  const notFound: string[] = [];
   for (const card of byDate) {
     const matches: PhotoMatch[] = [];
     for (const bout of card.bouts) {
@@ -268,10 +330,16 @@ async function syncPhotos(
         }
         const match = matchByName({ ...fighter, weightClass: bout.weightClass }, searched.get(term));
         if (match) matches.push(match);
+        else notFound.push(fighter.ufcFighterId);
       }
     }
     report.nameMatched += matches.length;
     await save(matches, `photos by name ${card.name}`);
+  }
+  if (notFound.length) {
+    const { data: count, error: markError } = await db.rpc("mark_photo_checked", { ufc_fighter_ids: notFound });
+    if (markError) fail("photos mark checked", markError.message);
+    else report.notFound = count as number;
   }
   return report;
 }
