@@ -55,3 +55,18 @@ export const PULSE = {
   animationIterationCount: "infinite",
   animationTimingFunction: "ease-in-out",
 } as const;
+
+/**
+ * Placeholder shimmer for content that is still loading. Deliberately calmer
+ * and dimmer than PULSE, so a loading card never reads as a live one.
+ */
+export const SKELETON_PULSE = {
+  animationName: {
+    "0%": { opacity: 0.45 },
+    "50%": { opacity: 0.85 },
+    "100%": { opacity: 0.45 },
+  },
+  animationDuration: "1400ms",
+  animationIterationCount: "infinite",
+  animationTimingFunction: "ease-in-out",
+} as const;

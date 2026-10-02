@@ -7,6 +7,7 @@ const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "sc
   card_segment: "main" as const,
   scheduled_rounds: 3,
   weight_class: "Lightweight",
+  version: 1,
   status,
   red: fighter(`${id}r`, "Red"),
   blue: fighter(`${id}b`, "Blue"),

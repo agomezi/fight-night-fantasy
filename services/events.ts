@@ -9,6 +9,8 @@ export type EventBout = {
   segment: CardSegment | null;
   scheduledRounds: number;
   weightClass: string | null;
+  /** Bumped on a substitution; a pick is saved against the version it saw. */
+  version: number;
   red: EventFighter;
   blue: EventFighter;
 };
@@ -28,7 +30,7 @@ const STILL_RUNNING_MS = 12 * 60 * 60 * 1000;
 export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status,
   bouts (
-    id, fight_order, card_segment, scheduled_rounds, weight_class, status,
+    id, fight_order, card_segment, scheduled_rounds, weight_class, version, status,
     red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname ),
     blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname )
   )`;
@@ -45,6 +47,7 @@ type Row = {
     card_segment: CardSegment | null;
     scheduled_rounds: number;
     weight_class: string | null;
+    version: number;
     status: "scheduled" | "cancelled";
     red: EventFighter;
     blue: EventFighter;
@@ -67,6 +70,7 @@ export function toNextEvent(row: Row): NextEvent {
         segment: b.card_segment,
         scheduledRounds: b.scheduled_rounds,
         weightClass: b.weight_class,
+        version: b.version,
         red: b.red,
         blue: b.blue,
       })),

@@ -18,6 +18,7 @@ import HeaderBar from "../components/HeaderBar";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
+import Skeleton from "../components/Skeleton";
 import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
 import { DEMO, LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { useNextEvent } from "../hooks/useNextEvent";
@@ -262,11 +263,21 @@ export default function Home() {
       serial: event ? startLabel(event.startsAt) : undefined,
       // Content sits low in the card rather than crowding the header rule —
       // the event name is what you should land on, not the label above it.
-      content: (
+      content: next.status === "loading" ? (
+        // Same footprint as the loaded card: title, headline, countdown.
+        <View style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20, gap: 10 }}>
+          <Skeleton width="55%" height={34} radius={8} />
+          <Skeleton width="40%" height={12} />
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height={52} radius={10} style={{ flex: 1 }} />
+            ))}
+          </View>
+        </View>
+      ) : (
         <View style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20 }}>
           <Text style={[commonStyles.cardTitle, { textAlign: "left", fontSize: 34 }]}>
-            {eventName?.title ??
-              (next.status === "loading" ? "Loading…" : next.status === "error" ? "Card unavailable" : "No card yet")}
+            {eventName?.title ?? (next.status === "error" ? "Card unavailable" : "No card yet")}
           </Text>
           <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
             {eventName?.headline?.toUpperCase() ??
@@ -763,7 +774,20 @@ export default function Home() {
             />
           </View>
 
-          {picksTab === "quick" && !mainEvent ? (
+          {next.status === "loading" ? (
+            <View style={{ gap: 16 }}>
+              <Skeleton width="60%" height={11} />
+              <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center" }}>
+                {[0, 1].map((i) => (
+                  <View key={i} style={{ alignItems: "center", gap: 8 }}>
+                    <Skeleton width={52} height={52} radius={12} />
+                    <Skeleton width={70} height={11} />
+                  </View>
+                ))}
+              </View>
+              <Skeleton height={46} radius={10} />
+            </View>
+          ) : picksTab === "quick" && !mainEvent ? (
             <EmptyState
               icon="calendar-outline"
               title="No card yet"
