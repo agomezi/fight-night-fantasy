@@ -46,3 +46,30 @@ and win classes, the three result fields, and
 `c-hero__headline-suffix[data-timestamp]`. Missing structural fields throw;
 unknown method values are held pending. The event date comes from the main-card
 timestamp, not the early-prelim start.
+
+# Card parser
+
+`card.ts` reads upcoming cards for the schedule sync. It has no imports, so the
+`sync-fight-cards` Edge Function loads it directly under Deno.
+
+`parseCard(payload)` reads one event from the UFC stats feed: bout order
+(1 is the main event), card segment, scheduled rounds, weight class and both
+fighters by their feed ids. The event starts at its earliest segment, and
+picks lock there. Events from other organizations (Contender Series, Road to
+UFC) return null.
+
+Segments are null until UFC splits the card, which it does a few weeks out.
+Scheduled rounds come from the rule set; when that is malformed (the feed
+sometimes lists "3 Rnd + OT" as four rounds) the description's count is used,
+then the main-event/title rule, and the repair is noted in `issues`.
+
+Anything structurally missing throws. A half-read card would be dangerous: the
+sync cancels every stored bout that is no longer on the card.
+
+`upcomingEventSlugs` and `eventFmid` find cards on the UFC.com events listing.
+A card can be listed before it has a feed id; the sync reports it as waiting
+and picks it up later. Do not use the `<time datetime>` values on UFC.com
+event pages: they are Eastern time labelled as UTC.
+
+The feed's base URL is a Supabase secret (`UFC_FEED_BASE_URL`) and is never
+committed, so the card tests use hand-built payloads rather than saved ones.
