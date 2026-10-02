@@ -22,6 +22,7 @@ import ProgressRing from "../components/ProgressRing";
 import Skeleton from "../components/Skeleton";
 import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
 import { DEMO, LEAGUE, SEASON_STANDINGS } from "../constants/league";
+import { useHistory } from "../hooks/useHistory";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { countdown, initials, lastName, lockLabel, splitEventName, startLabel } from "../services/events";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -255,8 +256,11 @@ export default function Home() {
   const picksStarted = DEMO ? 3 : 0;
   const picksTotal = event?.bouts.length ?? 0;
   const eventIsLive = event?.status === "live";
-  // Until scoring exists this comes from the demo standings, or is simply zero.
-  const lastEventPoints = myStanding ? 218 : 0;
+  // The latest card you played, once it has anything scored. Before that the
+  // card looks forward to your first event instead.
+  const history = useHistory();
+  const lastPlayed = history.status === "ready" ? history.history.events[0] ?? null : null;
+  const lastScored = lastPlayed && (lastPlayed.total > 0 || lastPlayed.live) ? lastPlayed : null;
   // The player directly above and directly below you.
   const neighbours = myStanding
     ? SEASON_STANDINGS.filter(
@@ -633,17 +637,18 @@ export default function Home() {
                * Same rule: zero points is not a stat worth a tile. Before the
                * first event this card looks forward instead of back.
                */
-              ...(lastEventPoints > 0
+              ...(lastScored
                 ? {
-                    serial: "UFC 299",
+                    serial: splitEventName(lastScored.name).title.toUpperCase(),
                     mark: <CardMark name="belt" top={44} color={c.textFaint} accent={c.gold} opacity={1} />,
-                    tag: "LAST EVENT POINTS",
-                    tagColor: c.textMuted,
-                    title: String(lastEventPoints),
+                    tag: lastScored.live ? "LIVE EVENT POINTS" : "LAST EVENT POINTS",
+                    tagColor: lastScored.live ? c.red : c.textMuted,
+                    title: lastScored.points > 0 ? `+${lastScored.points}` : lastScored.points < 0 ? `−${-lastScored.points}` : "0",
                     titleUnit: "PTS",
                     titleSize: 50,
                     footer: (
-                      <View
+                      <PressableScale
+                        onPress={() => router.push("/history")}
                         style={{
                           flexDirection: "row",
                           justifyContent: "space-between",
@@ -656,14 +661,14 @@ export default function Home() {
                         <Text
                           style={[commonStyles.cardSubtitle, { textAlign: "left", marginBottom: 0 }]}
                         >
-                          Avg. score
+                          {lastScored.provisional ? "Called so far" : "Called"}
                         </Text>
                         <Text
                           style={[commonStyles.cardSubtitle, { textAlign: "right", marginBottom: 0 }]}
                         >
-                          197
+                          {lastScored.hit} of {lastScored.total}
                         </Text>
-                      </View>
+                      </PressableScale>
                     ),
                   }
                 : {
@@ -695,7 +700,38 @@ export default function Home() {
               tag: "Last Event Recap",
               tagColor: c.text,
               tagSize: 22,
-              footer: (
+              footer: lastPlayed ? (
+                <PressableScale onPress={() => router.push("/history")} style={{ marginTop: 8 }}>
+                  {lastPlayed.bouts.slice(0, 3).map((b) => (
+                    <View
+                      key={b.id}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 8,
+                        paddingVertical: 9,
+                        borderBottomWidth: 1,
+                        borderBottomColor: c.border,
+                      }}
+                    >
+                      <Ionicons
+                        name={b.verdict === "hit" ? "checkmark" : b.verdict === "miss" ? "close" : b.verdict === "void" ? "remove" : "time-outline"}
+                        size={15}
+                        color={b.verdict === "hit" ? c.green : b.verdict === "miss" ? c.red : c.textFaint}
+                      />
+                      <Text style={{ flex: 1, color: c.text, fontSize: 13, fontWeight: "700" }} numberOfLines={1}>
+                        {b.pick}
+                      </Text>
+                      <Text style={{ color: c.textMuted, fontSize: 13, fontVariant: ["tabular-nums"] }}>
+                        {b.points ?? "—"}
+                      </Text>
+                    </View>
+                  ))}
+                  <Text style={[commonStyles.cardSubtitle, { textAlign: "left", marginTop: 10, marginBottom: 0 }]}>
+                    {lastPlayed.picked > 3 ? `See all ${lastPlayed.picked} picks` : "See your picks"} in history
+                  </Text>
+                </PressableScale>
+              ) : (
                 <EmptyState
                   icon="time-outline"
                   title="No history yet"

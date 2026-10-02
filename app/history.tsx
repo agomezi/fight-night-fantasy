@@ -14,10 +14,11 @@ import CardMark from "../components/CardMark";
 import FightCard from "../components/FightCard";
 import PressableScale from "../components/PressableScale";
 import ResultRow from "../components/ResultRow";
-import { PAST_EVENTS } from "../constants/league";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { useHistory } from "../hooks/useHistory";
 import { useToggleProgress } from "../hooks/useToggleProgress";
+import Skeleton from "../components/Skeleton";
 import { makeCommonStyles } from "../styles/common";
 
 /** Disclosure arrow that rotates open. */
@@ -39,23 +40,22 @@ export default function History() {
   const router = useRouter();
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
+  const state = useHistory();
+  const history = state.status === "ready" ? state.history : null;
+  const past = history?.events ?? [];
+  const season = history?.season;
+
   // Most recent event opens by default — it's the one you came to check.
-  const [open, setOpen] = useState<Record<string, boolean>>(
-    PAST_EVENTS.length > 0 ? { [PAST_EVENTS[0].id]: true } : {},
-  );
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const isOpen = (id: string) => open[id] ?? id === past[0]?.id;
+  const toggle = (id: string) => setOpen((p) => ({ ...p, [id]: !isOpen(id) }));
 
-  const events = PAST_EVENTS.length;
-  const totalPoints = PAST_EVENTS.reduce((sum, e) => sum + e.points, 0);
-  const totalHit = PAST_EVENTS.reduce((sum, e) => sum + e.hit, 0);
-  const totalPicked = PAST_EVENTS.reduce((sum, e) => sum + e.total, 0);
-  const accuracy = totalPicked > 0 ? Math.round((totalHit / totalPicked) * 100) : 0;
-
-  const toggle = (id: string) => setOpen((p) => ({ ...p, [id]: !p[id] }));
+  const accuracy = season && season.total > 0 ? Math.round((season.hit / season.total) * 100) : null;
 
   // Filter strip of past events — moved here from picks, where switching
   // events did nothing useful. Here it is the whole point of the screen.
   const [filter, setFilter] = useState<string | null>(null);
-  const shown = filter ? PAST_EVENTS.filter((e) => e.id === filter) : PAST_EVENTS;
+  const shown = filter ? past.filter((e) => e.id === filter) : past;
 
   return (
     <SafeAreaView
@@ -76,7 +76,19 @@ export default function History() {
         </View>
         <View style={commonStyles.divider} />
 
-        {PAST_EVENTS.length === 0 ? (
+        {!history ? (
+          state.status === "error" ? (
+            <Text style={{ color: c.textMuted, fontSize: 14, paddingTop: 40 }}>
+              Couldn&apos;t load your history. Pull back in a moment.
+            </Text>
+          ) : (
+            <View style={{ paddingTop: 20, gap: 14 }}>
+              <Skeleton height={150} radius={14} />
+              <Skeleton height={64} radius={10} />
+              <Skeleton height={64} radius={10} />
+            </View>
+          )
+        ) : past.length === 0 ? (
           <View style={{ paddingTop: 40 }}>
             <Text style={{ color: c.text, fontSize: 22, fontWeight: "800" }}>
               Nothing here yet
@@ -111,12 +123,12 @@ export default function History() {
           </View>
         ) : (
           <>
-            {/* career summary */}
+            {/* season summary */}
             <Animated.View entering={appear(0)}>
               <FightCard
-                label="ALL TIME"
+                label={season!.label}
                 labelColor={c.red}
-                serial={`${events} EVENT${events === 1 ? "" : "S"}`}
+                serial={`${season!.events} EVENT${season!.events === 1 ? "" : "S"}`}
                 mark={<CardMark name="octagon" top={44} />}
               >
                 <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 8 }}>
@@ -129,21 +141,21 @@ export default function History() {
                       fontVariant: ["tabular-nums"],
                     }}
                   >
-                    {accuracy}%
+                    {season!.points.toLocaleString()}
                   </Text>
                   <Text
                     style={{ color: c.textMuted, fontSize: 13, marginBottom: 10 }}
                   >
-                    accuracy
+                    pts
                   </Text>
                 </View>
 
                 <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>
-                  {totalHit} of {totalPicked} bouts called ·{" "}
-                  {totalPoints.toLocaleString()} pts
+                  {season!.hit} of {season!.total} bouts called
+                  {accuracy != null ? ` · ${accuracy}% accuracy` : ""}
                 </Text>
 
-                <AnimatedBar percent={accuracy} style={{ marginTop: 14 }} />
+                <AnimatedBar percent={accuracy ?? 0} style={{ marginTop: 14 }} />
               </FightCard>
             </Animated.View>
 
@@ -164,7 +176,7 @@ export default function History() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: 8, paddingVertical: 12 }}
             >
-              {[{ id: null, name: "All" }, ...PAST_EVENTS].map((e) => {
+              {[{ id: null, name: "All" }, ...past].map((e) => {
                 const on = filter === e.id;
                 return (
                   <PressableScale
@@ -195,8 +207,9 @@ export default function History() {
             </ScrollView>
 
             {shown.map((e, i) => {
-              const isOpen = !!open[e.id];
-              const pct = e.total > 0 ? Math.round((e.hit / e.total) * 100) : 0;
+              const expanded = isOpen(e.id);
+              const pct = e.total > 0 ? Math.round((e.hit / e.total) * 100) : null;
+              const status = e.live ? "LIVE" : e.provisional ? "PROVISIONAL" : null;
 
               return (
                 <Animated.View
@@ -211,7 +224,7 @@ export default function History() {
                       alignItems: "center",
                       gap: 12,
                       paddingVertical: 16,
-                      borderBottomWidth: isOpen ? 0 : 1,
+                      borderBottomWidth: expanded ? 0 : 1,
                       borderBottomColor: c.border,
                     }}
                   >
@@ -227,7 +240,7 @@ export default function History() {
                         {e.name}
                       </Text>
                       <Text style={{ color: c.textFaint, fontSize: 12, marginTop: -2 }}>
-                        {e.date} · {e.hit} of {e.total} called
+                        {e.date} · {e.hit} of {e.total} called{status ? ` · ${status}` : ""}
                       </Text>
                     </View>
 
@@ -240,24 +253,24 @@ export default function History() {
                           fontVariant: ["tabular-nums"],
                         }}
                       >
-                        {e.points}
+                        {e.points > 0 ? `+${e.points}` : e.points < 0 ? `−${-e.points}` : "0"}
                       </Text>
                       <Text
                         style={{
-                          color: pct >= 60 ? c.green : c.textMuted,
+                          color: pct != null && pct >= 60 ? c.green : c.textMuted,
                           fontSize: 11,
                           fontWeight: "700",
                           fontVariant: ["tabular-nums"],
                         }}
                       >
-                        {pct}%
+                        {pct != null ? `${pct}%` : "—"}
                       </Text>
                     </View>
 
-                    <Chevron open={isOpen} />
+                    <Chevron open={expanded} />
                   </PressableScale>
 
-                  {isOpen && (
+                  {expanded && (
                     <Animated.View
                       entering={FadeIn.duration(180)}
                       exiting={FadeOut.duration(120)}
@@ -273,11 +286,12 @@ export default function History() {
                           index={bi}
                           red={b.red}
                           blue={b.blue}
-                          meta="Final"
+                          meta={b.meta}
                           detail={b.detail}
                           points={b.points}
                           verdict={b.verdict}
-                          verdictNote={b.verdictNote}
+                          verdictNote={b.voidNote ? `${b.pick} · ${b.voidNote}` : b.pick}
+                          settled={b.settled}
                           last={bi === e.bouts.length - 1}
                         />
                       ))}

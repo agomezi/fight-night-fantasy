@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
@@ -31,6 +32,7 @@ export default function ResultRow({
   points,
   verdict,
   verdictNote,
+  settled = true,
   index = 0,
   last = false,
 }: {
@@ -42,8 +44,10 @@ export default function ResultRow({
   detail?: string;
   points?: string;
   /** Whether your pick came in. Omit when there was no pick. */
-  verdict?: "hit" | "miss" | "none";
+  verdict?: "hit" | "miss" | "void" | "pending" | "none";
   verdictNote?: string;
+  /** False before there is a result: neither side is marked as losing. */
+  settled?: boolean;
   index?: number;
   last?: boolean;
 }) {
@@ -79,7 +83,7 @@ export default function ResultRow({
               color: won ? c.text : c.textFaint,
             }}
           >
-            {side.method ?? "L"}
+            {side.method ?? (settled ? "L" : "—")}
           </Text>
           <Text style={{ fontSize: 11.5, color: c.textMuted }}>{side.name}</Text>
         </View>
@@ -89,10 +93,12 @@ export default function ResultRow({
 
   const badge =
     verdict === "hit"
-      ? { bg: "rgba(46,204,113,0.14)", fg: c.green }
+      ? { bg: "rgba(46,204,113,0.14)", fg: c.green, icon: "checkmark" as const }
       : verdict === "miss"
-        ? { bg: c.surface2, fg: c.textFaint }
-        : null;
+        ? { bg: c.redTint, fg: c.red, icon: "close" as const }
+        : verdict === "void" || verdict === "pending"
+          ? { bg: c.surface2, fg: c.textMuted, icon: null }
+          : null;
 
   return (
     <Animated.View
@@ -113,12 +119,16 @@ export default function ResultRow({
           <View
             style={{
               alignSelf: "flex-start",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
               backgroundColor: badge.bg,
               borderRadius: 5,
               paddingHorizontal: 7,
               paddingVertical: 3,
             }}
           >
+            {badge.icon && <Ionicons name={badge.icon} size={11} color={badge.fg} />}
             <Text
               style={{
                 fontSize: 9.5,
