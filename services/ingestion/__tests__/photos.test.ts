@@ -1,4 +1,4 @@
-import { apiPairs, matchPhotos, nameKey, sameFighter } from "../photos";
+import { apiPairs, matchByName, matchPhotos, nameKey, sameFighter, searchTerm } from "../photos";
 
 // Hand-built responses in the shape of API-Sports' `fights?date=` endpoint.
 const fighter = (id: number, name: string, logo: unknown = `https://media.api-sports.io/mma/fighters/${id}.png`) => ({ id, name, logo });
@@ -91,5 +91,60 @@ describe("matchPhotos", () => {
     expect(apiPairs({ errors: { token: "invalid" }, response: [] })).toEqual([]);
     expect(apiPairs(null)).toEqual([]);
     expect(apiPairs({ response: [{ fighters: { first: { id: "x", name: 1 } } }] })).toEqual([]);
+  });
+});
+
+describe("matchByName (fallback)", () => {
+  const card = (name: string, weightClass: string | null = "Lightweight") => ({ ufcFighterId: `u-${name}`, name, weightClass });
+  const found = (...fighters: object[]) => ({ errors: [], response: fighters });
+  const api = (id: number, name: string, category = "Lightweight") => ({ id, name, category, photo: `https://media.api-sports.io/mma/fighters/${id}.png` });
+
+  test("one fighter with the exact name is matched", () => {
+    expect(matchByName(card("Esteban Ribovics"), found(api(7, "Esteban Ribovics"), api(8, "Someone Ribovics")))).toEqual({
+      ufcFighterId: "u-Esteban Ribovics", apisportsFighterId: 7, photoUrl: "https://media.api-sports.io/mma/fighters/7.png",
+    });
+  });
+  test("accents and suffixes do not stop a match", () => {
+    expect(matchByName(card("Raul Rosas Jr."), found(api(9, "Raúl Rosas")))?.apisportsFighterId).toBe(9);
+  });
+  test("no first-initial leeway without an opponent to confirm it", () => {
+    expect(matchByName(card("Alex Pereira"), found(api(1, "Alexandre Pereira")))).toBeNull();
+  });
+  test("two fighters with one name are told apart by weight class", () => {
+    const twoBrunos = found(api(21, "Bruno Silva", "Middleweight"), api(22, "Bruno Silva", "Flyweight"));
+    expect(matchByName(card("Bruno Silva", "Flyweight"), twoBrunos)?.apisportsFighterId).toBe(22);
+  });
+  test("and skipped when weight class cannot tell them apart", () => {
+    const twoBrunos = found(api(21, "Bruno Silva", "Flyweight"), api(22, "Bruno Silva", "Flyweight"));
+    expect(matchByName(card("Bruno Silva", "Flyweight"), twoBrunos)).toBeNull();
+    expect(matchByName(card("Bruno Silva", null), twoBrunos)).toBeNull();
+  });
+  test("women's divisions compare despite the apostrophe", () => {
+    const two = found(api(31, "Ana Silva", "Women's Flyweight"), api(32, "Ana Silva", "Bantamweight"));
+    expect(matchByName(card("Ana Silva", "Women's Flyweight"), two)?.apisportsFighterId).toBe(31);
+  });
+  test("a single-word name is never matched by name alone", () => {
+    expect(matchByName(card("Mizuki"), found(api(41, "Mizuki")))).toBeNull();
+  });
+  test("a match without an https photo is no match", () => {
+    expect(matchByName(card("Esteban Ribovics"), found({ id: 7, name: "Esteban Ribovics", photo: null }))).toBeNull();
+  });
+  test("errors and junk match nothing", () => {
+    expect(matchByName(card("Esteban Ribovics"), { errors: { plan: "x" }, response: [] })).toBeNull();
+    expect(matchByName(card("Esteban Ribovics"), null)).toBeNull();
+  });
+});
+
+describe("searchTerm", () => {
+  test.each([
+    ["Esteban Ribovics", "ribovics"],
+    ["Raul Rosas Jr.", "rosas"],
+    ["José Aldo", "aldo"],
+    ["Wang Cong", "cong"],
+    ["Da Un Jung", "jung"],
+    ["Li Jingliang", "jingliang"],
+    ["Yi Ma", "ma"],
+  ])("%s searches %s", (name, term) => {
+    expect(searchTerm(name)).toBe(term.length >= 3 ? term : null);
   });
 });
