@@ -297,6 +297,97 @@ export function scorePick(
 }
 
 /* ------------------------------------------------------------------ *
+ * Season ledger
+ * ------------------------------------------------------------------ */
+
+/**
+ * What an Amateur at 0 owes after a bout where every call they made was
+ * wrong. Paid only out of later earnings.
+ */
+export const AMATEUR_DEBT = 20;
+
+/**
+ * Whether a tier's season total can go below 0. Casual and Amateur stop at 0;
+ * Pro and Hardcore take every deduction in full.
+ */
+const FLOORED: Record<Tier, boolean> = {
+  casual: true,
+  amateur: true,
+  pro: false,
+  hardcore: false,
+};
+
+/** Only Amateur carries the debt. */
+const CARRIES_DEBT: Record<Tier, boolean> = {
+  casual: false,
+  amateur: true,
+  pro: false,
+  hardcore: false,
+};
+
+export type LedgerEntry = {
+  /** What the bout scored on its own. */
+  points: number;
+  /** What it actually moved the season total by, after floor and debt. */
+  applied: number;
+  /** Season total after this bout. */
+  total: number;
+  /** Debt outstanding after this bout. */
+  debt: number;
+};
+
+/** Every line the user called was wrong — nothing earned anywhere. */
+function allWrong({ points, breakdown }: Score) {
+  return (
+    points < 0 &&
+    breakdown.fighter <= 0 &&
+    breakdown.method <= 0 &&
+    breakdown.round <= 0
+  );
+}
+
+/**
+ * Walk one user's season in the order the bouts were fought and work out the
+ * running total.
+ *
+ * This is the only stateful rule in scoring, which is why it lives outside
+ * scorePick: each bout's points stay a pure function of its pick and result,
+ * and the ledger is rebuilt from zero by replaying them. A corrected result
+ * re-scores its bout and replays the season — nothing is patched in place.
+ *
+ * Floored tiers can't drop below 0. Amateur adds the debt: at 0, a bout where
+ * every call was wrong leaves them owing AMATEUR_DEBT. It doesn't stack, it
+ * never triggers on a bout that started above 0, and it comes out of the next
+ * points they earn before any reach the total. A new season starts clean, so
+ * pass one season at a time.
+ */
+export function settleSeason(tier: Tier, scores: Score[]) {
+  const floored = FLOORED[tier];
+  const carriesDebt = CARRIES_DEBT[tier];
+  let total = 0;
+  let debt = 0;
+  const entries: LedgerEntry[] = [];
+
+  for (const score of scores) {
+    const before = total;
+    let { points } = score;
+
+    if (points > 0 && debt > 0) {
+      const paid = Math.min(debt, points);
+      debt -= paid;
+      points -= paid;
+    }
+
+    if (carriesDebt && before === 0 && allWrong(score)) debt = AMATEUR_DEBT;
+
+    total = floored ? Math.max(0, total + points) : total + points;
+    entries.push({ points: score.points, applied: total - before, total, debt });
+  }
+
+  return { total, debt, entries };
+}
+
+/* ------------------------------------------------------------------ *
  * Aggregation
  * ------------------------------------------------------------------ */
 

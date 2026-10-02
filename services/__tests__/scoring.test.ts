@@ -11,7 +11,9 @@ import type { LanePick } from "../../components/RoundLane";
 import {
   POINTS,
   deductionsFor,
+  AMATEUR_DEBT,
   scorePick,
+  settleSeason,
   summarise,
   type BoutResult,
   type ScoreContext,
@@ -377,5 +379,78 @@ describe("summarise", () => {
     expect(summarise(perfect).points).toBe(250);
     expect(summarise(prolific).points).toBe(-750);
     expect(summarise(prolific).accuracy).toBe(0.2);
+  });
+});
+
+describe("settleSeason", () => {
+  const allWrong = scorePick(pick({ corner: "blue", finish: 3, method: "SUB" }), koRound2); // -95
+  const fighterOnlyWrong = scorePick(pick({ corner: "blue", finish: "ANY" }), koRound2); // -50
+  const readRightFighterWrong = scorePick(pick({ corner: "blue", finish: "ANY", method: "KO" }), koRound2); // -25
+  const scrape = scorePick(pick({ corner: "red", finish: 3, method: "SUB" }), koRound2); // +5
+  const winner = scorePick(pick({ corner: "red", finish: "ANY" }), koRound2); // +50
+  const perfect = scorePick(pick({ corner: "red", finish: 2, method: "KO" }), koRound2); // +125
+  const voided = scorePick(pick({ corner: "red", finish: "ANY" }), { status: "void", reason: "NC" });
+  const pending = scorePick(pick({ corner: "red", finish: "ANY" }), { status: "pending" });
+
+  it.each(["pro", "hardcore"] as const)("lets %s go negative with every deduction in full", (tier) => {
+    const s = settleSeason(tier, [allWrong, winner]);
+    expect(s.total).toBe(-45);
+    expect(s.debt).toBe(0);
+  });
+
+  it("stops Casual at 0 with no debt", () => {
+    const casualAllWrong = scorePick(pick({ corner: "blue", finish: 3, method: "SUB" }), koRound2, {
+      tier: "casual",
+    });
+    const s = settleSeason("casual", [casualAllWrong, winner]);
+    expect(s.entries[0]).toMatchObject({ points: -47, applied: 0, total: 0, debt: 0 });
+    expect(s.total).toBe(50);
+  });
+
+  it("leaves an Amateur at 0 owing the debt after an all-wrong bout", () => {
+    const s = settleSeason("amateur", [allWrong]);
+    expect(s.entries[0]).toMatchObject({ points: -95, applied: 0, total: 0, debt: AMATEUR_DEBT });
+  });
+
+  it("counts a wrong fighter-only pick as everything wrong", () => {
+    expect(settleSeason("amateur", [fighterOnlyWrong]).debt).toBe(20);
+  });
+
+  it("takes the debt out of the next earnings: +125 lands as 105", () => {
+    const s = settleSeason("amateur", [allWrong, perfect]);
+    expect(s.entries[1]).toMatchObject({ points: 125, applied: 105, total: 105, debt: 0 });
+  });
+
+  it("pays the debt off across several bouts if one doesn't cover it", () => {
+    const s = settleSeason("amateur", [allWrong, scrape, winner]);
+    expect(s.entries[1]).toMatchObject({ applied: 0, total: 0, debt: 15 });
+    expect(s.entries[2]).toMatchObject({ applied: 35, total: 35, debt: 0 });
+  });
+
+  it("does not stack", () => {
+    expect(settleSeason("amateur", [allWrong, allWrong, allWrong]).debt).toBe(20);
+  });
+
+  it("does not trigger on a bout that started above 0", () => {
+    const s = settleSeason("amateur", [winner, allWrong]);
+    expect(s.entries[1]).toMatchObject({ applied: -50, total: 0, debt: 0 });
+    // Now at 0, the next all-wrong bout does trigger it.
+    expect(settleSeason("amateur", [winner, allWrong, allWrong]).debt).toBe(20);
+  });
+
+  it("does not trigger when part of the read was right", () => {
+    expect(settleSeason("amateur", [readRightFighterWrong]).debt).toBe(0);
+  });
+
+  it("is untouched by void and pending bouts", () => {
+    const s = settleSeason("amateur", [allWrong, voided, pending]);
+    expect(s.debt).toBe(20);
+    expect(s.total).toBe(0);
+  });
+
+  it("replays cleanly after a correction", () => {
+    // The opening bout is re-ruled from a loss to a win; the debt never existed.
+    expect(settleSeason("amateur", [allWrong, perfect]).total).toBe(105);
+    expect(settleSeason("amateur", [perfect, perfect]).total).toBe(250);
   });
 });
