@@ -6,21 +6,23 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
-import { ProfileProvider } from "../context/ProfileContext";
+import { ProfileProvider, useProfile } from "../context/ProfileContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 
 SplashScreen.preventAutoHideAsync();
 
 function ThemedApp() {
   const { c } = useTheme();
-  const { session, ready } = useAuth();
+  const { session, ready: authReady } = useAuth();
+  const { ready: profileReady, needsOnboarding } = useProfile();
+  const ready = authReady && profileReady;
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
 
-  // Hold the splash screen until the saved session has been read, so a
-  // signed-in user never sees the login screen flash.
+  // Hold the splash screen until the saved session and the player's name have
+  // been read, so nobody sees the login screen or onboarding flash.
   if (!ready) return null;
 
   return (
@@ -36,7 +38,11 @@ function ThemedApp() {
         <Stack.Protected guard={!session}>
           <Stack.Screen name="login" />
         </Stack.Protected>
-        <Stack.Protected guard={!!session}>
+        {/* A new account picks a name before anything else. */}
+        <Stack.Protected guard={!!session && needsOnboarding}>
+          <Stack.Screen name="onboarding" />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !needsOnboarding}>
           <Stack.Screen name="home" />
           <Stack.Screen name="picks" />
           <Stack.Screen name="profile" />

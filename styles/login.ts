@@ -4,9 +4,9 @@ import { Palette } from "../constants/palette";
 // Anton's metrics, as fractions of the font size: the cap height, the gap
 // between the top of the line box and the top of the capitals, and the side
 // bearing before the first letter. Used to set "FIGHT NIGHT" edge to edge.
-const CAP = 1760 / 2048;
-const CAP_TOP = (2409 - 1760) / 2048;
-const LEFT_BEARING = 78 / 2048;
+export const CAP = 1760 / 2048;
+export const CAP_TOP = (2409 - 1760) / 2048;
+export const LEFT_BEARING = 78 / 2048;
 // Ink width of "NIGHT", the wider word, as a fraction of the font size.
 const NIGHT_WIDTH = 4211 / 2048;
 
