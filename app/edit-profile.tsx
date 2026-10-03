@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import PressableScale from "../components/PressableScale";
 import { getInitials, useProfile } from "../context/ProfileContext";
+import { cleanHandle, handleProblem, HandleTakenError, HANDLE_MAX } from "../services/profile";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -50,15 +51,36 @@ export default function EditProfile() {
   const router = useRouter();
   const { c } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
-  const { profile, updateProfile } = useProfile();
+  const { profile, updateProfile, setUsername: saveUsername } = useProfile();
+  const [saving, setSaving] = useState(false);
 
   const [username, setUsername] = useState(profile.username);
   const [specialist, setSpecialist] = useState(profile.title);
   const [favDivision, setFavDivision] = useState(profile.favDivision);
   const [bio, setBio] = useState(profile.bio);
 
-  const save = () => {
-    updateProfile({ username, title: specialist, favDivision, bio });
+  const save = async () => {
+    if (saving) return;
+    // The name lives on the server and has rules; the rest stays on this phone.
+    if (username !== profile.username) {
+      const problem = handleProblem(username);
+      if (problem) {
+        Alert.alert("Check your name", problem);
+        return;
+      }
+      setSaving(true);
+      try {
+        await saveUsername(username);
+      } catch (e) {
+        Alert.alert(
+          e instanceof HandleTakenError ? "That name is taken" : "Couldn't save your name",
+          e instanceof HandleTakenError ? "Try another one." : e instanceof Error ? e.message : "Please try again."
+        );
+        setSaving(false);
+        return;
+      }
+    }
+    updateProfile({ title: specialist, favDivision, bio });
     router.back();
   };
 
@@ -92,10 +114,13 @@ export default function EditProfile() {
         <Text style={styles.fieldLabel}>USERNAME</Text>
         <ClearableInput
           value={username}
-          onChangeText={setUsername}
-          autoCapitalize="sentences"
+          onChangeText={(t) => setUsername(cleanHandle(t))}
+          autoCapitalize="none"
+          autoCorrect={false}
+          maxLength={HANDLE_MAX}
           placeholder="Username"
         />
+        <Text style={styles.hint}>3–{HANDLE_MAX} letters, numbers or underscores. Must be unique.</Text>
 
         <Text style={styles.fieldLabel}>TITLE</Text>
         <ClearableInput
