@@ -82,7 +82,6 @@ const SLIDES: Slide[] = [
     rows: [
       { label: "Season", value: "11 CARDS" },
       { label: "Ranked by", value: "POINTS + ACCURACY" },
-      { label: "History", value: "EVERY PICK, ✓ OR ✗" },
     ],
   },
 ];
