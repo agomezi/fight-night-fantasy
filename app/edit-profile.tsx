@@ -3,6 +3,8 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
+  Modal,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -11,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import PressableScale from "../components/PressableScale";
+import { DIVISIONS } from "../constants/divisions";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { cleanHandle, handleProblem, HandleTakenError, HANDLE_MAX } from "../services/profile";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -47,6 +50,60 @@ function ClearableInput({ value, onChangeText, multiline, style, ...rest }: Clea
   );
 }
 
+/** Favorite division as a choice from the UFC's weight classes, men's and women's. */
+function DivisionPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
+  const { c } = useTheme();
+  const styles = useThemedStyles(makeSettingsStyles);
+  const [open, setOpen] = useState(false);
+  const choose = (d: string) => {
+    onChange(d);
+    setOpen(false);
+  };
+
+  const option = (d: string, label = d) => (
+    <PressableScale
+      key={label}
+      onPress={() => choose(d)}
+      style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 13 }}
+    >
+      <Text style={{ color: d === value ? c.text : c.text2, fontSize: 16, fontWeight: d === value ? "800" : "500" }}>
+        {label}
+      </Text>
+      {d === value && <Ionicons name="checkmark" size={18} color={c.red} />}
+    </PressableScale>
+  );
+
+  return (
+    <>
+      <PressableScale
+        onPress={() => setOpen(true)}
+        style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+        accessibilityRole="button"
+        accessibilityLabel={`Favorite division: ${value || "none"}`}
+      >
+        <Text style={{ color: value ? c.text : c.textFaint, fontSize: 15 }}>{value || "Choose a division"}</Text>
+        <Ionicons name="chevron-down" size={18} color={c.textFaint} />
+      </PressableScale>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={[styles.modalOverlay, { justifyContent: "flex-end", padding: 0 }]} onPress={() => setOpen(false)}>
+          <Pressable style={[styles.modalCard, { borderBottomLeftRadius: 0, borderBottomRightRadius: 0, maxHeight: "80%", paddingBottom: 36 }]}>
+            <Text style={[styles.modalTitle, { textAlign: "left" }]}>Favorite division</Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.fieldLabel}>MEN&apos;S</Text>
+              {DIVISIONS.men.map((d) => option(d))}
+              <Text style={styles.fieldLabel}>WOMEN&apos;S</Text>
+              {DIVISIONS.women.map((d) => option(d))}
+              <View style={{ height: 8 }} />
+              {option("", "No favorite")}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
 export default function EditProfile() {
   const router = useRouter();
   const { c } = useTheme();
@@ -55,7 +112,6 @@ export default function EditProfile() {
   const [saving, setSaving] = useState(false);
 
   const [username, setUsername] = useState(profile.username);
-  const [specialist, setSpecialist] = useState(profile.title);
   const [favDivision, setFavDivision] = useState(profile.favDivision);
   const [bio, setBio] = useState(profile.bio);
 
@@ -80,7 +136,7 @@ export default function EditProfile() {
         return;
       }
     }
-    updateProfile({ title: specialist, favDivision, bio });
+    updateProfile({ title: profile.title, favDivision, bio });
     router.back();
   };
 
@@ -123,18 +179,15 @@ export default function EditProfile() {
         <Text style={styles.hint}>3–{HANDLE_MAX} letters, numbers or underscores. Must be unique.</Text>
 
         <Text style={styles.fieldLabel}>TITLE</Text>
-        <ClearableInput
-          value={specialist}
-          onChangeText={setSpecialist}
-          placeholder="e.g. Tactical Specialist"
+        <TextInput
+          style={[styles.input, styles.inputDisabled]}
+          value={profile.title}
+          editable={false}
         />
+        <Text style={styles.hint}>Titles are earned from your picks. Coming soon.</Text>
 
         <Text style={styles.fieldLabel}>FAVORITE DIVISION</Text>
-        <ClearableInput
-          value={favDivision}
-          onChangeText={setFavDivision}
-          placeholder="e.g. Lightweight"
-        />
+        <DivisionPicker value={favDivision} onChange={setFavDivision} />
 
         <Text style={styles.fieldLabel}>BIO</Text>
         <ClearableInput
