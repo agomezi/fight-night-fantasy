@@ -18,7 +18,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
-import { cleanHandle, handleProblem, HandleTakenError, HANDLE_MAX, isHandleAvailable } from "../services/profile";
+import { cleanHandle, HandleBlockedError, handleProblem, handleStatus, HandleTakenError, HANDLE_MAX } from "../services/profile";
 import { DEDUCTIONS, POINTS, UNDERDOG_MULTIPLIER } from "../services/scoring";
 import { CAP, CAP_TOP, GUTTER, LEFT_BEARING, makeLoginStyles } from "../styles/login";
 
@@ -133,7 +133,7 @@ export default function Onboarding() {
 
   // --- name -----------------------------------------------------------------
   const [name, setName] = useState("");
-  const [availability, setAvailability] = useState<"idle" | "checking" | "free" | "taken" | "error">("idle");
+  const [availability, setAvailability] = useState<"idle" | "checking" | "free" | "taken" | "blocked" | "error">("idle");
   const [saving, setSaving] = useState(false);
   const problem = name ? handleProblem(name) : null;
 
@@ -145,8 +145,8 @@ export default function Onboarding() {
     setAvailability("checking");
     let current = true;
     const timer = setTimeout(() => {
-      isHandleAvailable(name)
-        .then((free) => current && setAvailability(free ? "free" : "taken"))
+      handleStatus(name)
+        .then((status) => current && setAvailability(status === "invalid" ? "idle" : status))
         .catch(() => current && setAvailability("error"));
     }, 350);
     return () => {
@@ -155,7 +155,8 @@ export default function Onboarding() {
     };
   }, [name]);
 
-  const canFinish = !!name && !problem && availability !== "taken" && availability !== "checking" && !saving;
+  const canFinish =
+    !!name && !problem && availability !== "taken" && availability !== "blocked" && availability !== "checking" && !saving;
 
   const finish = async () => {
     if (!canFinish) return;
@@ -165,6 +166,7 @@ export default function Onboarding() {
       router.replace("/home");
     } catch (e) {
       if (e instanceof HandleTakenError) setAvailability("taken");
+      else if (e instanceof HandleBlockedError) setAvailability("blocked");
       else Alert.alert("Couldn't save your name", e instanceof Error ? e.message : "Please try again.");
       setSaving(false);
     }
@@ -186,12 +188,15 @@ export default function Onboarding() {
       ? "Checking…"
       : availability === "taken"
         ? "That name is taken."
-        : availability === "free"
+        : availability === "blocked"
+          ? "That name isn't allowed. Pick another."
+          : availability === "free"
           ? "It's yours."
           : availability === "error"
             ? "Couldn't check right now — you can still try."
             : `3–${HANDLE_MAX} letters, numbers or underscores. You can change it later.`);
-  const hintColor = problem || availability === "taken" ? c.red : availability === "free" ? c.green : muted;
+  const refused = !!problem || availability === "taken" || availability === "blocked";
+  const hintColor = refused ? c.red : availability === "free" ? c.green : muted;
 
   const renderSlide = (index: number) => {
     if (index === NAME_STEP) {
@@ -207,7 +212,7 @@ export default function Onboarding() {
               alignItems: "center",
               marginTop: 28,
               borderBottomWidth: 2,
-              borderBottomColor: problem || availability === "taken" ? c.red : ink,
+              borderBottomColor: refused ? c.red : ink,
               paddingBottom: 8,
             }}
           >
@@ -227,7 +232,7 @@ export default function Onboarding() {
             />
             {availability === "checking" && <ActivityIndicator color={muted} />}
             {availability === "free" && !problem && <Ionicons name="checkmark-circle" size={24} color={c.green} />}
-            {(availability === "taken" || problem) && <Ionicons name="close-circle" size={24} color={c.red} />}
+            {refused && <Ionicons name="close-circle" size={24} color={c.red} />}
           </View>
           <Text style={{ color: hintColor, fontSize: 14, marginTop: 10 }}>{hint}</Text>
         </View>

@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import PressableScale from "../components/PressableScale";
 import { DIVISIONS } from "../constants/divisions";
 import { getInitials, useProfile } from "../context/ProfileContext";
-import { cleanHandle, handleProblem, HandleTakenError, HANDLE_MAX } from "../services/profile";
+import { cleanHandle, HandleBlockedError, handleProblem, HandleTakenError, HANDLE_MAX } from "../services/profile";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -128,10 +128,9 @@ export default function EditProfile() {
       try {
         await saveUsername(username);
       } catch (e) {
-        Alert.alert(
-          e instanceof HandleTakenError ? "That name is taken" : "Couldn't save your name",
-          e instanceof HandleTakenError ? "Try another one." : e instanceof Error ? e.message : "Please try again."
-        );
+        if (e instanceof HandleTakenError) Alert.alert("That name is taken", "Try another one.");
+        else if (e instanceof HandleBlockedError) Alert.alert("That name isn't allowed", "Pick another one.");
+        else Alert.alert("Couldn't save your name", e instanceof Error ? e.message : "Please try again.");
         setSaving(false);
         return;
       }

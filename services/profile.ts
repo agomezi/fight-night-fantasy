@@ -33,11 +33,20 @@ export async function fetchDisplayName(userId: string): Promise<string | null> {
   return (data?.display_name as string | null | undefined) ?? null;
 }
 
-export async function isHandleAvailable(name: string): Promise<boolean> {
+export class HandleBlockedError extends Error {
+  constructor() {
+    super("That name isn't allowed.");
+  }
+}
+
+export type HandleStatus = "free" | "taken" | "blocked" | "invalid";
+
+/** Whether a handle can be used, and if not, why. */
+export async function handleStatus(name: string): Promise<HandleStatus> {
   const { supabase } = await import("./supabase");
-  const { data, error } = await supabase.rpc("display_name_available", { name });
+  const { data, error } = await supabase.rpc("display_name_status", { name });
   if (error) throw new Error(error.message);
-  return data === true;
+  return data as HandleStatus;
 }
 
 export async function saveDisplayName(userId: string, name: string): Promise<void> {
@@ -46,5 +55,6 @@ export async function saveDisplayName(userId: string, name: string): Promise<voi
   const { supabase } = await import("./supabase");
   const { error } = await supabase.from("profiles").update({ display_name: name }).eq("id", userId);
   if (error?.code === "23505") throw new HandleTakenError();
+  if (error?.hint === "blocked") throw new HandleBlockedError();
   if (error) throw new Error(error.message);
 }
