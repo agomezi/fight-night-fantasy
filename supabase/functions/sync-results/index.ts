@@ -1,16 +1,19 @@
 // Live results sync, called by pg_cron whenever an event is due (see the
 // live_results migration).
 //
-//   {}                    every event that is due now
-//   { "eventId": "…" }    one stored event, due or not, for a manual re-run
+//   {}                       every event that is due now
+//   { "eventId": "…" }       one stored event, due or not, for a manual re-run
+//   { "mode": "reminders" }  lock reminders for cards starting within the hour
 //
 // For each event: read the UFC stats feed, write any result that changed,
-// re-score the whole card, then decide when to look again. One event failing
-// never stops the others, and a failed event is retried on the next cycle.
+// re-score the whole card, send any notifications that are now due, then
+// decide when to look again. One event failing never stops the others, and a
+// failed event is retried on the next cycle.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { parseResults, type LiveCard } from "../../../services/ingestion/results.ts";
 import { scoreEvent } from "../../../services/eventScoring.ts";
+import { sendClaimed, type Claimed } from "./push.ts";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36";
 const SECOND = 1000;
@@ -53,6 +56,19 @@ async function rows<T>(query: PromiseLike<{ data: T[] | null; error: { message: 
   return data ?? [];
 }
 
+/** Sends what was claimed and removes phones Expo no longer recognises.
+ * Notifications are never worth failing a sync over, so errors are returned
+ * rather than thrown. */
+async function notify(db: Db, claimed: Claimed[]) {
+  try {
+    const { sent, deadTokens } = await sendClaimed(claimed);
+    if (deadTokens.length) await db.rpc("remove_push_tokens", { tokens: deadTokens });
+    return { claimed: claimed.length, sent };
+  } catch (error) {
+    return { claimed: claimed.length, sent: 0, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: string) {
   const response = await fetch(`${feed}/${ufcEventId}.json`, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(20_000) });
   if (!response.ok) throw new Error(`HTTP ${response.status} from the feed`);
@@ -78,6 +94,9 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   const { data: replaced, error: scoreError } = await db.rpc("replace_event_scores", { event_id: eventId, score_rows: scores });
   if (scoreError) throw new Error(scoreError.message);
 
+  const { data: claimed, error: claimError } = await db.rpc("claim_event_notifications", { event_id: eventId });
+  const notifications = claimError ? { error: claimError.message } : await notify(db, (claimed ?? []) as Claimed[]);
+
   const hasProvisional = results.some(r => r.status === "provisional");
   const dueAt = new Date(Date.now() + nextPollIn(card, hasProvisional)).toISOString();
   const { error: dueError } = await db.rpc("set_results_due", { event_id: eventId, due_at: dueAt });
@@ -89,6 +108,7 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
     status: card.status,
     results: recorded,
     scores: { ...replaced, total: scores.length },
+    notifications,
     nextPoll: dueAt,
     ...(issues.length ? { issues } : {}),
   };
@@ -99,9 +119,16 @@ Deno.serve(async request => {
   if (!sameSecret(request.headers.get("x-card-sync-secret"), env("CARD_SYNC_SECRET"))) {
     return new Response("Unauthorized", { status: 401 });
   }
-  const { eventId } = await request.json().catch(() => ({}));
+  const { eventId, mode } = await request.json().catch(() => ({}));
 
   const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
+
+  if (mode === "reminders") {
+    const { data, error } = await db.rpc("claim_reminders");
+    const report = error ? { mode, error: error.message } : { mode, ...(await notify(db, (data ?? []) as Claimed[])) };
+    console.log(JSON.stringify(report));
+    return Response.json(report, { status: error ? 500 : 200 });
+  }
   const feed = env("UFC_FEED_BASE_URL").replace(/\/+$/, "");
 
   let events: { id: string; ufc_event_id: string }[];

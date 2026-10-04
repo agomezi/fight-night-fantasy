@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useState } from "react";
-import { ActivityIndicator, Alert, Modal, ScrollView, Switch, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, Linking, Modal, ScrollView, Switch, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
 import { PRIVACY_URL, TERMS_URL } from "../constants/legal";
@@ -10,6 +10,7 @@ import { appear } from "../constants/motion";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { disablePush, enablePush, loadNotifyPrefs, pushPermission, saveNotifyPref, type NotifyPrefs } from "../services/push";
 import { makeSettingsStyles } from "../styles/settings";
 
 
@@ -18,11 +19,48 @@ export default function Settings() {
   const { c, mode, preference, setPreference } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
 
-  const [pushEnabled, setPushEnabled] = useState(true);
   const [analytics, setAnalytics] = useState(true);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const { deleteAccount } = useAuth();
+  const { deleteAccount, session } = useAuth();
+  const userId = session?.user.id;
+
+  // Push: the phone's permission, and which kinds this player wants.
+  const [pushOn, setPushOn] = useState(false);
+  const [prefs, setPrefs] = useState<NotifyPrefs | null>(null);
+  useEffect(() => {
+    pushPermission().then((p) => setPushOn(p === "granted")).catch(() => {});
+    if (userId) loadNotifyPrefs(userId).then(setPrefs).catch(() => {});
+  }, [userId]);
+
+  const togglePush = async (on: boolean) => {
+    if (!on) {
+      // The phone's permission can only be revoked in iOS Settings; turning
+      // it off here stops this phone being sent anything.
+      setPushOn(false);
+      await disablePush();
+      return;
+    }
+    const result = await enablePush(true);
+    setPushOn(result === "granted");
+    if (result === "denied") {
+      Alert.alert("Notifications are off", "Turn them on for Fight Night Fantasy in your phone's Settings.", [
+        { text: "Not now", style: "cancel" },
+        { text: "Open Settings", onPress: () => Linking.openSettings() },
+      ]);
+    }
+  };
+
+  const togglePref = (key: keyof NotifyPrefs) => (value: boolean) => {
+    if (!userId || !prefs) return;
+    setPrefs({ ...prefs, [key]: value });
+    saveNotifyPref(userId, key, value).catch(() => setPrefs((p) => (p ? { ...p, [key]: !value } : p)));
+  };
+  const PREF_ROWS: { key: keyof NotifyPrefs; label: string; sub: string }[] = [
+    { key: "notify_reminders", label: "Lock reminders", sub: "An hour before a card starts locking" },
+    { key: "notify_results", label: "Fight results", sub: "Each fight you picked, as it's scored" },
+    { key: "notify_summary", label: "Card recap", sub: "Your total once every result is official" },
+  ];
 
   const switchColors = {
     trackColor: { false: c.borderStrong, true: c.red },
@@ -115,9 +153,21 @@ export default function Settings() {
             <View style={styles.rowIcon}>
               <Ionicons name="notifications-outline" size={20} color={c.text2} />
             </View>
-            <Text style={styles.rowLabel}>Push Notifications</Text>
-            <Switch value={pushEnabled} onValueChange={setPushEnabled} {...switchColors} />
+            <Text style={[styles.rowLabel, { flex: 1 }]}>Push Notifications</Text>
+            <Switch value={pushOn} onValueChange={togglePush} {...switchColors} />
           </View>
+          {pushOn &&
+            prefs &&
+            PREF_ROWS.map((row) => (
+              <View key={row.key} style={[styles.row, styles.rowBorder]}>
+                <View style={styles.rowIcon} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowLabel}>{row.label}</Text>
+                  <Text style={styles.rowSub}>{row.sub}</Text>
+                </View>
+                <Switch value={prefs[row.key]} onValueChange={togglePref(row.key)} {...switchColors} />
+              </View>
+            ))}
           <View style={[styles.row, styles.rowBorder]}>
             <View style={styles.rowIcon}>
               <Ionicons name="bar-chart-outline" size={20} color={c.text2} />

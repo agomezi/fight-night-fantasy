@@ -36,6 +36,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
+import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
@@ -374,6 +375,9 @@ export default function Picks() {
       await savePicks(session.user.id, event.bouts, lane);
       setLockedIn(true);
       setShowLockedModal(true);
+      // The moment notifications make sense: picks are in and there is a card
+      // to hear about. Only asks the first time.
+      enablePush(true);
     } catch (e) {
       shake();
       Alert.alert(

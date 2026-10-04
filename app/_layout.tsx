@@ -1,6 +1,7 @@
 import { Anton_400Regular } from "@expo-google-fonts/anton";
 import { BebasNeue_400Regular, useFonts } from "@expo-google-fonts/bebas-neue";
-import { Stack } from "expo-router";
+import * as Notifications from "expo-notifications";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -8,6 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ProfileProvider, useProfile } from "../context/ProfileContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
+import { enablePush } from "../services/push";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +22,23 @@ function ThemedApp() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync();
   }, [ready]);
+
+  // Keep this phone registered for a signed-in player who has allowed
+  // notifications. Asking for permission happens in context, not here.
+  const signedInWithName = !!session && ready && !needsOnboarding;
+  useEffect(() => {
+    if (signedInWithName) enablePush(false);
+  }, [signedInWithName]);
+
+  // Tapping a notification opens the screen it is about.
+  const router = useRouter();
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen;
+      if (screen === "history" || screen === "picks") router.push(`/${screen}`);
+    });
+    return () => sub.remove();
+  }, [router]);
 
   // Hold the splash screen until the saved session and the player's name have
   // been read, so nobody sees the login screen or onboarding flash.
