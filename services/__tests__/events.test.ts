@@ -1,7 +1,7 @@
-import { countdown, initials, lastName, lockLabel, splitEventName, startLabel, toNextEvent } from "../events";
+import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, toNextEvent } from "../events";
 
 const fighter = (id: string, name: string) => ({ id, name, nickname: null, photoUrl: null });
-const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "scheduled") => ({
+const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "scheduled", locks_at: string | null = null) => ({
   id,
   fight_order: order,
   card_segment: "main" as const,
@@ -9,6 +9,7 @@ const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "sc
   weight_class: "Lightweight",
   version: 1,
   status,
+  locks_at,
   red: fighter(`${id}r`, "Red"),
   blue: fighter(`${id}b`, "Blue"),
 });
@@ -25,6 +26,36 @@ describe("toNextEvent", () => {
     });
     expect(event.bouts.map((b) => b.id)).toEqual(["a", "c"]);
     expect(event.locksAt.toISOString()).toBe("2026-10-03T20:00:00.000Z");
+  });
+
+  test("each bout keeps its own lock, or the card's when it has none", () => {
+    const event = toNextEvent({
+      id: "e",
+      name: "UFC 332: Silva vs. Wang",
+      starts_at: "2026-10-03T20:00:00+00:00",
+      locks_at: "2026-10-03T20:00:00+00:00",
+      status: "scheduled",
+      bouts: [bout("a", 1, "scheduled", "2026-10-04T00:00:00+00:00"), bout("b", 2)],
+    });
+    expect(event.bouts.map((b) => b.locksAt.toISOString())).toEqual(["2026-10-04T00:00:00.000Z", "2026-10-03T20:00:00.000Z"]);
+  });
+});
+
+describe("section locks", () => {
+  const at = (iso: string) => ({ locksAt: new Date(iso) });
+  const card = [at("2026-10-04T00:00:00Z"), at("2026-10-03T22:00:00Z"), at("2026-10-03T20:00:00Z")];
+  const now = new Date("2026-10-03T21:00:00Z");
+
+  test("a bout is locked once its section has started", () => {
+    expect(card.map((b) => boutLocked(b, now))).toEqual([false, false, true]);
+  });
+
+  test("the next lock is the soonest section still open", () => {
+    expect(nextLock(card, now)?.toISOString()).toBe("2026-10-03T22:00:00.000Z");
+  });
+
+  test("there is no next lock once the whole card has locked", () => {
+    expect(nextLock(card, new Date("2026-10-04T01:00:00Z"))).toBeNull();
   });
 });
 

@@ -11,6 +11,8 @@ export type EventBout = {
   weightClass: string | null;
   /** Bumped on a substitution; a pick is saved against the version it saw. */
   version: number;
+  /** When this bout's part of the card starts; picks on it lock here. */
+  locksAt: Date;
   red: EventFighter;
   blue: EventFighter;
 };
@@ -30,7 +32,7 @@ const STILL_RUNNING_MS = 12 * 60 * 60 * 1000;
 export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status,
   bouts (
-    id, fight_order, card_segment, scheduled_rounds, weight_class, version, status,
+    id, fight_order, card_segment, scheduled_rounds, weight_class, version, status, locks_at,
     red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url ),
     blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url )
   )`;
@@ -49,6 +51,7 @@ type Row = {
     weight_class: string | null;
     version: number;
     status: "scheduled" | "cancelled";
+    locks_at: string | null;
     red: EventFighter;
     blue: EventFighter;
   }[];
@@ -71,6 +74,8 @@ export function toNextEvent(row: Row): NextEvent {
         scheduledRounds: b.scheduled_rounds,
         weightClass: b.weight_class,
         version: b.version,
+        // A bout entered by hand has no lock of its own and goes by the card's.
+        locksAt: new Date(b.locks_at ?? row.locks_at),
         red: b.red,
         blue: b.blue,
       })),
@@ -117,6 +122,17 @@ export function initials(name: string): string {
 export function countdown(target: Date, now: Date): { days: number; hours: number; minutes: number } {
   const total = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 60000));
   return { days: Math.floor(total / 1440), hours: Math.floor((total % 1440) / 60), minutes: total % 60 };
+}
+
+/** Whether picks on this bout have closed. */
+export function boutLocked(bout: Pick<EventBout, "locksAt">, now: Date): boolean {
+  return bout.locksAt.getTime() <= now.getTime();
+}
+
+/** The next time part of the card locks, or null once all of it has. */
+export function nextLock(bouts: Pick<EventBout, "locksAt">[], now: Date): Date | null {
+  const upcoming = bouts.map((b) => b.locksAt.getTime()).filter((t) => t > now.getTime());
+  return upcoming.length ? new Date(Math.min(...upcoming)) : null;
 }
 
 /** Short time-to-lock for badges: "2D 14H", "14H", "45M", "LOCKED". */

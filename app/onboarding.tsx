@@ -58,9 +58,9 @@ const SLIDES: Slide[] = [
   {
     eyebrow: "FIGHT NIGHT",
     lines: ["LOCK IT", "IN"],
-    body: "Picks lock for the whole card when the first bout starts. Results land minutes after each fight, and scores settle once they're official.",
+    body: "Each part of the card locks when it starts: early prelims, prelims, then the main card. Results land minutes after each fight, and scores settle once they're official.",
     rows: [
-      { label: "First bell", value: "LOCKED" },
+      { label: "Section starts", value: "LOCKED" },
       { label: "Fight ends", value: "LIVE" },
       { label: "Official", value: "FINAL" },
     ],

@@ -9,6 +9,7 @@ const bout: EventBout = {
   scheduledRounds: 5,
   weightClass: "Women's Flyweight",
   version: 2,
+  locksAt: new Date("2026-10-04T00:00:00Z"),
   red: { id: "silva", name: "Natalia Silva", nickname: null, photoUrl: null },
   blue: { id: "cong", name: "Wang Cong", nickname: "The Joker", photoUrl: null },
 };

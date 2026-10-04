@@ -75,13 +75,20 @@ function check(error: { hint?: string; message: string } | null) {
 }
 
 /** Saves the card as it stands: every pick made is upserted, and any bout
- * left unpicked has its saved pick removed, since a card can be partial. The
- * server rejects both once the event has locked, whatever this device's
- * clock says.
+ * left unpicked has its saved pick removed, since a card can be partial. Only
+ * bouts still open are sent: once part of the card has locked, its picks are
+ * left as they were. The server rejects any write to a locked bout, whatever
+ * this device's clock says.
  */
-export async function savePicks(userId: string, bouts: EventBout[], picks: Record<string, LanePick>): Promise<void> {
-  const rows = bouts.filter((b) => picks[b.id]).map((b) => ({ user_id: userId, ...toPickRow(b, picks[b.id]) }));
-  const cleared = bouts.filter((b) => !picks[b.id]).map((b) => b.id);
+export async function savePicks(
+  userId: string,
+  bouts: EventBout[],
+  picks: Record<string, LanePick>,
+  now: Date = new Date()
+): Promise<void> {
+  const open = bouts.filter((b) => b.locksAt.getTime() > now.getTime());
+  const rows = open.filter((b) => picks[b.id]).map((b) => ({ user_id: userId, ...toPickRow(b, picks[b.id]) }));
+  const cleared = open.filter((b) => !picks[b.id]).map((b) => b.id);
   const { supabase } = await import("./supabase");
   if (rows.length) {
     const { error } = await supabase.from("picks").upsert(rows, { onConflict: "user_id,bout_id" });

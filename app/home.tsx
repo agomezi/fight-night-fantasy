@@ -24,7 +24,7 @@ import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCar
 import { LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { useHistory } from "../hooks/useHistory";
 import { useNextEvent } from "../hooks/useNextEvent";
-import { countdown, initials, lastName, lockLabel, splitEventName, startLabel } from "../services/events";
+import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
 import { loadPicks, pickSummary } from "../services/picks";
 import type { LanePick } from "../services/pickTypes";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -236,13 +236,17 @@ export default function Home() {
   const eventName = event ? splitEventName(event.name) : null;
   const mainEvent = event?.bouts[0] ?? null;
   const toStart = event ? countdown(event.startsAt, next.now) : null;
-  const locksIn = event ? lockLabel(event.locksAt, next.now) : "—";
+  // Each part of the card locks when it starts, so the countdown is to the
+  // next section still open.
+  const upcomingLock = event ? nextLock(event.bouts, next.now) : null;
+  const locksIn = event ? (upcomingLock ? lockLabel(upcomingLock, next.now) : "LOCKED") : "—";
   const weekday = event
     ? new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "long" }).format(event.startsAt)
     : "the card";
   const pad = (n: number) => String(n).padStart(2, "0");
-  // The server enforces the lock; this only stops home offering picks after it.
-  const locked = !!event && next.now.getTime() >= event.locksAt.getTime();
+  // The server enforces the lock; this only stops home offering picks after
+  // it. Quick Pick is the main event, which locks with the main card.
+  const locked = !!mainEvent && boutLocked(mainEvent, next.now);
 
   // What this user has saved for the card, reloaded whenever home comes back
   // into view so returning from the picks screen shows the card as it stands.
@@ -510,6 +514,7 @@ export default function Home() {
     matchup: `${lastName(bout.red.name)} vs ${lastName(bout.blue.name)}`,
     division: bout.order === 1 ? "MAIN EVENT" : (bout.weightClass ?? ""),
     pick: saved[bout.id] ? pickSummary(bout, saved[bout.id]) : null,
+    locked: boutLocked(bout, next.now),
   }));
   return (
     <SafeAreaView
@@ -987,8 +992,8 @@ export default function Home() {
                       {fight.division}
                     </Text>
                   </View>
-                  {fight.pick || locked ? (
-                    <PressableScale onPress={() => router.push("/picks")} disabled={locked} hitSlop={8}>
+                  {fight.pick || fight.locked ? (
+                    <PressableScale onPress={() => router.push("/picks")} disabled={fight.locked} hitSlop={8}>
                       <Text
                         style={{
                           color: fight.pick ? c.text : c.textFaint,
