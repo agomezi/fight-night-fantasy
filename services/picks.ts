@@ -2,7 +2,7 @@
 // tested without a database; the server enforces the lock and validity.
 
 import type { LanePick } from "../components/RoundLane";
-import type { EventBout } from "./events";
+import { lastName, type EventBout } from "./events";
 
 export type PickRow = {
   bout_id: string;
@@ -35,6 +35,18 @@ export function fromPickRow(bout: EventBout, row: PickRow): LanePick | null {
   if (!corner) return null;
   const finish = row.finish === "round" && row.finish_round ? row.finish_round : row.finish === "round" ? "ANY" : row.finish;
   return { corner, finish, ...(row.method ? { method: row.method } : {}) };
+}
+
+/** A saved pick as one short line: "SILVA · KO/TKO · R2", "SILVA · DEC", "SILVA". */
+export function pickSummary(bout: EventBout, pick: LanePick): string {
+  const fighter = pick.corner === "red" ? bout.red : bout.blue;
+  const parts = [lastName(fighter.name).toUpperCase()];
+  if (pick.finish === "DEC") parts.push("DEC");
+  else {
+    if (pick.method) parts.push(pick.method === "KO" ? "KO/TKO" : "SUB");
+    if (typeof pick.finish === "number") parts.push(`R${pick.finish}`);
+  }
+  return parts.join(" · ");
 }
 
 export async function loadPicks(bouts: EventBout[]): Promise<Record<string, LanePick>> {

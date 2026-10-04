@@ -246,7 +246,8 @@ export default function Picks() {
   const [showLockedModal, setShowLockedModal] = useState(false);
 
   // Load what this user already saved for the card. Quick Pick on home hands
-  // off a fighter id, which seeds the main event if nothing is saved there.
+  // off a fighter id: it seeds the main event, or switches a saved main event
+  // pick to that fighter, keeping the method and round already called.
   const eventId = event?.id;
   useEffect(() => {
     if (!event) return;
@@ -257,13 +258,16 @@ export default function Picks() {
       .then((saved) => {
         if (cancelled) return;
         const seeded = { ...saved };
-        if (main && fighter && !seeded[main.id] && (fighter === main.red.id || fighter === main.blue.id)) {
-          seeded[main.id] = { corner: fighter === main.red.id ? "red" : "blue", finish: "ANY" };
+        const corner = main && fighter ? (fighter === main.red.id ? "red" : fighter === main.blue.id ? "blue" : null) : null;
+        const switched = !!main && !!corner && canEditPicks && seeded[main.id]?.corner !== corner;
+        if (main && corner && switched) {
+          seeded[main.id] = seeded[main.id] ? { ...seeded[main.id], corner } : { corner, finish: "ANY" };
         }
         setLane(seeded);
         // A saved card opens locked in. One missing its main event (a fighter
-        // replaced since) opens for editing, since that pick has to be redone.
-        setLockedIn(!!main && !!saved[main.id]);
+        // replaced since) opens for editing, since that pick has to be redone,
+        // and so does one just switched on home, so it can be saved.
+        setLockedIn(!!main && !!saved[main.id] && !switched);
       })
       .catch(() => {});
     return () => {

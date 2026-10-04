@@ -1,6 +1,6 @@
 import type { LanePick } from "../../components/RoundLane";
 import type { EventBout } from "../events";
-import { fromPickRow, toPickRow } from "../picks";
+import { fromPickRow, pickSummary, toPickRow } from "../picks";
 
 const bout: EventBout = {
   id: "b1",
@@ -42,5 +42,17 @@ describe("pick rows", () => {
 
   test("a pick on a fighter no longer in the bout has to be made again", () => {
     expect(fromPickRow(bout, { ...toPickRow(bout, { corner: "red", finish: "ANY" }), picked_fighter_id: "gone" })).toBeNull();
+  });
+});
+
+describe("pickSummary", () => {
+  test.each<[LanePick, string]>([
+    [{ corner: "red", finish: "ANY" }, "SILVA"],
+    [{ corner: "red", finish: "ANY", method: "KO" }, "SILVA · KO/TKO"],
+    [{ corner: "blue", finish: 2, method: "SUB" }, "CONG · SUB · R2"],
+    [{ corner: "red", finish: 3 }, "SILVA · R3"],
+    [{ corner: "blue", finish: "DEC" }, "CONG · DEC"],
+  ])("%j reads %s", (pick, label) => {
+    expect(pickSummary(bout, pick)).toBe(label);
   });
 });
