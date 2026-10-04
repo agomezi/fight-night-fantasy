@@ -12,6 +12,9 @@ export type CardBout = {
   segment: CardSegment | null;
   scheduledRounds: 3 | 5;
   weightClass: string | null;
+  /** When this bout's part of the card starts; picks on it lock here. The
+   * event start until UFC splits the card into segments. */
+  locksAt: string;
   red: CardFighter;
   blue: CardFighter;
 };
@@ -58,7 +61,7 @@ function parseFighter(value: unknown, fightId: string): CardFighter & { corner: 
   return { ufcFighterId: id(f.FighterId, `fighter id in fight ${fightId}`), name: full, nickname, corner: String(f.Corner) };
 }
 
-function parseBout(value: unknown, issues: string[]): CardBout & { segmentStart: number | null } {
+function parseBout(value: unknown, issues: string[]): Omit<CardBout, "locksAt"> & { segmentStart: number | null } {
   const b = object(value, "fight");
   const ufcFightId = id(b.FightId, "fight id");
   const order = b.FightOrder;
@@ -126,7 +129,10 @@ export function parseCard(payload: unknown): IngestedCard | null {
   const starts = [time(event.StartTime, `start time for event ${ufcEventId}`), ...parsed.flatMap(b => (b.segmentStart == null ? [] : [b.segmentStart]))];
   const startsAt = new Date(Math.min(...starts)).toISOString();
 
-  const bouts = parsed.map(({ segmentStart, ...bout }) => bout);
+  const bouts = parsed.map(({ segmentStart, ...bout }) => ({
+    ...bout,
+    locksAt: segmentStart == null ? startsAt : new Date(segmentStart).toISOString(),
+  }));
   return { ufcEventId, name, startsAt, status, bouts, issues };
 }
 

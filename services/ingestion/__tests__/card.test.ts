@@ -55,6 +55,7 @@ describe("parseCard", () => {
     ]);
     expect(card.bouts[0]).toEqual({
       ufcFightId: "13120", order: 1, segment: "main", scheduledRounds: 5, weightClass: "Women's Flyweight",
+      locksAt: "2026-10-04T00:00:00.000Z",
       red: { ufcFighterId: "3623", name: "Natalia Silva", nickname: null },
       blue: { ufcFighterId: "4177", name: "Wang Cong", nickname: "The Joker" },
     });
@@ -69,6 +70,20 @@ describe("parseCard", () => {
     const card = parseCard(payload({ StartTime: "2026-11-21T22:00Z" }, [fight(13197, 1, null, null), fight(13198, 2, null, null)]))!;
     expect(card.bouts.map(b => b.segment)).toEqual([null, null]);
     expect(card.startsAt).toBe("2026-11-21T22:00:00.000Z");
+  });
+
+  test("each bout locks when its own part of the card starts", () => {
+    expect(parseCard(payload())!.bouts.map(b => [b.order, b.locksAt])).toEqual([
+      [1, "2026-10-04T00:00:00.000Z"],
+      [2, "2026-10-04T00:00:00.000Z"],
+      [3, "2026-10-03T22:00:00.000Z"],
+      [4, "2026-10-03T20:00:00.000Z"],
+    ]);
+  });
+
+  test("before the card is split, every bout locks at the event start", () => {
+    const card = parseCard(payload({ StartTime: "2026-11-21T22:00Z" }, [fight(13197, 1, null, null), fight(13198, 2, null, null)]))!;
+    expect(card.bouts.map(b => b.locksAt)).toEqual(["2026-11-21T22:00:00.000Z", "2026-11-21T22:00:00.000Z"]);
   });
 
   test("bouts come out in card order whatever order the feed lists them", () => {

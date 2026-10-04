@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Animated, {
   ZoomOut,
@@ -21,10 +21,12 @@ import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
 import Skeleton from "../components/Skeleton";
 import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
-import { DEMO, LEAGUE, SEASON_STANDINGS } from "../constants/league";
+import { LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { useHistory } from "../hooks/useHistory";
 import { useNextEvent } from "../hooks/useNextEvent";
-import { countdown, initials, lastName, lockLabel, splitEventName, startLabel } from "../services/events";
+import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
+import { loadPicks, pickSummary } from "../services/picks";
+import type { LanePick } from "../services/pickTypes";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 
@@ -71,6 +73,7 @@ function FighterChoice({
   photoUrl,
   selected,
   onPress,
+  disabled = false,
 }: {
   initials: string;
   name: string;
@@ -78,6 +81,7 @@ function FighterChoice({
   photoUrl?: string | null;
   selected: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
@@ -100,6 +104,7 @@ function FighterChoice({
   return (
     <PressableScale
       onPress={onPress}
+      disabled={disabled}
       style={{ alignItems: "center", flex: 1 }}
       scaleTo={0.94}
     >
@@ -231,11 +236,44 @@ export default function Home() {
   const eventName = event ? splitEventName(event.name) : null;
   const mainEvent = event?.bouts[0] ?? null;
   const toStart = event ? countdown(event.startsAt, next.now) : null;
-  const locksIn = event ? lockLabel(event.locksAt, next.now) : "—";
+  // Each part of the card locks when it starts, so the countdown is to the
+  // next section still open.
+  const upcomingLock = event ? nextLock(event.bouts, next.now) : null;
+  const locksIn = event ? (upcomingLock ? lockLabel(upcomingLock, next.now) : "LOCKED") : "—";
   const weekday = event
     ? new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "long" }).format(event.startsAt)
     : "the card";
   const pad = (n: number) => String(n).padStart(2, "0");
+  // The server enforces the lock; this only stops home offering picks after
+  // it. Quick Pick is the main event, which locks with the main card.
+  const locked = !!mainEvent && boutLocked(mainEvent, next.now);
+
+  // What this user has saved for the card, reloaded whenever home comes back
+  // into view so returning from the picks screen shows the card as it stands.
+  const [saved, setSaved] = useState<Record<string, LanePick>>({});
+  useFocusEffect(
+    useCallback(() => {
+      if (!event) {
+        setSaved({});
+        return;
+      }
+      let current = true;
+      loadPicks(event.bouts)
+        .then((picks) => current && setSaved(picks))
+        .catch(() => {});
+      return () => {
+        current = false;
+      };
+    }, [event])
+  );
+  const savedMain = mainEvent ? saved[mainEvent.id] : undefined;
+  const savedMainFighter =
+    mainEvent && savedMain ? (savedMain.corner === "red" ? mainEvent.red.id : mainEvent.blue.id) : null;
+  // Quick Pick opens on the fighter you already picked.
+  useEffect(() => {
+    setQuickPick(savedMainFighter);
+  }, [savedMainFighter]);
+  const quickPickChanged = !!quickPick && quickPick !== savedMainFighter;
 
   // Measured so the sliding underline matches whatever the tabs actually are.
   const [tabStripWidth, setTabStripWidth] = useState(0);
@@ -251,9 +289,9 @@ export default function Home() {
   // --- carousel -----------------------------------------------------------
   // Two always-on cards, then two that only appear when they're relevant.
   const myStanding = SEASON_STANDINGS.find((s) => s.isMe);
-  // A brand-new account has touched nothing, so this is 0 and the carousel
-  // shows the "start your card" prompt instead of a progress ring.
-  const picksStarted = DEMO ? 3 : 0;
+  // Nothing saved yet means the carousel shows the "start your card" prompt
+  // instead of a progress ring.
+  const picksStarted = Object.keys(saved).length;
   const picksTotal = event?.bouts.length ?? 0;
   const eventIsLive = event?.status === "live";
   // The latest card you played, once it has anything scored. Before that the
@@ -352,7 +390,7 @@ export default function Home() {
    * account's home screen, so it gets a place in the carousel rather than
    * being left to the nav bar to suggest.
    */
-  if (event && picksStarted === 0) {
+  if (event && !locked && picksStarted === 0) {
     carouselCards.push({
       tag: "GET STARTED",
       tagColor: c.red,
@@ -396,7 +434,7 @@ export default function Home() {
   }
 
   // Only if they started a card and walked away without submitting.
-  if (event && picksStarted > 0 && picksStarted < picksTotal) {
+  if (event && !locked && picksStarted > 0 && picksStarted < picksTotal) {
     carouselCards.push({
       tag: "UNFINISHED CARD",
       tagColor: c.red,
@@ -475,6 +513,8 @@ export default function Home() {
     id: bout.id,
     matchup: `${lastName(bout.red.name)} vs ${lastName(bout.blue.name)}`,
     division: bout.order === 1 ? "MAIN EVENT" : (bout.weightClass ?? ""),
+    pick: saved[bout.id] ? pickSummary(bout, saved[bout.id]) : null,
+    locked: boutLocked(bout, next.now),
   }));
   return (
     <SafeAreaView
@@ -640,7 +680,7 @@ export default function Home() {
               ...(lastScored
                 ? {
                     serial: splitEventName(lastScored.name).title.toUpperCase(),
-                    mark: <CardMark name="belt" top={44} color={c.textFaint} accent={c.gold} opacity={1} />,
+                    mark: <CardMark name="glove" top={44} />,
                     tag: lastScored.live ? "LIVE EVENT POINTS" : "LAST EVENT POINTS",
                     tagColor: lastScored.live ? c.red : c.textMuted,
                     title: lastScored.points > 0 ? `+${lastScored.points}` : lastScored.points < 0 ? `−${-lastScored.points}` : "0",
@@ -791,7 +831,7 @@ export default function Home() {
             }}
           >
             {(["quick", "full"] as const).map((tab) => {
-              const label = tab === "quick" ? "QUICK PICK" : `FULL CARD (${picksTotal})`;
+              const label = tab === "quick" ? "QUICK PICK" : `FULL CARD (${picksStarted}/${picksTotal})`;
               return (
                 <TabButton
                   key={tab}
@@ -863,6 +903,7 @@ export default function Home() {
                   photoUrl={mainEvent.red.photoUrl}
                   selected={quickPick === mainEvent.red.id}
                   onPress={() => setQuickPick(mainEvent.red.id)}
+                  disabled={locked}
                 />
                 <Text style={{ color: c.textFaint, fontWeight: "700", fontSize: 13 }}>
                   VS
@@ -874,21 +915,26 @@ export default function Home() {
                   photoUrl={mainEvent.blue.photoUrl}
                   selected={quickPick === mainEvent.blue.id}
                   onPress={() => setQuickPick(mainEvent.blue.id)}
+                  disabled={locked}
                 />
               </View>
 
+              {savedMain && mainEvent && (
+                <Text style={[commonStyles.label, { color: c.textMuted, textAlign: "center", marginBottom: 12 }]}>
+                  YOUR PICK · <Text style={{ color: c.text }}>{pickSummary(mainEvent, savedMain)}</Text>
+                </Text>
+              )}
               <PressableScale
-                disabled={!quickPick}
+                disabled={!locked && !quickPick}
                 onPress={() =>
-                  router.push({
-                    pathname: "/picks",
-                    params: { fighter: quickPick as string },
-                  })
+                  quickPickChanged && !locked
+                    ? router.push({ pathname: "/picks", params: { fighter: quickPick as string } })
+                    : router.push("/picks")
                 }
                 style={{
                   borderWidth: 1,
-                  borderColor: quickPick ? c.red : c.borderStrong,
-                  backgroundColor: quickPick ? c.red : "transparent",
+                  borderColor: quickPickChanged ? c.red : c.borderStrong,
+                  backgroundColor: quickPickChanged ? c.red : "transparent",
                   borderRadius: 10,
                   paddingVertical: 14,
                   alignItems: "center",
@@ -896,13 +942,21 @@ export default function Home() {
               >
                 <Text
                   style={{
-                    color: quickPick ? "#fff" : c.textFaint,
+                    color: quickPickChanged ? "#fff" : quickPick || locked ? c.text : c.textFaint,
                     fontWeight: "700",
                     fontSize: 13,
                     letterSpacing: 2,
                   }}
                 >
-                  {quickPick ? "LOCK IN YOUR PICKS →" : "SELECT A FIGHTER TO PICK"}
+                  {locked
+                    ? "PICKS LOCKED · VIEW YOUR CARD →"
+                    : quickPickChanged
+                      ? savedMain
+                        ? "CHANGE YOUR PICK →"
+                        : "LOCK IN YOUR PICKS →"
+                      : savedMain
+                        ? "EDIT YOUR CARD →"
+                        : "SELECT A FIGHTER TO PICK"}
                 </Text>
               </PressableScale>
             </View>
@@ -938,26 +992,41 @@ export default function Home() {
                       {fight.division}
                     </Text>
                   </View>
-                  <PressableScale
-                    onPress={() => router.push("/picks")}
-                    style={{
-                      backgroundColor: c.red,
-                      paddingHorizontal: 16,
-                      paddingVertical: 8,
-                      borderRadius: 8,
-                    }}
-                  >
-                    <Text
+                  {fight.pick || fight.locked ? (
+                    <PressableScale onPress={() => router.push("/picks")} disabled={fight.locked} hitSlop={8}>
+                      <Text
+                        style={{
+                          color: fight.pick ? c.text : c.textFaint,
+                          fontWeight: "800",
+                          fontSize: 12,
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        {fight.pick ?? "NO PICK"}
+                      </Text>
+                    </PressableScale>
+                  ) : (
+                    <PressableScale
+                      onPress={() => router.push("/picks")}
                       style={{
-                        color: "#fff",
-                        fontWeight: "700",
-                        fontSize: 12,
-                        letterSpacing: 1,
+                        backgroundColor: c.red,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 8,
                       }}
                     >
-                      PICK
-                    </Text>
-                  </PressableScale>
+                      <Text
+                        style={{
+                          color: "#fff",
+                          fontWeight: "700",
+                          fontSize: 12,
+                          letterSpacing: 1,
+                        }}
+                      >
+                        PICK
+                      </Text>
+                    </PressableScale>
+                  )}
                 </View>
               ))}
               <PressableScale

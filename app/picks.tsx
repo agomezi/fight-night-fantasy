@@ -34,7 +34,7 @@ import FighterPhoto from "../components/FighterPhoto";
 import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
-import { initials, lastName, splitEventName, type CardSegment, type EventBout } from "../services/events";
+import { initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -49,6 +49,7 @@ type Fight = {
   /** Scheduled length. Championship and main events go 5. */
   rounds: 3 | 5;
   segment: CardSegment | null;
+  locksAt: Date;
   a: Fighter;
   b: Fighter;
   /** League social proof; none until leagues exist. */
@@ -69,6 +70,7 @@ function toFight(bout: EventBout): Fight {
     division: (bout.weightClass ?? "").toUpperCase(),
     rounds: bout.scheduledRounds === 5 ? 5 : 3,
     segment: bout.segment,
+    locksAt: bout.locksAt,
     a: fighter(bout.red),
     b: fighter(bout.blue),
   };
@@ -236,7 +238,11 @@ export default function Picks() {
   const MAIN_EVENT = allFights[0] as Fight | undefined;
   const UNDERCARD = allFights.slice(1);
   // The server decides; this only mirrors it so the screen stops offering edits.
-  const canEditPicks = !!event && next.now.getTime() < event.locksAt.getTime();
+  // Each part of the card locks when it starts, so the card stays editable
+  // until its last section, the main card, begins.
+  const isLocked = (fight: { locksAt: Date }) => fight.locksAt.getTime() <= next.now.getTime();
+  const canEditPicks = !!event && event.bouts.some((b) => !isLocked(b));
+  const upcomingLock = event ? nextLock(event.bouts, next.now) : null;
 
   // One lane pick per bout — winner, method and round are a single decision.
   const [lane, setLane] = useState<Record<string, LanePick>>({});
@@ -246,7 +252,8 @@ export default function Picks() {
   const [showLockedModal, setShowLockedModal] = useState(false);
 
   // Load what this user already saved for the card. Quick Pick on home hands
-  // off a fighter id, which seeds the main event if nothing is saved there.
+  // off a fighter id: it seeds the main event, or switches a saved main event
+  // pick to that fighter, keeping the method and round already called.
   const eventId = event?.id;
   useEffect(() => {
     if (!event) return;
@@ -257,13 +264,16 @@ export default function Picks() {
       .then((saved) => {
         if (cancelled) return;
         const seeded = { ...saved };
-        if (main && fighter && !seeded[main.id] && (fighter === main.red.id || fighter === main.blue.id)) {
-          seeded[main.id] = { corner: fighter === main.red.id ? "red" : "blue", finish: "ANY" };
+        const corner = main && fighter ? (fighter === main.red.id ? "red" : fighter === main.blue.id ? "blue" : null) : null;
+        const switched = !!main && !!corner && canEditPicks && seeded[main.id]?.corner !== corner;
+        if (main && corner && switched) {
+          seeded[main.id] = seeded[main.id] ? { ...seeded[main.id], corner } : { corner, finish: "ANY" };
         }
         setLane(seeded);
         // A saved card opens locked in. One missing its main event (a fighter
-        // replaced since) opens for editing, since that pick has to be redone.
-        setLockedIn(!!main && !!saved[main.id]);
+        // replaced since) opens for editing, since that pick has to be redone,
+        // and so does one just switched on home, so it can be saved.
+        setLockedIn(!!main && !!saved[main.id] && !switched);
       })
       .catch(() => {});
     return () => {
@@ -284,7 +294,7 @@ export default function Picks() {
   }, [allFights, lane]);
 
   const setLanePick = (fight: Fight, next: LanePick | null) => {
-    if (lockedIn || !canEditPicks) return;
+    if (lockedIn || isLocked(fight)) return;
     setLane((p) => {
       if (!next) {
         const { [fight.id]: _drop, ...rest } = p;
@@ -414,9 +424,11 @@ export default function Picks() {
           <Text style={styles.eventSub}>
             {!event
               ? " "
-              : canEditPicks
-                ? `${eventName?.headline ?? "Make your picks"}. Lock them in.`
-                : `${eventName?.headline ?? "This card"} · picks are locked`}
+              : !canEditPicks
+                ? `${eventName?.headline ?? "This card"} · picks are locked`
+                : upcomingLock && event.bouts.some((b) => isLocked(b))
+                  ? `${eventName?.headline ?? "This card"} · the rest locks in ${lockLabel(upcomingLock, next.now).toLowerCase()}`
+                  : `${eventName?.headline ?? "Make your picks"}. Lock them in.`}
           </Text>
         )}
 
@@ -458,7 +470,7 @@ export default function Picks() {
                   blue={{ name: titleCase(MAIN_EVENT.b.name), record: MAIN_EVENT.b.record }}
                   pick={lane[MAIN_EVENT.id]}
                   onPick={(pick) => setLanePick(MAIN_EVENT, pick)}
-                  disabled={lockedIn || !canEditPicks}
+                  disabled={lockedIn || isLocked(MAIN_EVENT)}
                 />
                 {/* Social proof is about your league. With no league there is
                     nobody to compare against, so the line is dropped rather
@@ -484,7 +496,16 @@ export default function Picks() {
               : null;
           return (
             <View key={fight.id}>
-              {label && <Text style={[styles.groupLabel, { marginTop: 14 }]}>{label}</Text>}
+              {label && (
+                <Text style={[styles.groupLabel, { marginTop: 14 }]}>
+                  {label}
+                  {isLocked(fight) ? (
+                    <Text style={{ color: c.red }}>  · LOCKED</Text>
+                  ) : (
+                    `  · LOCKS ${startLabel(fight.locksAt).split(" · ")[1]}`
+                  )}
+                </Text>
+              )}
               <Animated.View
                 entering={appear(Math.min(i + 1, 6))}
                 layout={LinearTransition.duration(220)}
@@ -543,7 +564,7 @@ export default function Picks() {
                       blue={{ name: titleCase(fight.b.name), record: fight.b.record }}
                       pick={lane[fight.id]}
                       onPick={(pick) => setLanePick(fight, pick)}
-                      disabled={lockedIn || !canEditPicks}
+                      disabled={lockedIn || isLocked(fight)}
                     />
                     {LEAGUE && fight.proof && (
                       <Text style={styles.proofText}>{fight.proof}</Text>
