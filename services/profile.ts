@@ -26,16 +26,39 @@ export class HandleTakenError extends Error {
   }
 }
 
-export async function fetchDisplayName(userId: string): Promise<string | null> {
+/** A handle can be changed once every 7 days; the first one is free. */
+export const NAME_CHANGE_DAYS = 7;
+
+/** When a handle set at `changedAt` can next be changed, or null if it can now. */
+export function nextNameChange(changedAt: Date | null, now: Date = new Date()): Date | null {
+  if (!changedAt) return null;
+  const next = new Date(changedAt.getTime() + NAME_CHANGE_DAYS * 24 * 60 * 60 * 1000);
+  return next.getTime() > now.getTime() ? next : null;
+}
+
+export async function fetchDisplayName(userId: string): Promise<{ name: string | null; changedAt: Date | null }> {
   const { supabase } = await import("./supabase");
-  const { data, error } = await supabase.from("profiles").select("display_name").eq("id", userId).maybeSingle();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("display_name, name_changed_at")
+    .eq("id", userId)
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data?.display_name as string | null | undefined) ?? null;
+  return {
+    name: (data?.display_name as string | null | undefined) ?? null,
+    changedAt: data?.name_changed_at ? new Date(data.name_changed_at as string) : null,
+  };
 }
 
 export class HandleBlockedError extends Error {
   constructor() {
     super("That name isn't allowed.");
+  }
+}
+
+export class HandleTooSoonError extends Error {
+  constructor(readonly nextChange: Date | null) {
+    super("You can change your name once a week.");
   }
 }
 
@@ -56,5 +79,6 @@ export async function saveDisplayName(userId: string, name: string): Promise<voi
   const { error } = await supabase.from("profiles").update({ display_name: name }).eq("id", userId);
   if (error?.code === "23505") throw new HandleTakenError();
   if (error?.hint === "blocked") throw new HandleBlockedError();
+  if (error?.hint === "too_soon") throw new HandleTooSoonError(error.details ? new Date(error.details) : null);
   if (error) throw new Error(error.message);
 }

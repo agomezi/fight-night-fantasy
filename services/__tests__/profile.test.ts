@@ -1,4 +1,4 @@
-import { cleanHandle, handleProblem } from "../profile";
+import { cleanHandle, handleProblem, nextNameChange } from "../profile";
 
 describe("handleProblem", () => {
   test.each(["abc", "Elite_Striker", "a1_", "x".repeat(20)])("accepts %s", (name) => {
@@ -35,5 +35,21 @@ describe("cleanHandle", () => {
       const problem = handleProblem(cleanHandle(raw));
       expect(problem === null || problem.startsWith("At least")).toBe(true);
     }
+  });
+});
+
+describe("nextNameChange", () => {
+  const now = new Date("2026-10-10T12:00:00Z");
+
+  test("a name never changed can be changed now", () => {
+    expect(nextNameChange(null, now)).toBeNull();
+  });
+
+  test("a name changed three days ago can change again four days later", () => {
+    expect(nextNameChange(new Date("2026-10-07T12:00:00Z"), now)?.toISOString()).toBe("2026-10-14T12:00:00.000Z");
+  });
+
+  test("a name changed over a week ago can be changed now", () => {
+    expect(nextNameChange(new Date("2026-10-02T12:00:00Z"), now)).toBeNull();
   });
 });
