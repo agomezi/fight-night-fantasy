@@ -10,6 +10,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { profileStorageKey } from "../constants/storage";
+import { disablePush } from "../services/push";
 import { supabase } from "../services/supabase";
 
 GoogleSignin.configure({
@@ -87,6 +88,8 @@ async function forgetGoogle() {
 }
 
 async function signOut() {
+  // While the session is still valid, so this phone stops getting alerts.
+  await disablePush();
   await forgetGoogle();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;

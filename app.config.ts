@@ -23,11 +23,18 @@ function googleIosUrlScheme(clientId: string): string {
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const bundleId = required("APP_BUNDLE_ID");
+  const projectId = required("EAS_PROJECT_ID");
 
   return {
     ...config,
     name: config.name!,
     slug: config.slug!,
+    // Over-the-air updates: code-only changes reach installed builds when the
+    // app next opens. A build only takes updates made for its own app
+    // version, so anything native (a new library, a permission) still needs a
+    // new build with a bumped version.
+    updates: { url: `https://u.expo.dev/${projectId}` },
+    runtimeVersion: { policy: "appVersion" },
     ios: { ...config.ios, bundleIdentifier: bundleId },
     android: { ...config.android, package: bundleId },
     plugins: [
@@ -39,7 +46,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ],
     extra: {
       ...config.extra,
-      eas: { projectId: required("EAS_PROJECT_ID") },
+      eas: { projectId },
     },
   };
 };
