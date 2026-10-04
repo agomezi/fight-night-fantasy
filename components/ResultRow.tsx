@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
+import LiveDot from "./LiveDot";
 import { useTheme } from "../context/ThemeContext";
 
 export type BoutSide = {
@@ -33,6 +34,7 @@ export default function ResultRow({
   verdict,
   verdictNote,
   settled = true,
+  live = false,
   index = 0,
   last = false,
 }: {
@@ -48,6 +50,8 @@ export default function ResultRow({
   verdictNote?: string;
   /** False before there is a result: neither side is marked as losing. */
   settled?: boolean;
+  /** The fight is in the cage right now. */
+  live?: boolean;
   index?: number;
   last?: boolean;
 }) {
@@ -144,7 +148,14 @@ export default function ResultRow({
       </View>
 
       <View style={{ alignItems: "flex-end" }}>
-        <Text style={{ fontSize: 12.5, fontWeight: "700", color: c.text2 }}>{meta}</Text>
+        {live ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <LiveDot />
+            <Text style={{ fontSize: 12.5, fontWeight: "800", color: c.red, letterSpacing: 0.5 }}>LIVE</Text>
+          </View>
+        ) : (
+          <Text style={{ fontSize: 12.5, fontWeight: "700", color: c.text2 }}>{meta}</Text>
+        )}
         {detail && (
           <Text style={{ fontSize: 11, color: c.blue, marginTop: 3 }}>{detail}</Text>
         )}
