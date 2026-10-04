@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import PressableScale from "../components/PressableScale";
 import { DIVISIONS } from "../constants/divisions";
 import { getInitials, useProfile } from "../context/ProfileContext";
-import { cleanHandle, handleProblem, HandleTakenError, HANDLE_MAX } from "../services/profile";
+import { cleanHandle, HandleBlockedError, handleProblem, HandleTakenError, HandleTooSoonError, HANDLE_MAX } from "../services/profile";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -108,7 +108,11 @@ export default function EditProfile() {
   const router = useRouter();
   const { c } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
-  const { profile, updateProfile, setUsername: saveUsername } = useProfile();
+  const { profile, updateProfile, setUsername: saveUsername, nameChangeableAt } = useProfile();
+  const nameLocked = !!nameChangeableAt;
+  const nextChangeLabel = nameChangeableAt
+    ? nameChangeableAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+    : null;
   const [saving, setSaving] = useState(false);
 
   const [username, setUsername] = useState(profile.username);
@@ -128,10 +132,16 @@ export default function EditProfile() {
       try {
         await saveUsername(username);
       } catch (e) {
-        Alert.alert(
-          e instanceof HandleTakenError ? "That name is taken" : "Couldn't save your name",
-          e instanceof HandleTakenError ? "Try another one." : e instanceof Error ? e.message : "Please try again."
-        );
+        if (e instanceof HandleTakenError) Alert.alert("That name is taken", "Try another one.");
+        else if (e instanceof HandleBlockedError) Alert.alert("That name isn't allowed", "Pick another one.");
+        else if (e instanceof HandleTooSoonError)
+          Alert.alert(
+            "Name changed recently",
+            e.nextChange
+              ? `You can change it again on ${e.nextChange.toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`
+              : "You can change your name once a week."
+          );
+        else Alert.alert("Couldn't save your name", e instanceof Error ? e.message : "Please try again.");
         setSaving(false);
         return;
       }
@@ -168,15 +178,23 @@ export default function EditProfile() {
         </View>
 
         <Text style={styles.fieldLabel}>USERNAME</Text>
-        <ClearableInput
-          value={username}
-          onChangeText={(t) => setUsername(cleanHandle(t))}
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={HANDLE_MAX}
-          placeholder="Username"
-        />
-        <Text style={styles.hint}>3–{HANDLE_MAX} letters, numbers or underscores. Must be unique.</Text>
+        {nameLocked ? (
+          <TextInput style={[styles.input, styles.inputDisabled]} value={profile.username} editable={false} />
+        ) : (
+          <ClearableInput
+            value={username}
+            onChangeText={(t) => setUsername(cleanHandle(t))}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={HANDLE_MAX}
+            placeholder="Username"
+          />
+        )}
+        <Text style={styles.hint}>
+          {nameLocked
+            ? `You can change your name again on ${nextChangeLabel}.`
+            : `3–${HANDLE_MAX} letters, numbers or underscores. Must be unique. You can change it once a week.`}
+        </Text>
 
         <Text style={styles.fieldLabel}>TITLE</Text>
         <TextInput

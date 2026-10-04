@@ -26,16 +26,17 @@ select ok(not public.display_name_available('a_very_long_handle_21'), 'twenty-on
 select ok(not public.display_name_available('has space'), 'spaces are not allowed');
 select ok(not public.display_name_available('emoji🥊'), 'only letters, digits and underscores are allowed');
 
-update public.profiles set display_name = 'Elite_Striker' where id = '00000000-0000-0000-0000-0000000000d1';
-select is((select display_name from public.profiles where id = '00000000-0000-0000-0000-0000000000d1'), 'Elite_Striker',
-  'a player can set their own name');
-select ok(public.display_name_available('elite_striker'), 'your own name, in any case, counts as free to you');
-
 select throws_ok(
   $$update public.profiles set display_name = 'no spaces' where id = '00000000-0000-0000-0000-0000000000d1'$$,
   '23514', null,
   'a name breaking the rule is refused'
 );
+
+update public.profiles set display_name = 'Elite_Striker' where id = '00000000-0000-0000-0000-0000000000d1';
+select is((select display_name from public.profiles where id = '00000000-0000-0000-0000-0000000000d1'), 'Elite_Striker',
+  'a player can set their own name');
+select ok(public.display_name_available('elite_striker'), 'your own name, in any case, counts as free to you');
+
 
 -- Someone else.
 select pg_temp.as_user('00000000-0000-0000-0000-0000000000d2');

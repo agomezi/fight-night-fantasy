@@ -34,6 +34,7 @@ yarn-error.*
 .env
 .env.*
 !.env.example
+!.env.blocked-names.example
 
 # service account / server credentials
 *service-account*.json

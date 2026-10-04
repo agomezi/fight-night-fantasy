@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { LEGACY_PROFILE_KEY, profileStorageKey } from "../constants/storage";
-import { fetchDisplayName, saveDisplayName } from "../services/profile";
+import { fetchDisplayName, nextNameChange, saveDisplayName } from "../services/profile";
 import { useAuth } from "./AuthContext";
 
 export type Profile = {
@@ -27,6 +27,8 @@ type ProfileContextValue = {
   updateProfile: (next: LocalProfile) => void;
   /** Saves the handle to Supabase; throws HandleTakenError if it is taken. */
   setUsername: (name: string) => Promise<void>;
+  /** When the handle can next be changed; null when it can be now. */
+  nameChangeableAt: Date | null;
   /** True once the handle has been read, so routing can wait for it. */
   ready: boolean;
   /** Signed in with no handle yet: onboarding comes first. */
@@ -40,6 +42,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const userId = session?.user.id;
   const [local, setLocal] = useState<LocalProfile>(DEFAULT_LOCAL);
   const [username, setUsernameState] = useState<string | null>(null);
+  const [nameChangedAt, setNameChangedAt] = useState<Date | null>(null);
   const [ready, setReady] = useState(false);
 
   // Reload whenever the signed-in account changes, so one account's profile
@@ -48,6 +51,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.removeItem(LEGACY_PROFILE_KEY).catch(() => {});
     setLocal(DEFAULT_LOCAL);
     setUsernameState(null);
+    setNameChangedAt(null);
     if (!userId) {
       setReady(true);
       return;
@@ -63,7 +67,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
     const name = fetchDisplayName(userId)
-      .then((n) => current && setUsernameState(n))
+      .then(({ name: n, changedAt }) => {
+        if (!current) return;
+        setUsernameState(n);
+        setNameChangedAt(changedAt);
+      })
       // Offline at launch: let them in rather than trapping them in
       // onboarding; the next launch reads it again.
       .catch(() => current && setUsernameState(""));
@@ -86,6 +94,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (!userId) throw new Error("Not signed in");
       await saveDisplayName(userId, name);
       setUsernameState(name);
+      setNameChangedAt(new Date());
     },
     [userId]
   );
@@ -95,10 +104,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profile: { ...local, username: username ?? "" },
       updateProfile,
       setUsername,
+      nameChangeableAt: nextNameChange(nameChangedAt),
       ready,
       needsOnboarding: !!userId && ready && username === null,
     }),
-    [local, username, updateProfile, setUsername, ready, userId]
+    [local, username, nameChangedAt, updateProfile, setUsername, ready, userId]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
