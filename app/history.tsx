@@ -282,6 +282,12 @@ export default function History() {
                           last={bi === e.bouts.length - 1}
                         />
                       ))}
+                      <PressableScale
+                        onPress={() => router.push({ pathname: "/event/[id]", params: { id: e.id } })}
+                        style={{ paddingTop: 12, alignItems: "center" }}
+                      >
+                        <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: "700" }}>See the full card →</Text>
+                      </PressableScale>
                     </Animated.View>
                   )}
                 </Animated.View>

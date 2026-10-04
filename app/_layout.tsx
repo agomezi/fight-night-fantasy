@@ -54,6 +54,7 @@ function ThemedApp() {
           <Stack.Screen name="league-settings" />
           <Stack.Screen name="settings" />
           <Stack.Screen name="edit-profile" />
+          <Stack.Screen name="event/[id]" />
         </Stack.Protected>
       </Stack>
       <StatusBar style={c.statusBar} />

@@ -325,7 +325,12 @@ export default function Home() {
           </View>
         </View>
       ) : (
-        <View style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20 }}>
+        <PressableScale
+          disabled={!event}
+          onPress={() => event && router.push({ pathname: "/event/[id]", params: { id: event.id } })}
+          scaleTo={0.98}
+          style={{ flex: 1, justifyContent: "flex-end", paddingTop: 20 }}
+        >
           <Text style={[commonStyles.cardTitle, { textAlign: "left", fontSize: 34 }]}>
             {eventName?.title ?? (next.status === "error" ? "Card unavailable" : "No card yet")}
           </Text>
@@ -340,7 +345,7 @@ export default function Home() {
               <StatBox value={pad(toStart.minutes)} label="MINS" />
             </StatBoxRow>
           )}
-        </View>
+        </PressableScale>
       ),
     },
   ];
@@ -688,7 +693,7 @@ export default function Home() {
                     titleSize: 50,
                     footer: (
                       <PressableScale
-                        onPress={() => router.push("/history")}
+                        onPress={() => router.push({ pathname: "/event/[id]", params: { id: lastScored.id } })}
                         style={{
                           flexDirection: "row",
                           justifyContent: "space-between",
@@ -741,7 +746,10 @@ export default function Home() {
               tagColor: c.text,
               tagSize: 22,
               footer: lastPlayed ? (
-                <PressableScale onPress={() => router.push("/history")} style={{ marginTop: 8 }}>
+                <PressableScale
+                  onPress={() => router.push({ pathname: "/event/[id]", params: { id: lastPlayed.id } })}
+                  style={{ marginTop: 8 }}
+                >
                   {lastPlayed.bouts.slice(0, 3).map((b) => (
                     <View
                       key={b.id}
@@ -768,7 +776,7 @@ export default function Home() {
                     </View>
                   ))}
                   <Text style={[commonStyles.cardSubtitle, { textAlign: "left", marginTop: 10, marginBottom: 0 }]}>
-                    {lastPlayed.picked > 3 ? `See all ${lastPlayed.picked} picks` : "See your picks"} in history
+                    {lastPlayed.live ? "Follow the card live" : `See the full card`} →
                   </Text>
                 </PressableScale>
               ) : (
