@@ -25,6 +25,11 @@ export function fighterRecord(f: Pick<FighterRow, "wins" | "losses" | "draws" | 
   return `${f.wins}-${f.losses}-${f.draws ?? 0}${nc > 0 ? ` (${nc} NC)` : ""}`;
 }
 
+/** An American moneyline the way books print it: "+114", "-137". */
+export function formatOdds(american: number): string {
+  return american > 0 ? `+${american}` : `${american}`;
+}
+
 /** "LIGHTWEIGHT", "W. STRAWWEIGHT" — short enough for one line on the card. */
 export function divisionLabel(weightClass: string | null): string {
   return (weightClass ?? "")
@@ -47,6 +52,10 @@ export type EventBout = {
   locksAt: Date;
   red: EventFighter;
   blue: EventFighter;
+  /** Consensus moneyline per corner, until the bout locks; null until priced. */
+  odds: { red: number; blue: number } | null;
+  /** The corner the books make the underdog. Frozen when the bout locks. */
+  underdog: "red" | "blue" | null;
 };
 export type NextEvent = {
   id: string;
@@ -65,6 +74,7 @@ export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status,
   bouts!bouts_event_id_fkey (
     id, fight_order, card_segment, scheduled_rounds, weight_class, version, status, locks_at,
+    red_odds, blue_odds, underdog_corner,
     red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests ),
     blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests )
   )`;
@@ -84,6 +94,9 @@ type Row = {
     version: number;
     status: "scheduled" | "cancelled";
     locks_at: string | null;
+    red_odds: number | null;
+    blue_odds: number | null;
+    underdog_corner: "red" | "blue" | null;
     red: FighterRow;
     blue: FighterRow;
   }[];
@@ -110,6 +123,8 @@ export function toNextEvent(row: Row): NextEvent {
         locksAt: new Date(b.locks_at ?? row.locks_at),
         red: toFighter(b.red),
         blue: toFighter(b.blue),
+        odds: b.red_odds != null && b.blue_odds != null ? { red: b.red_odds, blue: b.blue_odds } : null,
+        underdog: b.underdog_corner,
       })),
   };
 }

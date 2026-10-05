@@ -34,7 +34,7 @@ import FighterPhoto from "../components/FighterPhoto";
 import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
-import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
+import { divisionLabel, formatOdds, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
@@ -42,8 +42,18 @@ import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
 import { makePicksStyles } from "../styles/picks";
+import { UNDERDOG_MULTIPLIER } from "../services/scoring";
 
-type Fighter = { id: string; name: string; initials: string; record: string; photoUrl: string | null };
+type Fighter = {
+  id: string;
+  name: string;
+  initials: string;
+  record: string;
+  photoUrl: string | null;
+  /** Main card only, where the underdog bonus applies. */
+  odds?: string;
+  dog: boolean;
+};
 type Fight = {
   id: string;
   division: string;
@@ -58,13 +68,18 @@ type Fight = {
 };
 
 function toFight(bout: EventBout): Fight {
-  const fighter = (f: EventBout["red"]): Fighter => ({
+  // The underdog bonus is main card only, so odds elsewhere would only
+  // suggest a bonus that is not there.
+  const priced = bout.segment === "main";
+  const fighter = (f: EventBout["red"], corner: "red" | "blue"): Fighter => ({
     id: f.id,
     name: lastName(f.name).toUpperCase(),
     initials: initials(f.name),
     // The record, or the nickname until card sync has one.
     record: f.record ?? f.nickname ?? "",
     photoUrl: f.photoUrl,
+    odds: priced && bout.odds ? formatOdds(bout.odds[corner]) : undefined,
+    dog: priced && bout.underdog === corner,
   });
   return {
     id: bout.id,
@@ -72,8 +87,8 @@ function toFight(bout: EventBout): Fight {
     rounds: bout.scheduledRounds === 5 ? 5 : 3,
     segment: bout.segment,
     locksAt: bout.locksAt,
-    a: fighter(bout.red),
-    b: fighter(bout.blue),
+    a: fighter(bout.red, "red"),
+    b: fighter(bout.blue, "blue"),
   };
 }
 
@@ -242,6 +257,7 @@ export default function Picks() {
   // Each part of the card locks when it starts, so the card stays editable
   // until its last section, the main card, begins.
   const isLocked = (fight: { locksAt: Date }) => fight.locksAt.getTime() <= next.now.getTime();
+  const mainOpenWithDog = allFights.some((f) => f.segment === "main" && (f.a.dog || f.b.dog) && !isLocked(f));
   const canEditPicks = !!event && event.bouts.some((b) => !isLocked(b));
   const upcomingLock = event ? nextLock(event.bouts, next.now) : null;
 
@@ -470,8 +486,8 @@ export default function Picks() {
               >
                 <RoundLane
                   rounds={MAIN_EVENT.rounds}
-                  red={{ name: titleCase(MAIN_EVENT.a.name), record: MAIN_EVENT.a.record }}
-                  blue={{ name: titleCase(MAIN_EVENT.b.name), record: MAIN_EVENT.b.record }}
+                  red={{ ...MAIN_EVENT.a, name: titleCase(MAIN_EVENT.a.name) }}
+                  blue={{ ...MAIN_EVENT.b, name: titleCase(MAIN_EVENT.b.name) }}
                   pick={lane[MAIN_EVENT.id]}
                   onPick={(pick) => setLanePick(MAIN_EVENT, pick)}
                   disabled={lockedIn || isLocked(MAIN_EVENT)}
@@ -485,6 +501,13 @@ export default function Picks() {
               </Animated.View>
             )}
           </Animated.View>
+        )}
+
+        {mainOpenWithDog && (
+          <Text style={styles.dogNote}>
+            Picking the underdog on the main card earns {UNDERDOG_MULTIPLIER}× when you’re right. Odds move until the
+            main card locks, then the underdog is set.
+          </Text>
         )}
 
         {UNDERCARD.map((fight, i) => {
@@ -533,11 +556,12 @@ export default function Picks() {
                       >
                         {fight.a.name}
                       </Text>
-                      {!!fight.a.record && (
+                      {!!(fight.a.record || fight.a.odds) && (
                         <Text style={styles.rowRecord} numberOfLines={1}>
-                          {fight.a.record}
+                          {[fight.a.record, fight.a.odds].filter(Boolean).join(" · ")}
                         </Text>
                       )}
+                      {fight.a.dog && <Text style={styles.rowDog}>{UNDERDOG_MULTIPLIER}× DOG</Text>}
                     </View>
                   </View>
 
@@ -566,11 +590,12 @@ export default function Picks() {
                       >
                         {fight.b.name}
                       </Text>
-                      {!!fight.b.record && (
+                      {!!(fight.b.record || fight.b.odds) && (
                         <Text style={[styles.rowRecord, { textAlign: "right" }]} numberOfLines={1}>
-                          {fight.b.record}
+                          {[fight.b.record, fight.b.odds].filter(Boolean).join(" · ")}
                         </Text>
                       )}
+                      {fight.b.dog && <Text style={[styles.rowDog, { textAlign: "right" }]}>{UNDERDOG_MULTIPLIER}× DOG</Text>}
                     </View>
                     <Avatar initials={fight.b.initials} photoUrl={fight.b.photoUrl} selected={picked === fight.b.id} size={36} />
                   </View>
@@ -585,8 +610,8 @@ export default function Picks() {
                   >
                     <RoundLane
                       rounds={fight.rounds}
-                      red={{ name: titleCase(fight.a.name), record: fight.a.record }}
-                      blue={{ name: titleCase(fight.b.name), record: fight.b.record }}
+                      red={{ ...fight.a, name: titleCase(fight.a.name) }}
+                      blue={{ ...fight.b, name: titleCase(fight.b.name) }}
                       pick={lane[fight.id]}
                       onPick={(pick) => setLanePick(fight, pick)}
                       disabled={lockedIn || isLocked(fight)}
