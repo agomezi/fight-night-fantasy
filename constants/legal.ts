@@ -1,4 +1,5 @@
-// Placeholders until the real pages are published; both must be public URLs
-// before App Store submission.
-export const PRIVACY_URL = "https://example.com/privacy";
-export const TERMS_URL = "https://example.com/terms";
+// Served by GitHub Pages from docs/ on master.
+const SITE = "https://agomezi.github.io/fight-night-fantasy";
+
+export const PRIVACY_URL = `${SITE}/privacy.html`;
+export const TERMS_URL = `${SITE}/terms.html`;
