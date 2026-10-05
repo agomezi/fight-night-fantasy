@@ -21,8 +21,9 @@ import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
 import Skeleton from "../components/Skeleton";
 import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
-import { LEAGUE, SEASON_STANDINGS } from "../constants/league";
 import { useHistory } from "../hooks/useHistory";
+import { useLeague } from "../hooks/useLeague";
+import { MIN_MEMBERS } from "../services/leagues";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
 import { loadPicks, pickSummary } from "../services/picks";
@@ -288,7 +289,13 @@ export default function Home() {
 
   // --- carousel -----------------------------------------------------------
   // Two always-on cards, then two that only appear when they're relevant.
-  const myStanding = SEASON_STANDINGS.find((s) => s.isMe);
+  // The league the Leagues tab shows, and where you sit in it once ranked.
+  const leagueState = useLeague();
+  const myLeague = leagueState.status === "ready" ? leagueState.league : null;
+  const standingRows = leagueState.status === "ready" ? (leagueState.standings?.rows ?? []) : [];
+  const ranked = standingRows.filter((s) => s.rank != null);
+  const me = standingRows.find((s) => s.isMe);
+  const myStanding = me && me.rank != null ? { ...me, rank: me.rank } : null;
   // Nothing saved yet means the carousel shows the "start your card" prompt
   // instead of a progress ring.
   const picksStarted = Object.keys(saved).length;
@@ -299,12 +306,9 @@ export default function Home() {
   const history = useHistory();
   const lastPlayed = history.status === "ready" ? history.history.events[0] ?? null : null;
   const lastScored = lastPlayed && (lastPlayed.total > 0 || lastPlayed.live) ? lastPlayed : null;
-  // The player directly above and directly below you.
-  const neighbours = myStanding
-    ? SEASON_STANDINGS.filter(
-        (s) => s.rank === myStanding.rank - 1 || s.rank === myStanding.rank + 1,
-      )
-    : [];
+  // The player directly above and directly below you in the table.
+  const myIndex = myStanding ? ranked.findIndex((s) => s.isMe) : -1;
+  const neighbours = myIndex < 0 ? [] : [ranked[myIndex - 1], ranked[myIndex + 1]].filter((s) => s != null);
 
   const carouselCards: CarouselCard[] = [
     {
@@ -350,39 +354,30 @@ export default function Home() {
     },
   ];
 
-  if (LEAGUE && myStanding) {
+  if (myLeague && myStanding) {
     carouselCards.push({
       tag: "YOUR LEAGUE",
       tagColor: "#E8A020",
 
-      serial: LEAGUE ? `WEEK ${LEAGUE.week}` : undefined,
+      serial: leagueState.status === "ready" ? leagueState.standings?.season : undefined,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing
-            value={LEAGUE.members - myStanding.rank + 1}
-            total={LEAGUE.members}
-            center={ordinal(myStanding.rank)}
-            caption={`of ${LEAGUE.members}`}
+            value={ranked.length - myStanding.rank + 1}
+            total={ranked.length}
+            center={myStanding.tied ? `T-${myStanding.rank}` : ordinal(myStanding.rank)}
+            caption={`of ${ranked.length}`}
             size={116}
             color="#E8A020"
           />
           <View style={{ flex: 1 }}>
             <Text style={{ color: c.text, fontSize: 19, fontWeight: "800" }}>
-              {LEAGUE.name}
+              {myLeague.name}
             </Text>
             <Text
               style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}
             >
-              {myStanding.points.toLocaleString()} pts · week {LEAGUE.week}
-            </Text>
-            <Text
-              style={{ color: c.green, fontSize: 12.5, fontWeight: "700", marginTop: 6 }}
-            >
-              {myStanding.move > 0
-                ? `Up ${myStanding.move} this week`
-                : myStanding.move < 0
-                  ? `Down ${Math.abs(myStanding.move)} this week`
-                  : "Holding position"}
+              {myStanding.record} · {myStanding.points.toLocaleString()} pts
             </Text>
           </View>
         </View>
@@ -569,13 +564,13 @@ export default function Home() {
                * dead space, so when there's no league the card stops being a
                * stat and becomes the thing that would fill it.
                */
-              ...(myStanding && LEAGUE
+              ...(myStanding && myLeague
                 ? {
-                    serial: LEAGUE.name.toUpperCase(),
+                    serial: myLeague.name.toUpperCase(),
                     mark: <CardMark name="trophy" color={c.gold} opacity={1} />,
                     tag: "CURRENT LEAGUE RANK",
                     tagColor: c.textMuted,
-                    title: ordinal(myStanding.rank),
+                    title: myStanding.tied ? `T-${myStanding.rank}` : ordinal(myStanding.rank),
                     titleSize: 50,
                     footer: (
                       <>
@@ -585,13 +580,13 @@ export default function Home() {
                             { textAlign: "left", marginBottom: 12 },
                           ]}
                         >
-                          {myStanding.team} · {LEAGUE.members} in the league
+                          {myStanding.record} · {myLeague.members} in the league
                         </Text>
                         {/* Who you're chasing and who's chasing you — worth
                             more than restating the rank in ghost type. */}
                         {neighbours.map((n) => (
                           <View
-                            key={n.id}
+                            key={n.userId}
                             style={{
                               flexDirection: "row",
                               alignItems: "center",
@@ -603,13 +598,13 @@ export default function Home() {
                           >
                             <Text
                               style={{
-                                color: n.rank < myStanding.rank ? c.green : c.textFaint,
+                                color: ranked.indexOf(n) < myIndex ? c.green : c.textFaint,
                                 fontSize: 12,
                                 fontWeight: "800",
                                 width: 12,
                               }}
                             >
-                              {n.rank < myStanding.rank ? "↑" : "↓"}
+                              {ranked.indexOf(n) < myIndex ? "↑" : "↓"}
                             </Text>
                             <Text
                               style={{ flex: 1, color: c.text2, fontSize: 13 }}
@@ -633,7 +628,32 @@ export default function Home() {
                       </>
                     ),
                   }
-                : {
+                : myLeague
+                  ? {
+                      serial: myLeague.name.toUpperCase(),
+                      tag: "YOUR LEAGUE",
+                      tagColor: "#E8A020",
+                      title: "Unranked",
+                      titleSize: 32,
+                      footer: (
+                        <>
+                          <Text style={[commonStyles.cardSubtitle, { textAlign: "left", marginBottom: 14 }]}>
+                            {myLeague.members < MIN_MEMBERS
+                              ? `${myLeague.members} of ${MIN_MEMBERS} players — invite more so the league can play when the season starts.`
+                              : "Your rank and record start with the next season."}
+                          </Text>
+                          <PressableScale
+                            onPress={() => router.push("/leagues")}
+                            style={{ backgroundColor: c.red, borderRadius: 10, paddingVertical: 12, alignItems: "center" }}
+                          >
+                            <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>
+                              VIEW LEAGUE
+                            </Text>
+                          </PressableScale>
+                        </>
+                      ),
+                    }
+                  : {
                     serial: "NO LEAGUE",
                     // No mark on the empty card. A mark is sized to sit beside
                     // a short numeral; the prompt runs to prose and a button,

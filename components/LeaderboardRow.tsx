@@ -43,8 +43,8 @@ export default function LeaderboardRow({
           borderBottomColor: c.border,
         }}
       >
-        <Text style={{ width: 28, color: row.rank <= 3 ? c.text : c.textMuted, fontSize: 15, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
-          {row.rank}
+        <Text style={{ width: 36, color: row.rank <= 3 ? c.text : c.textMuted, fontSize: 15, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
+          {row.tied ? `T-${row.rank}` : row.rank}
         </Text>
         <View
           style={{

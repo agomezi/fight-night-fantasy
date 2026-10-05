@@ -4,3 +4,6 @@ export const profileStorageKey = (userId: string) => `fnf.profile.${userId}`;
 
 // The unscoped key used before profiles were per account.
 export const LEGACY_PROFILE_KEY = "fnf.profile";
+
+// The league the Leagues tab shows, per account.
+export const selectedLeagueKey = (userId: string) => `fnf.league.selected.${userId}`;

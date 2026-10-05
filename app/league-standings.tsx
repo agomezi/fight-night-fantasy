@@ -1,91 +1,37 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import { ScrollView, Share, Text, View } from "react-native";
-import Animated, {
-  interpolateColor,
-  useAnimatedStyle,
-} from "react-native-reanimated";
-import PressableScale from "../components/PressableScale";
-import { useToggleProgress } from "../hooks/useToggleProgress";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { ActivityIndicator, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { EmptyScorecard, ScoreRow, Scorecard } from "../components/Scorecard";
-import StandingRow from "../components/StandingRow";
-import {
-    EVENT_STANDINGS,
-    LEAGUE,
-    LEAGUE_STATS,
-    SEASON_STANDINGS,
-} from "../constants/league";
+import EmptyState from "../components/EmptyState";
+import LeagueStandingRow from "../components/LeagueStandingRow";
+import PressableScale from "../components/PressableScale";
+import { EmptyScorecard } from "../components/Scorecard";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { useLeague } from "../hooks/useLeague";
+import { inviteMessage, TIER_LABEL } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
-
-type Scope = "season" | "event";
-
-/** Season / Last Event switch — the fill slides in rather than snapping. */
-function ScopeToggle({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { c } = useTheme();
-  const styles = useThemedStyles(makeLeaguesStyles);
-  const progress = useToggleProgress(active);
-
-  const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      ["transparent", c.red],
-    ),
-    borderColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      [c.borderStrong, c.red],
-    ),
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 1], [c.text2, "#FFFFFF"]),
-  }));
-
-  return (
-    <PressableScale onPress={onPress} style={[styles.toggle, boxStyle]}>
-      <Animated.Text style={[styles.toggleText, textStyle]}>
-        {label}
-      </Animated.Text>
-    </PressableScale>
-  );
-}
 
 export default function LeagueStandings() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeLeaguesStyles);
-  const [scope, setScope] = useState<Scope>("season");
+  const state = useLeague(id);
 
-  const rows = scope === "season" ? SEASON_STANDINGS : EVENT_STANDINGS;
+  const league = state.status === "ready" ? state.league : null;
+  const standings = state.status === "ready" ? state.standings : null;
+  const rows = standings?.rows ?? [];
+  const unranked = rows.filter((r) => r.rank == null);
 
-  const inviteFriends = () => {
-    Share.share({
-      message: LEAGUE
-        ? `Join "${LEAGUE.name}" on Fight Night Fantasy and take your shot at the #1 spot 🥊`
-        : "Join me on Fight Night Fantasy and take your shot at the #1 spot 🥊",
-    }).catch(() => {});
+  const invite = () => {
+    if (league) Share.share({ message: inviteMessage(league) }).catch(() => {});
   };
 
   return (
-    <SafeAreaView
-      style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]}
-      edges={["top", "left", "right"]}
-    >
+    <SafeAreaView style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]} edges={["top", "left", "right"]}>
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
@@ -95,84 +41,68 @@ export default function LeagueStandings() {
           <PressableScale onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="chevron-back" size={26} color={c.text} />
           </PressableScale>
-          <PressableScale onPress={inviteFriends} hitSlop={12}>
-            <Ionicons name="person-add-outline" size={22} color={c.red} />
-          </PressableScale>
-        </View>
-
-        <Text style={styles.screenTitle}>
-          {LEAGUE ? LEAGUE.name.toUpperCase() : "STANDINGS"}
-        </Text>
-        <Text style={styles.screenSub}>
-          {LEAGUE
-            ? `${LEAGUE.members} Members · ${scope === "season" ? "Season" : `Week ${LEAGUE.week}`}`
-            : "No league joined"}
-        </Text>
-        <Text style={styles.screenNote}>Standings reflect picks since you joined</Text>
-
-        <View style={styles.toggleRow}>
-          {(["season", "event"] as Scope[]).map((key) => (
-            <ScopeToggle
-              key={key}
-              label={key === "season" ? "SEASON" : "LAST EVENT"}
-              active={scope === key}
-              onPress={() => setScope(key)}
-            />
-          ))}
-        </View>
-
-        {/* Standings are read, not tapped — no box. */}
-        <View style={{ marginTop: 22 }}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Full Standings</Text>
-            <Text style={styles.cardMeta}>{rows.length} PLAYERS</Text>
-          </View>
-
-          {rows.length === 0 ? (
-            <EmptyScorecard
-              rows={4}
-              caption={
-                scope === "season"
-                  ? "Join a league and make your first picks — the table fills from there."
-                  : "Nothing scored yet. Event standings appear after fight night."
-              }
-            />
-          ) : (
-            <>
-              <View style={styles.columnHeader}>
-                <Text style={[styles.columnLabel, { width: 42, textAlign: "center" }]}>RNK</Text>
-                <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER</Text>
-                <Text style={styles.columnLabel}>PTS</Text>
-              </View>
-
-              {rows.map((s, i) => (
-                <StandingRow key={s.id} standing={s} padRank index={i} />
-              ))}
-            </>
+          {league && (
+            <PressableScale onPress={invite} hitSlop={12}>
+              <Ionicons name="person-add-outline" size={22} color={c.red} />
+            </PressableScale>
           )}
         </View>
 
-        {/* Four bordered tiles became one card you can read down. */}
-        <Scorecard style={{ marginTop: 22 }}>
-          {LEAGUE_STATS.map((stat, i) => (
-            <ScoreRow
-              key={stat.id}
-              index={i}
-              label={stat.label}
-              value={stat.value}
-              note={stat.delta}
-              noteTone={
-                stat.positive === null ? "muted" : stat.positive ? "up" : "down"
-              }
-              last={i === LEAGUE_STATS.length - 1}
-            />
-          ))}
-        </Scorecard>
+        <Text style={styles.screenTitle}>{league ? league.name.toUpperCase() : "STANDINGS"}</Text>
+        <Text style={styles.screenSub}>
+          {league
+            ? `${league.members} Members · ${TIER_LABEL[league.tier]} · ${standings?.season ?? ""}`
+            : state.status === "loading"
+              ? " "
+              : "No league joined"}
+        </Text>
+        <Text style={styles.screenNote}>
+          Ranked on W-L record, then points, then accuracy, then head-to-head.
+        </Text>
 
-        <PressableScale style={styles.primaryButton} onPress={inviteFriends}>
-          <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.primaryButtonText}>INVITE FRIENDS</Text>
-        </PressableScale>
+        {state.status === "loading" && <ActivityIndicator color={c.red} style={{ marginTop: 40 }} />}
+        {state.status === "error" && (
+          <EmptyState icon="cloud-offline-outline" title="Couldn't load the standings" message={state.message}
+            actionLabel="TRY AGAIN" onAction={state.reload} />
+        )}
+
+        {state.status === "ready" && (
+          <View style={{ marginTop: 22 }}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>{standings?.ranked ? "Season Table" : "Members"}</Text>
+              <Text style={styles.cardMeta}>{rows.length} PLAYERS</Text>
+            </View>
+
+            {rows.length === 0 ? (
+              <EmptyScorecard rows={4} caption="Join a league and make your first picks — the table fills from there." />
+            ) : (
+              <>
+                <View style={styles.columnHeader}>
+                  <Text style={[styles.columnLabel, { width: 42, textAlign: "center" }]}>RNK</Text>
+                  <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER · W-L</Text>
+                  <Text style={styles.columnLabel}>PTS</Text>
+                </View>
+                {rows.map((row, i) => (
+                  <LeagueStandingRow key={row.userId} row={row} index={i} />
+                ))}
+              </>
+            )}
+
+            {unranked.length > 0 && standings?.ranked && (
+              <Text style={{ color: c.textFaint, fontSize: 12, lineHeight: 18, marginTop: 12 }}>
+                Players marked NEXT SEASON joined mid-season. Their points count globally now and they join the
+                rotation when the next season starts.
+              </Text>
+            )}
+          </View>
+        )}
+
+        {league && (
+          <PressableScale style={styles.primaryButton} onPress={invite}>
+            <Ionicons name="person-add-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>INVITE FRIENDS</Text>
+          </PressableScale>
+        )}
       </ScrollView>
 
       <View style={{ height: insets.bottom }} />
