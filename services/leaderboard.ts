@@ -3,6 +3,8 @@
 
 export type LeaderboardRow = {
   rank: number;
+  /** True when another player shares the rank, shown as T-n. */
+  tied: boolean;
   userId: string;
   name: string;
   points: number;
@@ -29,8 +31,11 @@ type Raw = {
 };
 
 export function toLeaderboard(raw: Raw[]): Leaderboard {
+  const shared = new Map<number, number>();
+  for (const r of raw) shared.set(Number(r.rank), (shared.get(Number(r.rank)) ?? 0) + 1);
   const rows = raw.map((r) => ({
     rank: Number(r.rank),
+    tied: (shared.get(Number(r.rank)) ?? 0) > 1,
     userId: r.user_id,
     name: r.display_name,
     points: Number(r.points),
