@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { ScrollView, Share, Text, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import AnimatedBar from "../components/AnimatedBar";
@@ -13,6 +13,8 @@ import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import FeedItem from "../components/FeedItem";
 import HeaderBar from "../components/HeaderBar";
+import LeaderboardRow from "../components/LeaderboardRow";
+import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import StandingRow from "../components/StandingRow";
 import {
     CHATTER,
@@ -38,6 +40,17 @@ export default function Leagues() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeLeaguesStyles);
   const [draft, setDraft] = useState("");
+  // The global table: the top five and, if you're further down, you.
+  const [board, setBoard] = useState<Leaderboard | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let current = true;
+      loadLeaderboard(5).then((b) => current && setBoard(b)).catch(() => {});
+      return () => {
+        current = false;
+      };
+    }, [])
+  );
   const [messages, setMessages] = useState(CHATTER);
 
   const sendMessage = () => {
@@ -88,7 +101,22 @@ export default function Leagues() {
             <Text style={styles.memberText}>You are not in a league</Text>
           </Animated.View>
 
-          <Animated.View entering={appear(3)} style={styles.card}>
+          {board && board.rows.length > 0 && (
+            <Animated.View entering={appear(3)} style={styles.card}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
+                <Text style={styles.cardTitle}>Global leaderboard</Text>
+                <Text style={{ color: c.red, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 }}>{board.season}</Text>
+              </View>
+              {board.rows.map((row, i) => (
+                <LeaderboardRow key={row.userId} row={row} index={i} last={i === board.rows.length - 1} />
+              ))}
+              <PressableScale onPress={() => router.push("/leaderboard")} style={{ paddingTop: 12, alignItems: "center" }}>
+                <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: "700" }}>See the full leaderboard →</Text>
+              </PressableScale>
+            </Animated.View>
+          )}
+
+          <Animated.View entering={appear(4)} style={styles.card}>
             <EmptyState
               icon="trophy-outline"
               title="Start competing"
@@ -153,7 +181,8 @@ export default function Leagues() {
             {
               tag: LEAGUE.kind,
               tagColor: "#E8A020",
-              content: (
+
+              content: (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
                   <ProgressRing
                     value={me ? LEAGUE.members - me.rank + 1 : 0}
@@ -203,7 +232,8 @@ export default function Leagues() {
                   {
                     tag: "THIS WEEK",
                     tagColor: c.red,
-                    content: (
+
+                    content: (
                       <View style={{ gap: 12 }}>
                         <View style={commonStyles.row}>
                           <View style={{ alignItems: "flex-start" }}>
