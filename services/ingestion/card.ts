@@ -3,7 +3,27 @@
 
 export type CardSegment = "main" | "prelims" | "early_prelims";
 export type CardStatus = "scheduled" | "live" | "complete";
-export type CardFighter = { ufcFighterId: string; name: string; nickname: string | null };
+/** What the feed says about a fighter beyond their name. Snapshotted on every
+ * sync, so the record is current as of the card. */
+export type FighterProfile = {
+  wins: number;
+  losses: number;
+  draws: number;
+  noContests: number;
+  /** "1995-12-28". */
+  dob: string | null;
+  /** Inches. */
+  heightIn: number | null;
+  reachIn: number | null;
+  stance: string | null;
+};
+export type CardFighter = {
+  ufcFighterId: string;
+  name: string;
+  nickname: string | null;
+  /** Absent when the feed has no record for them. */
+  profile?: FighterProfile;
+};
 export type CardBout = {
   ufcFightId: string;
   /** 1 is the main event. */
@@ -52,13 +72,43 @@ function words(...parts: unknown[]): string {
   return parts.filter(p => typeof p === "string").join(" ").replace(/\s+/g, " ").trim();
 }
 
+const count = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null);
+const measure = (v: unknown) => (typeof v === "number" && v > 0 ? v : null);
+
+/** The record and measurements, read leniently: a missing or odd value is
+ * left out rather than failing the card. */
+function parseProfile(f: Json): FighterProfile | undefined {
+  const record = f.Record && typeof f.Record === "object" ? (f.Record as Json) : null;
+  const wins = count(record?.Wins);
+  const losses = count(record?.Losses);
+  if (wins == null || losses == null) return undefined;
+  const dob = typeof f.DOB === "string" && /^\d{4}-\d{2}-\d{2}$/.test(f.DOB) ? f.DOB : null;
+  return {
+    wins,
+    losses,
+    draws: count(record?.Draws) ?? 0,
+    noContests: count(record?.NoContests) ?? 0,
+    dob,
+    heightIn: measure(f.Height),
+    reachIn: measure(f.Reach),
+    stance: words(f.Stance) || null,
+  };
+}
+
 function parseFighter(value: unknown, fightId: string): CardFighter & { corner: string } {
   const f = object(value, `fighter in fight ${fightId}`);
   const name = object(f.Name, `fighter name in fight ${fightId}`);
   const full = words(name.FirstName, name.LastName);
   if (!full) throw new Error(`Missing fighter name in fight ${fightId}`);
   const nickname = words(name.NickName) || null;
-  return { ufcFighterId: id(f.FighterId, `fighter id in fight ${fightId}`), name: full, nickname, corner: String(f.Corner) };
+  const profile = parseProfile(f);
+  return {
+    ufcFighterId: id(f.FighterId, `fighter id in fight ${fightId}`),
+    name: full,
+    nickname,
+    ...(profile ? { profile } : {}),
+    corner: String(f.Corner),
+  };
 }
 
 function parseBout(value: unknown, issues: string[]): Omit<CardBout, "locksAt"> & { segmentStart: number | null } {

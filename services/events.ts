@@ -2,7 +2,39 @@
 // they can be tested without a database.
 
 export type CardSegment = "main" | "prelims" | "early_prelims";
-export type EventFighter = { id: string; name: string; nickname: string | null; photoUrl: string | null };
+export type EventFighter = {
+  id: string;
+  name: string;
+  nickname: string | null;
+  photoUrl: string | null;
+  /** "27-7-0", or null until card sync has their record. */
+  record: string | null;
+};
+
+type FighterRow = Omit<EventFighter, "record"> & {
+  wins: number | null;
+  losses: number | null;
+  draws: number | null;
+  noContests: number | null;
+};
+
+/** A record the way the UFC prints it: W-L-D, with no contests after. */
+export function fighterRecord(f: Pick<FighterRow, "wins" | "losses" | "draws" | "noContests">): string | null {
+  if (f.wins == null || f.losses == null) return null;
+  const nc = f.noContests ?? 0;
+  return `${f.wins}-${f.losses}-${f.draws ?? 0}${nc > 0 ? ` (${nc} NC)` : ""}`;
+}
+
+/** "LIGHTWEIGHT", "W. STRAWWEIGHT" — short enough for one line on the card. */
+export function divisionLabel(weightClass: string | null): string {
+  return (weightClass ?? "")
+    .replace(/^women['’]?s\s+/i, "W. ")
+    .toUpperCase();
+}
+
+function toFighter({ wins, losses, draws, noContests, ...f }: FighterRow): EventFighter {
+  return { ...f, record: fighterRecord({ wins, losses, draws, noContests }) };
+}
 export type EventBout = {
   id: string;
   order: number;
@@ -33,8 +65,8 @@ export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status,
   bouts!bouts_event_id_fkey (
     id, fight_order, card_segment, scheduled_rounds, weight_class, version, status, locks_at,
-    red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url ),
-    blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url )
+    red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests ),
+    blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests )
   )`;
 
 type Row = {
@@ -52,8 +84,8 @@ type Row = {
     version: number;
     status: "scheduled" | "cancelled";
     locks_at: string | null;
-    red: EventFighter;
-    blue: EventFighter;
+    red: FighterRow;
+    blue: FighterRow;
   }[];
 };
 
@@ -76,8 +108,8 @@ export function toNextEvent(row: Row): NextEvent {
         version: b.version,
         // A bout entered by hand has no lock of its own and goes by the card's.
         locksAt: new Date(b.locks_at ?? row.locks_at),
-        red: b.red,
-        blue: b.blue,
+        red: toFighter(b.red),
+        blue: toFighter(b.blue),
       })),
   };
 }

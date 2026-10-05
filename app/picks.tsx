@@ -34,7 +34,7 @@ import FighterPhoto from "../components/FighterPhoto";
 import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
-import { initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
+import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
@@ -62,13 +62,13 @@ function toFight(bout: EventBout): Fight {
     id: f.id,
     name: lastName(f.name).toUpperCase(),
     initials: initials(f.name),
-    // No records stored yet; the nickname fills the slot under the name.
-    record: f.nickname ?? "",
+    // The record, or the nickname until card sync has one.
+    record: f.record ?? f.nickname ?? "",
     photoUrl: f.photoUrl,
   });
   return {
     id: bout.id,
-    division: (bout.weightClass ?? "").toUpperCase(),
+    division: divisionLabel(bout.weightClass),
     rounds: bout.scheduledRounds === 5 ? 5 : 3,
     segment: bout.segment,
     locksAt: bout.locksAt,
@@ -515,20 +515,33 @@ export default function Picks() {
                 layout={LinearTransition.duration(220)}
                 style={styles.rowCard}
               >
-                {/* Collapsed row is a readout; all picking happens in the lane. */}
-                <PressableScale style={styles.row} onPress={() => toggle(fight.id)}>
+                {/* Collapsed row is a readout; all picking happens in the lane.
+                    The division has its own line, so a long name can't push it. */}
+                <PressableScale onPress={() => toggle(fight.id)}>
+                {!!fight.division && (
+                  <Text style={styles.rowDivision} numberOfLines={1}>
+                    {fight.division}
+                  </Text>
+                )}
+                <View style={styles.row}>
                   <View style={styles.rowFighter}>
                     <Avatar initials={fight.a.initials} photoUrl={fight.a.photoUrl} selected={picked === fight.a.id} size={36} />
-                    <Text
-                      style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
-                      numberOfLines={1}
-                    >
-                      {fight.a.name}
-                    </Text>
+                    <View style={{ flexShrink: 1 }}>
+                      <Text
+                        style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
+                        numberOfLines={1}
+                      >
+                        {fight.a.name}
+                      </Text>
+                      {!!fight.a.record && (
+                        <Text style={styles.rowRecord} numberOfLines={1}>
+                          {fight.a.record}
+                        </Text>
+                      )}
+                    </View>
                   </View>
 
                   <View style={styles.rowCenter}>
-                    <Text style={styles.rowDivision}>{fight.division}</Text>
                     {picked ? (
                       <Animated.View entering={popIn}>
                         <Ionicons name="checkmark-circle" size={16} color={c.red} />
@@ -542,18 +555,26 @@ export default function Picks() {
                   </View>
 
                   <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
-                    <Text
-                      style={[
-                        styles.rowName,
-                        { textAlign: "right" },
-                        picked === fight.b.id && styles.rowNamePicked,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {fight.b.name}
-                    </Text>
+                    <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
+                      <Text
+                        style={[
+                          styles.rowName,
+                          { textAlign: "right" },
+                          picked === fight.b.id && styles.rowNamePicked,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {fight.b.name}
+                      </Text>
+                      {!!fight.b.record && (
+                        <Text style={[styles.rowRecord, { textAlign: "right" }]} numberOfLines={1}>
+                          {fight.b.record}
+                        </Text>
+                      )}
+                    </View>
                     <Avatar initials={fight.b.initials} photoUrl={fight.b.photoUrl} selected={picked === fight.b.id} size={36} />
                   </View>
+                </View>
                 </PressableScale>
 
                 {isOpen && (

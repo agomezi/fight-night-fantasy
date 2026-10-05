@@ -167,3 +167,38 @@ describe("UFC.com discovery", () => {
     expect(eventFmid('<div class="c-listing-fight" data-fmid="">')).toBeNull();
   });
 });
+
+describe("fighter profiles", () => {
+  const withRecord = (extra: Record<string, unknown> = {}) =>
+    payload({}, [
+      fight(1, 1, "Main", "2026-10-04T00:00Z", {
+        Fighters: [
+          {
+            ...fighter(11, "Brendan", "Allen", "Red"),
+            Record: { Wins: 27, Losses: 7, Draws: 0, NoContests: 1 },
+            DOB: "1995-12-28",
+            Height: 74.0,
+            Reach: 75.0,
+            Stance: "Orthodox",
+            ...extra,
+          },
+          fighter(12, "Blue", "Fighter", "Blue"),
+        ],
+      }),
+    ]);
+
+  test("reads the record and measurements", () => {
+    const [bout] = parseCard(withRecord())!.bouts;
+    expect(bout.red.profile).toEqual({
+      wins: 27, losses: 7, draws: 0, noContests: 1, dob: "1995-12-28", heightIn: 74, reachIn: 75, stance: "Orthodox",
+    });
+    expect(bout.blue.profile).toBeUndefined();
+  });
+
+  test("leaves out odd values instead of failing the card", () => {
+    const [bout] = parseCard(withRecord({ DOB: "unknown", Height: 0, Stance: null }))!.bouts;
+    expect(bout.red.profile).toMatchObject({ wins: 27, dob: null, heightIn: null, stance: null });
+    const [noRecord] = parseCard(withRecord({ Record: { Wins: null } }))!.bouts;
+    expect(noRecord.red.profile).toBeUndefined();
+  });
+});
