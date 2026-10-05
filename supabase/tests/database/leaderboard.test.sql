@@ -35,8 +35,8 @@ update public.profiles set display_name = 'Delta' where id = '00000000-0000-0000
 -- e1 never picked a name.
 
 create function pg_temp.score(usr text, fight text, points int, correct boolean) returns void language sql as $$
-  insert into public.scores (user_id, bout_id, season_id, points, breakdown, correct, counts_for_accuracy)
-  select usr::uuid, b.id, e.season_id, points, '{}', correct, true
+  insert into public.scores (user_id, bout_id, season_id, points, casual_points, breakdown, correct, counts_for_accuracy)
+  select usr::uuid, b.id, e.season_id, points, points, '{}', correct, true
   from public.bouts b join public.events e on e.id = b.event_id where b.ufc_fight_id = fight
 $$;
 -- Alpha: 100 points, 2 of 3. Bravo: 100 points, 2 of 2. Charlie: -50.

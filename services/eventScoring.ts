@@ -41,6 +41,8 @@ export type ScoreRow = {
   user_id: string;
   bout_id: string;
   points: number;
+  /** The same pick at Casual, the only tier whose per-bout points differ. */
+  casual_points: number;
   breakdown: ScoreBreakdown;
   correct: boolean;
   counts_for_accuracy: boolean;
@@ -75,8 +77,9 @@ function pickFor(bout: BoutRow, row: PickRow): LanePick {
  * Every pick's score on the card. Bouts with no result yet produce no row;
  * a score row exists only once there is something to score against.
  *
- * Global scores play full deductions. League tiers are applied when league
- * standings are built, from the same picks and results.
+ * Global scores play full deductions. Casual halves them, so its points are
+ * stored beside the full ones; every other tier scores a bout the same and
+ * differs only in the season ledger, which league standings replay.
  */
 export function scoreEvent(bouts: BoutRow[], results: ResultRow[], picks: PickRow[]): ScoreRow[] {
   const boutsById = new Map(bouts.map(b => [b.id, b]));
@@ -95,15 +98,18 @@ export function scoreEvent(bouts: BoutRow[], results: ResultRow[], picks: PickRo
       result = { status: "void", reason: "FIGHTER_CHANGED", finality: result.finality };
     }
 
-    const score = scorePick(pickFor(bout, pick), result, {
-      tier: "pro",
+    const lanePick = pickFor(bout, pick);
+    const context = {
       segment: bout.card_segment ?? undefined,
       underdogCorner: bout.underdog_corner,
-    });
+    };
+    const score = scorePick(lanePick, result, { ...context, tier: "pro" });
+    const casual = scorePick(lanePick, result, { ...context, tier: "casual" });
     rows.push({
       user_id: pick.user_id,
       bout_id: pick.bout_id,
       points: score.points,
+      casual_points: casual.points,
       breakdown: score.breakdown,
       correct: score.correct,
       counts_for_accuracy: score.countsForAccuracy,
