@@ -31,7 +31,7 @@ const STILL_RUNNING_MS = 12 * 60 * 60 * 1000;
 
 export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status,
-  bouts (
+  bouts!bouts_event_id_fkey (
     id, fight_order, card_segment, scheduled_rounds, weight_class, version, status, locks_at,
     red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url ),
     blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url )

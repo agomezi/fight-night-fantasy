@@ -238,7 +238,7 @@ export const HISTORY_PICKS_QUERY = `
     id, fight_order, version, status,
     red:fighters!bouts_red_fighter_id_fkey ( id, name ),
     blue:fighters!bouts_blue_fighter_id_fkey ( id, name ),
-    event:events!inner ( id, name, starts_at, locks_at, status, season_id ),
+    event:events!bouts_event_id_fkey!inner ( id, name, starts_at, locks_at, status, season_id ),
     result:results ( status, winner_fighter_id, method, round, time, void_reason )
   )`;
 
