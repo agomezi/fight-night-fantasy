@@ -6,6 +6,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
+import { suppressPress, useSwipeGuard } from "./swipeGuard";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -38,6 +39,8 @@ export default function PressableScale({
   dim?: number;
 }) {
   const pressed = useSharedValue(0);
+  // Set inside a swipeable carousel, so a swipe across a button isn't a press.
+  const guard = useSwipeGuard();
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: withSpring(1 - pressed.value * (1 - scaleTo), SPRING) }],
@@ -49,13 +52,15 @@ export default function PressableScale({
       {...rest}
       disabled={disabled}
       style={[style, animatedStyle]}
-      onPressIn={() => {
+      onPressIn={(e) => {
         pressed.value = 1;
+        if (guard) guard.pressStart = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
       }}
       onPressOut={() => {
         pressed.value = 0;
       }}
       onPress={(e) => {
+        if (suppressPress(guard, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })) return;
         // Haptics are iOS/Android only; calling them on web rejects.
         if (haptic !== "none" && Platform.OS !== "web") {
           Haptics.impactAsync(IMPACT[haptic]).catch(() => {});

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Alert, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
@@ -10,36 +11,16 @@ import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import ResultRow from "../components/ResultRow";
 import HeaderBar from "../components/HeaderBar";
-import { RECENT_RESULTS } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
 import { makeProfileStyles } from "../styles/profile";
-
-type Pick = {
-  id: string;
-  name: string;
-  meta: string;
-  result: "WIN" | "LOSS";
-  points: number;
-};
-
-type Achievement = {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  sub: string;
-  locked?: boolean;
-};
-
-// A new account has no scored picks and no unlocked achievements yet.
-const RECENT_PICKS: Pick[] = [];
-
-const ACHIEVEMENTS: Achievement[] = [
-  { id: "1", icon: "mic", title: "Undefeated Streak", sub: "10 correct picks in a row", locked: true },
-  { id: "2", icon: "star", title: "Perfect Event", sub: "Lock a full card 12/12", locked: true },
-];
+import { useHistory } from "../hooks/useHistory";
+import { useLeague } from "../hooks/useLeague";
+import { achievementsFor, recentPicks } from "../services/achievements";
+import { loadLeaderboard, type LeaderboardRow } from "../services/leaderboard";
+import { rankLabel } from "../services/leagues";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -49,6 +30,30 @@ export default function Profile() {
   const styles = useThemedStyles(makeProfileStyles);
   const { profile } = useProfile();
   const { signOut } = useAuth();
+
+  // Your season so far, your place on the global table and in your league.
+  const historyState = useHistory();
+  const history = historyState.status === "ready" ? historyState.history : null;
+  const league = useLeague();
+  const leagueMe = league.status === "ready" ? (league.standings?.me ?? null) : null;
+  const [globalMe, setGlobalMe] = useState<LeaderboardRow | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      let current = true;
+      historyState.reload();
+      loadLeaderboard(1).then((b) => current && setGlobalMe(b.me)).catch(() => {});
+      return () => {
+        current = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
+
+  const season = history?.season ?? null;
+  const points = season?.points ?? 0;
+  const accuracy = season && season.total > 0 ? Math.round((season.hit / season.total) * 100) : null;
+  const recent = recentPicks(history);
+  const achievements = achievementsFor(history);
 
   // The route guard returns to the login screen once the session is gone.
   const handleSignOut = () => {
@@ -109,31 +114,39 @@ export default function Profile() {
           <Animated.View entering={appear(1)} style={styles.statCard}>
             <View style={styles.statAccent} />
             <Text style={styles.statLabel}>TOTAL POINTS</Text>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statValue}>{points.toLocaleString()}</Text>
             <View style={styles.statDelta}>
-              <Ionicons name="remove" size={12} color={c.textFaint} />
+              <Ionicons name={season && season.events > 0 ? "calendar-outline" : "remove"} size={12} color={c.textFaint} />
               <Text style={[styles.statDeltaText, { color: c.textFaint }]}>
-                NO POINTS YET
+                {season && season.events > 0
+                  ? `${season.label} · ${season.events} CARD${season.events === 1 ? "" : "S"}`
+                  : "NO POINTS YET"}
               </Text>
             </View>
           </Animated.View>
 
           <Animated.View entering={appear(2)} style={styles.statCard}>
             <Text style={styles.statLabel}>GLOBAL RANK</Text>
-            <Text style={styles.statValue}>—</Text>
-            <Text style={styles.statSub}>UNRANKED</Text>
+            <Text style={styles.statValue}>{globalMe ? rankLabel(globalMe.rank, globalMe.tied) : "—"}</Text>
+            <Text style={styles.statSub}>{globalMe ? season?.label ?? "THIS SEASON" : "UNRANKED"}</Text>
           </Animated.View>
 
           <Animated.View entering={appear(3)} style={styles.statCard}>
             <Text style={styles.statLabel}>LEAGUE RANK</Text>
-            <Text style={styles.statValue}>—</Text>
-            <Text style={styles.statSub}>NO LEAGUE</Text>
+            <Text style={styles.statValue}>{leagueMe?.rank != null ? rankLabel(leagueMe.rank, leagueMe.tied) : "—"}</Text>
+            <Text style={styles.statSub} numberOfLines={1}>
+              {league.status === "ready" && league.league
+                ? leagueMe?.rank != null
+                  ? `${leagueMe.record} · ${league.league.name.toUpperCase()}`
+                  : "UNRANKED"
+                : "NO LEAGUE"}
+            </Text>
           </Animated.View>
 
           <Animated.View entering={appear(4)} style={styles.statCard}>
             <Text style={styles.statLabel}>PICK ACCURACY</Text>
-            <Text style={styles.statValue}>—</Text>
-            <AnimatedBar percent={0} height={4} style={{ marginTop: 10 }} />
+            <Text style={styles.statValue}>{accuracy == null ? "—" : `${accuracy}%`}</Text>
+            <AnimatedBar percent={accuracy ?? 0} height={4} style={{ marginTop: 10 }} />
           </Animated.View>
         </View>
 
@@ -147,7 +160,7 @@ export default function Profile() {
         {/* History uses the method-as-headline row: the finish is the
             headline, the fighter sits under it, and your call is stamped
             beside it. Same shape the lane predicts. */}
-        {RECENT_RESULTS.length === 0 ? (
+        {recent.length === 0 ? (
           <EmptyState
             icon="clipboard-outline"
             title="No picks yet"
@@ -156,85 +169,56 @@ export default function Profile() {
             onAction={() => router.push("/picks")}
           />
         ) : (
-          RECENT_RESULTS.map((r, i) => (
+          recent.map((b, i) => (
             <ResultRow
-              key={r.id}
+              key={b.id}
               index={i}
-              red={r.red}
-              blue={r.blue}
-              meta="Final"
-              detail={r.detail}
-              points={r.points}
-              verdict={r.verdict}
-              verdictNote={r.verdictNote}
-              last={i === RECENT_RESULTS.length - 1}
+              red={b.red}
+              blue={b.blue}
+              meta={b.meta}
+              detail={b.detail}
+              points={b.points}
+              verdict={b.verdict}
+              verdictNote={b.voidNote ? `${b.pick} · ${b.voidNote}` : b.pick}
+              settled={b.settled}
+              last={i === recent.length - 1}
             />
           ))
         )}
-
-        {RECENT_PICKS.map((pick) => (
-          <View key={pick.id} style={styles.pickRow}>
-            <View style={styles.pickThumb}>
-              <Ionicons name="person" size={22} color={c.textFaint} />
-            </View>
-            <View style={styles.pickInfo}>
-              <Text style={styles.pickName}>{pick.name}</Text>
-              <Text style={styles.pickMeta}>{pick.meta}</Text>
-            </View>
-            <View style={styles.pickResult}>
-              <View
-                style={[
-                  styles.resultPill,
-                  pick.result === "WIN" ? styles.winPill : styles.lossPill,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.resultPillText,
-                    pick.result === "WIN" ? styles.winText : styles.lossText,
-                  ]}
-                >
-                  {pick.result}
-                </Text>
-              </View>
-              <Text
-                style={[
-                  styles.pickPoints,
-                  pick.points >= 0 ? styles.pointsPositive : styles.pointsNegative,
-                ]}
-              >
-                {pick.points >= 0 ? `+${pick.points}` : pick.points} pts
-              </Text>
-            </View>
-          </View>
-        ))}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>ACHIEVEMENTS</Text>
         </View>
 
-        {ACHIEVEMENTS.map((a, i) => (
+        {achievements.map((a, i) => (
           <Animated.View key={a.id} entering={appear(i)} style={styles.achievementRow}>
             <View
               style={[
                 styles.achievementIcon,
-                a.locked ? styles.achievementIconLocked : styles.achievementIconActive,
+                !a.earned ? styles.achievementIconLocked : styles.achievementIconActive,
               ]}
             >
-              <Ionicons name={a.icon} size={20} color={a.locked ? c.textFaint : c.red} />
+              <Ionicons name={a.icon} size={20} color={!a.earned ? c.textFaint : c.red} />
             </View>
             <View style={styles.achievementInfo}>
               <Text
                 style={[
                   styles.achievementTitle,
-                  a.locked && styles.achievementTitleLocked,
+                  !a.earned && styles.achievementTitleLocked,
                 ]}
               >
                 {a.title}
               </Text>
               <Text style={styles.achievementSub}>{a.sub}</Text>
+              {!a.earned && a.progress > 0 && (
+                <AnimatedBar percent={a.progress * 100} height={3} style={{ marginTop: 6 }} />
+              )}
             </View>
-            {a.locked && <Ionicons name="lock-closed" size={16} color={c.textFaint} />}
+            {a.earned ? (
+              <Ionicons name="checkmark-circle" size={18} color={c.green} />
+            ) : (
+              <Ionicons name="lock-closed" size={16} color={c.textFaint} />
+            )}
           </Animated.View>
         ))}
 
