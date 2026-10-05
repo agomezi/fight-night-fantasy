@@ -196,7 +196,7 @@ export function buildEventDetail(row: EventRow, picks: MyPick[], scores: MyScore
 
 export const EVENT_DETAIL_QUERY = `
   id, name, starts_at, locks_at, status, live_bout_id,
-  bouts (
+  bouts!bouts_event_id_fkey (
     id, fight_order, card_segment, scheduled_rounds, weight_class, version, status, locks_at,
     red:fighters!bouts_red_fighter_id_fkey ( id, name, photoUrl:photo_url ),
     blue:fighters!bouts_blue_fighter_id_fkey ( id, name, photoUrl:photo_url ),
