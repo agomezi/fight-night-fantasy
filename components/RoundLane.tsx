@@ -2,12 +2,20 @@ import { Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useTheme } from "../context/ThemeContext";
 import PressableScale from "./PressableScale";
+import { UNDERDOG_MULTIPLIER } from "../services/scoring";
 
 // The pick types live with scoring, which the server also runs.
 import type { Corner, Finish, LanePick, Method } from "../services/pickTypes";
 export type { Corner, Finish, LanePick, Method };
 
-export type LaneFighter = { name: string; record: string };
+export type LaneFighter = {
+  name: string;
+  record: string;
+  /** The moneyline, "+114", shown after the record when the bout is priced. */
+  odds?: string;
+  /** The current underdog, which earns the multiplier. */
+  dog?: boolean;
+};
 
 /*
  * One lane holds all three parts of a pick.
@@ -169,8 +177,13 @@ export default function RoundLane({
               ? pick!.method
                 ? `${pick!.method === "KO" ? "KO/TKO" : "SUB"} · any round`
                 : "To win"
-              : fighter.record}
+              : [fighter.record, fighter.odds].filter(Boolean).join(" · ")}
           </Text>
+          {fighter.dog && (
+            <Text style={{ fontSize: 8.5, fontWeight: "800", letterSpacing: 1, color: c.red, marginTop: 2 }}>
+              {UNDERDOG_MULTIPLIER}× DOG
+            </Text>
+          )}
         </PressableScale>
 
         <View

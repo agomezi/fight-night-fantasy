@@ -1,4 +1,4 @@
-import { boutLocked, countdown, divisionLabel, fighterRecord, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, toNextEvent } from "../events";
+import { boutLocked, countdown, divisionLabel, fighterRecord, formatOdds, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, toNextEvent } from "../events";
 
 const fighter = (id: string, name: string) => ({
   id, name, nickname: null, photoUrl: null, wins: null, losses: null, draws: null, noContests: null,
@@ -12,6 +12,9 @@ const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "sc
   version: 1,
   status,
   locks_at,
+  red_odds: null,
+  blue_odds: null,
+  underdog_corner: null,
   red: fighter(`${id}r`, "Red"),
   blue: fighter(`${id}b`, "Blue"),
 });
@@ -41,6 +44,24 @@ describe("toNextEvent", () => {
     });
     expect(event.bouts.map((b) => b.locksAt.toISOString())).toEqual(["2026-10-04T00:00:00.000Z", "2026-10-03T20:00:00.000Z"]);
   });
+});
+
+describe("odds", () => {
+  test("a priced bout carries both lines and its underdog", () => {
+    const event = toNextEvent({
+      id: "e",
+      name: "UFC Fight Night: Allen vs. Duncan",
+      starts_at: "2026-10-10T21:00:00+00:00",
+      locks_at: "2026-10-10T21:00:00+00:00",
+      status: "scheduled",
+      bouts: [{ ...bout("a", 1), red_odds: -137, blue_odds: 114, underdog_corner: "blue" as const }, bout("b", 2)],
+    });
+    expect(event.bouts.map((b) => [b.odds, b.underdog])).toEqual([[{ red: -137, blue: 114 }, "blue"], [null, null]]);
+  });
+
+  test.each([[114, "+114"], [-137, "-137"], [100, "+100"], [-100, "-100"]])("%d prints as %s", (n, s) =>
+    expect(formatOdds(n)).toBe(s),
+  );
 });
 
 describe("section locks", () => {

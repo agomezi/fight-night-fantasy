@@ -156,6 +156,8 @@ export const makePicksStyles = (c: Palette) =>
       marginTop: 2,
       fontVariant: ["tabular-nums"],
     },
+    rowDog: { color: c.red, fontSize: 8.5, fontWeight: "800", letterSpacing: 1, marginTop: 2 },
+    dogNote: { color: c.textFaint, fontSize: 11, lineHeight: 15, textAlign: "center", marginTop: 10, marginHorizontal: 12 },
     vsSmall: { color: c.textFaint, fontWeight: "700", fontSize: 12 },
     rowBody: {
       marginTop: 12,
