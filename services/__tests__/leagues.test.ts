@@ -103,17 +103,19 @@ describe("toWeeks", () => {
       [
         matchup(1, "x", "y"),
         matchup(1, "z", "me", { is_mine: true, winner: "me", points_a: 10, points_b: 90 }),
-        matchup(2, "me", null, { is_mine: true, state: "upcoming", points_a: null, winner: null }),
+        matchup(2, "me", "x", { is_mine: true, state: "upcoming", points_a: null, points_b: null, winner: null }),
+        matchup(2, "y", "me", { is_mine: true, state: "upcoming", points_a: null, points_b: null, winner: null }),
       ],
       "me"
     );
-    expect(weeks.map((w) => [w.week, w.matchups.length])).toEqual([[1, 2], [2, 1]]);
+    expect(weeks.map((w) => [w.week, w.matchups.length])).toEqual([[1, 2], [2, 2]]);
     const mine = weeks[0].matchups[0];
     expect(mine.isMine).toBe(true);
     expect(mine.a).toEqual({ userId: "me", name: "ME", points: 90 });
     expect(mine.b).toEqual({ userId: "z", name: "Z", points: 10 });
     expect(matchupOutcome(mine)).toBe("won");
-    expect(weeks[1].matchups[0].b).toBeNull();
+    // A doubleheader: both of your week 2 matchups, you on side a in each.
+    expect(weeks[1].matchups.map((m) => [m.a.userId, m.b.userId])).toEqual([["me", "x"], ["me", "y"]]);
   });
 });
 
@@ -136,7 +138,7 @@ describe("matchupOutcome", () => {
     expect(matchupOutcome({ ...m, state: "live" })).toBe("leading");
     expect(matchupOutcome({ ...m, state: "live", a: { ...m.a, points: 50 } })).toBe("level");
     expect(matchupOutcome({ ...m, winnerId: null })).toBe("drew");
-    expect(matchupOutcome({ ...m, b: null })).toBeNull();
+    expect(matchupOutcome({ ...m, state: "upcoming", a: { ...m.a, points: null } })).toBeNull();
   });
 });
 

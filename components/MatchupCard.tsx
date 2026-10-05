@@ -16,25 +16,12 @@ const OUTCOME_TEXT = {
 } as const;
 
 /** A head-to-head on one card: both names and their points at the league's
- * tier, or the bye. Your side is on the left. */
+ * tier. Your side is on the left. */
 export default function MatchupCard({ matchup }: { matchup: Matchup }) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
   const { a, b, state } = matchup;
   const outcome = matchup.isMine ? matchupOutcome(matchup) : null;
-
-  if (!b) {
-    return (
-      <View style={styles.versusCard}>
-        <View style={{ flex: 1, alignItems: "center", paddingVertical: 8 }}>
-          <Text style={styles.versusName}>{matchup.isMine ? "You have the bye" : `${a.name} has the bye`}</Text>
-          <Text style={[styles.versusTeam, { marginTop: 4 }]}>
-            Odd-sized leagues rest one player a week. Your picks still count for points.
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   const aLead = a.points != null && b.points != null && a.points > b.points;
   const bLead = a.points != null && b.points != null && b.points > a.points;

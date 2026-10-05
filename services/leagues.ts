@@ -59,8 +59,7 @@ export type Matchup = {
   state: MatchupState;
   /** With `isMine`, side `a` is always you. */
   a: MatchupSide;
-  /** Null on a bye. */
-  b: MatchupSide | null;
+  b: MatchupSide;
   winnerId: string | null;
   isMine: boolean;
 };
@@ -191,14 +190,17 @@ type RawMatchup = {
 
 const num = (n: number | null) => (n == null ? null : Number(n));
 
-/** Matchups grouped by week, yours first in each and oriented so you're side `a`. */
+/**
+ * Matchups grouped by week, yours first in each and oriented so you're side
+ * `a`. In an odd league one player has a doubleheader, so you can have two.
+ */
 export function toWeeks(raw: RawMatchup[], myId: string | null): Week[] {
   const weeks = new Map<number, Week>();
   for (const r of raw) {
+    if (r.user_b == null) continue;
     let a: MatchupSide = { userId: r.user_a, name: r.name_a, points: num(r.points_a) };
-    let b: MatchupSide | null =
-      r.user_b == null ? null : { userId: r.user_b, name: r.name_b ?? "Player", points: num(r.points_b) };
-    if (b && b.userId === myId) [a, b] = [b, a];
+    let b: MatchupSide = { userId: r.user_b, name: r.name_b ?? "Player", points: num(r.points_b) };
+    if (b.userId === myId) [a, b] = [b, a];
 
     const week = Number(r.week);
     if (!weeks.has(week)) {
@@ -231,7 +233,7 @@ export function currentWeek(weeks: Week[]): Week | null {
 
 /** How a finished or running matchup reads from your side. */
 export function matchupOutcome(m: Matchup): "won" | "lost" | "drew" | "leading" | "trailing" | "level" | null {
-  if (!m.b || m.a.points == null || m.b.points == null) return null;
+  if (m.a.points == null || m.b.points == null) return null;
   if (m.state === "final") {
     if (m.winnerId == null) return "drew";
     return m.winnerId === m.a.userId ? "won" : "lost";

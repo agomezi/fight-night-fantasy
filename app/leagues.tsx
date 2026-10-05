@@ -160,7 +160,8 @@ export default function Leagues() {
   const ranked = standings?.rows.filter((r) => r.rank != null).length ?? 0;
   const waiting = waitingLine(league, standings, weeks);
   const week = currentWeek(weeks);
-  const myMatchup = week?.matchups.find((m) => m.isMine) ?? null;
+  const mine = week?.matchups.filter((m) => m.isMine) ?? [];
+  const myMatchup = mine[0] ?? null;
 
   const invite = () => {
     Share.share({ message: inviteMessage(league) }).catch(() => {});
@@ -258,6 +259,11 @@ export default function Leagues() {
                   content: (
                     <View style={{ gap: 12 }}>
                       <MatchupCard matchup={myMatchup} />
+                      {mine.length > 1 && (
+                        <Text style={{ color: c.text2, fontSize: 12, textAlign: "center" }}>
+                          Doubleheader week — you also play {mine[1].b.name}
+                        </Text>
+                      )}
                       <PressableScale
                         onPress={() => router.push(`/matchup?id=${league.id}`)}
                         style={{ backgroundColor: c.red, borderRadius: 10, paddingVertical: 11, alignItems: "center" }}

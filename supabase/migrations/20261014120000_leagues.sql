@@ -16,7 +16,7 @@
 -- It is practice; everything starts clean when Season 1 opens.
 --
 -- Standings rank on record, a win worth 3, a draw 1 and a loss 0, per matchup
--- played (so a bye neither helps nor hurts), then season points, then
+-- played (an odd league's doubleheaders even out), then season points, then
 -- accuracy, then the head-to-head result when exactly two players are level.
 -- Anyone still level shares a rank, and nobody is ranked before the first
 -- card of the season has been played. Points are the league's tier: Casual
@@ -383,12 +383,11 @@ create trigger seasons_open_leagues_on_start after update of starts_at on public
 -- The schedule
 -------------------------------------------------------------------------------
 
--- Week `week`'s pairings for `n` players by the circle method: player 0 stays
--- put and the rest rotate one place a week, so everyone meets everyone once
--- per n-1 weeks and the cycle then repeats in the same order. With n odd a
--- phantom player n is added, and whoever draws it has the bye. Players are
--- 0-based positions in join order; `b` is null for a bye.
-create function public.circle_pairings(n integer, week integer)
+-- One round of the circle method: player 0 stays put and the rest rotate one
+-- place a week, so everyone meets everyone once per cycle and the cycle then
+-- repeats in the same order. With n odd a phantom player n is added; whoever
+-- draws it is left over (`b` null). Players are 0-based positions in join order.
+create function public.circle_round(n integer, week integer)
 returns table (a integer, b integer)
 language sql
 immutable
@@ -410,7 +409,28 @@ as $$
   where x.seat < x.size / 2;
 $$;
 
-grant execute on function public.circle_pairings(integer, integer) to authenticated;
+-- Week `week`'s matchups. Nobody sits out: in an odd league the player left
+-- over plays a doubleheader opponent, last week's leftover, who plays twice
+-- that week. Everyone is left over once and doubles up once per cycle, so
+-- everyone plays the same number of matchups.
+create function public.circle_pairings(n integer, week integer)
+returns table (a integer, b integer)
+language sql
+immutable
+set search_path = ''
+as $$
+  with prev as (
+    -- An odd cycle is n weeks long, so the week before week 1 is week n.
+    select r.a as p
+    from public.circle_round(n, case when week = 1 then n else week - 1 end) r
+    where r.b is null
+  )
+  select r.a, coalesce(r.b, (select p from prev))
+  from public.circle_round(n, week) r;
+$$;
+
+grant execute on function public.circle_round(integer, integer), public.circle_pairings(integer, integer)
+  to authenticated;
 
 -- The season whose standings are current: the latest one that has started,
 -- or none during the pre-season.

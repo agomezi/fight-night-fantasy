@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(53);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -58,6 +58,19 @@ create function pg_temp.score(n int, fight text, casual int, pro int default nul
 $$;
 
 set local role authenticated;
+
+-------------------------------------------------------------------------------
+-- The schedule
+-------------------------------------------------------------------------------
+
+select is((select count(*)::int from generate_series(1, 5) w, public.circle_pairings(5, w) p where p.b is null), 0,
+  'an odd league has no byes');
+select results_eq(
+  $$select count(*)::int from generate_series(1, 5) w, public.circle_pairings(5, w) p,
+           lateral (values (p.a), (p.b)) x(player) group by x.player order by 1$$,
+  $$values (6), (6), (6), (6), (6)$$,
+  'everyone in an odd league plays the same number of matchups per cycle, one doubleheader each'
+);
 
 -------------------------------------------------------------------------------
 -- Creating and joining
