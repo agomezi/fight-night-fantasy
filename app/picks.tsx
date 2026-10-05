@@ -212,7 +212,7 @@ function CardSkeleton() {
               <Skeleton width="45%" height={13} />
             </View>
             <Skeleton width={56} height={10} />
-            <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
+            <View style={[styles.rowFighter, { justifyContent: "flex-start" }]}>
               <Skeleton width="45%" height={13} />
               <Skeleton width={36} height={36} radius={10} />
             </View>
@@ -578,7 +578,7 @@ export default function Picks() {
                     <Chevron open={!!isOpen} size={14} />
                   </View>
 
-                  <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
+                  <View style={[styles.rowFighter, { justifyContent: "flex-start" }]}>
                     <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
                       <Text
                         style={[

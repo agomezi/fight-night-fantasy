@@ -121,10 +121,13 @@ export const makePicksStyles = (c: Palette) =>
       flexDirection: "row",
       alignItems: "center",
     },
+    // Each fighter sits against the VS, not out at the card's edge; a long
+    // name truncates within its half instead of crossing the middle.
     rowFighter: {
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
+      justifyContent: "flex-end",
       gap: 10,
     },
     rowName: {
