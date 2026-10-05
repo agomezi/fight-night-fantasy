@@ -20,11 +20,10 @@ import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import {
   currentWeek,
   inviteMessage,
-  MIN_MEMBERS,
+  isPreseason,
   rankLabel,
   TIER_LABEL,
-  type LeagueStandings,
-  type MyLeague,
+  waitingLine,
 } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
@@ -33,17 +32,6 @@ function ordinal(n: number) {
   const t = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (t[(v - 20) % 10] ?? t[v] ?? t[0]);
-}
-
-/** Why a league has no table yet, in a line. Null once it is ranked. */
-function waitingLine(league: MyLeague, standings: LeagueStandings | null): string | null {
-  if (standings?.ranked && league.status !== "queued") return null;
-  if (league.members < MIN_MEMBERS) {
-    const more = MIN_MEMBERS - league.members;
-    return `Invite ${more} more to play — a league needs ${MIN_MEMBERS} when the season starts.`;
-  }
-  if (standings?.season === "PRE-SEASON") return "Season 1 hasn't started. Everyone here is in when it does.";
-  return "You join the rotation when the next season starts.";
 }
 
 export default function Leagues() {
@@ -170,7 +158,7 @@ export default function Leagues() {
 
   const me = standings?.me ?? null;
   const ranked = standings?.rows.filter((r) => r.rank != null).length ?? 0;
-  const waiting = waitingLine(league, standings);
+  const waiting = waitingLine(league, standings, weeks);
   const week = currentWeek(weeks);
   const myMatchup = week?.matchups.find((m) => m.isMine) ?? null;
 
@@ -251,6 +239,11 @@ export default function Leagues() {
                   </Text>
                   {waiting && (
                     <Text style={{ color: c.text2, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{waiting}</Text>
+                  )}
+                  {isPreseason(standings) && (
+                    <Text style={{ color: c.textFaint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>
+                      Pre-season results are practice — everything starts clean at Season 1.
+                    </Text>
                   )}
                 </View>
               </View>

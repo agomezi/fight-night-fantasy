@@ -184,8 +184,8 @@ export default function LeagueJoin() {
           <View style={{ marginTop: 22, gap: 8 }}>
             {[
               `Leagues are ${MIN_MEMBERS} to ${MAX_MEMBERS} players, one head-to-head each card.`,
-              "Everyone who joins starts at the next season, so this season's schedule never changes.",
-              "Until then your picks still count on the global leaderboard.",
+              "Until Season 1 starts, leagues play a pre-season: real matchups, for practice.",
+              "Once a season is under way, new members join at the next one. Their picks still count globally.",
             ].map((line) => (
               <View key={line} style={{ flexDirection: "row", gap: 8 }}>
                 <Ionicons name="information-circle-outline" size={15} color={c.textFaint} style={{ marginTop: 1 }} />

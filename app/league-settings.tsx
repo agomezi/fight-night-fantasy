@@ -12,6 +12,7 @@ import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useLeague } from "../hooks/useLeague";
 import {
   inviteMessage,
+  isPreseason,
   leaveLeague,
   removeMember,
   TIER_BLURB,
@@ -98,10 +99,13 @@ export default function LeagueSettings() {
 
   const fail = (e: unknown) => Alert.alert("Something went wrong", (e as Error).message);
 
-  // An active member stays in this season's rotation, so their opponents'
-  // schedules don't change; anyone queued just goes.
-  const leaveText =
-    me?.status === "active"
+  // In a season an active member stays in the rotation, so their opponents'
+  // schedules don't change; anyone queued just goes. In the pre-season you
+  // leave at once and the weeks you played stay.
+  const preseason = state.status === "ready" && isPreseason(state.standings);
+  const leaveText = preseason
+    ? "You'll leave now. The pre-season matchups you played stay on your opponents' records, and your picks stay on yours."
+    : me?.status === "active"
       ? "You'll finish this season's matchups — your opponents still play you — and drop out when the next season starts. Your picks stay on your record."
       : "You'll be removed from the league now. Your picks stay on your record.";
 
@@ -119,7 +123,7 @@ export default function LeagueSettings() {
   const confirmRemove = (member: LeagueStanding) => {
     Alert.alert(
       `Remove ${member.name}?`,
-      member.status === "active"
+      member.status === "active" && !preseason
         ? "They finish this season's matchups and leave when the next season starts."
         : "They're removed from the league now.",
       [

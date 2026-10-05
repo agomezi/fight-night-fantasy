@@ -292,3 +292,22 @@ export async function removeMember(leagueId: string, userId: string): Promise<vo
 export function inviteMessage(league: { name: string; inviteCode: string }): string {
   return `Join "${league.name}" on Fight Night Fantasy 🥊 Code: ${league.inviteCode}`;
 }
+
+export function isPreseason(standings: LeagueStandings | null): boolean {
+  return standings?.season === "PRE-SEASON";
+}
+
+/** Why you have no rank in a league yet, in a line. Null once you have one. */
+export function waitingLine(league: MyLeague, standings: LeagueStandings | null, weeks: Week[]): string | null {
+  const preseason = isPreseason(standings);
+  if (league.members < MIN_MEMBERS) {
+    const more = MIN_MEMBERS - league.members;
+    return preseason
+      ? `Invite ${more} more — head-to-heads start once there are ${MIN_MEMBERS}.`
+      : `Invite ${more} more — a league needs ${MIN_MEMBERS} when the next season starts.`;
+  }
+  if (league.status === "queued") return "You join the rotation when the next season starts.";
+  if (standings?.me?.rank != null) return null;
+  if (weeks.length > 0) return "The table starts after the first card.";
+  return null;
+}
