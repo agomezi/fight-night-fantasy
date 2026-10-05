@@ -1,49 +1,8 @@
-export type Standing = {
-  id: string;
-  rank: number;
-  name: string;
-  team: string;
-  points: number;
-  move: number; // positive = climbed, negative = dropped, 0 = held
-  isMe?: boolean;
-};
-
 export type League = {
   name: string;
   kind: string;
   members: number;
   week: number;
-};
-
-export type Rivalry = {
-  you: { name: string; team: string; proj: number; record: string; live: number };
-  rival: { name: string; team: string; proj: number; record: string; live: number };
-  gap: number;
-  event: string;
-};
-
-export type MatchupPick = {
-  id: string;
-  bout: string;
-  yourPick: string;
-  yourMethod: string;
-  yourPoints: number;
-  rivalPick: string;
-  rivalMethod: string;
-  rivalPoints: number;
-  status: "FINAL" | "LIVE" | "UPCOMING";
-};
-
-export type Riser = { id: string; name: string; sub: string; delta: string };
-
-export type ChatMessage = { id: string; author: string; time: string; text: string };
-
-export type LeagueStat = {
-  id: string;
-  label: string;
-  value: string;
-  delta: string;
-  positive: boolean | null;
 };
 
 // A brand-new account has not joined a league and has no scored picks yet, so
@@ -63,75 +22,6 @@ export const DEMO = false;
 export const LEAGUE: League | null = DEMO
   ? { name: "The Alpha League", kind: "PRIVATE LEAGUE", members: 12, week: 7 }
   : null;
-
-export const SEASON_STANDINGS: Standing[] = DEMO
-  ? [
-      { id: "dave", rank: 1, name: "Dave M.", team: "Striker Squad", points: 1235.0, move: 1 },
-      { id: "me", rank: 2, name: "You", team: "Team Apex", points: 1180.5, move: 2, isMe: true },
-      { id: "sarah", rank: 3, name: "Sarah J.", team: "Submission Artists", points: 1102.5, move: -1 },
-      { id: "mike", rank: 4, name: "Mike K.", team: "Knockout Kings", points: 980.0, move: 0 },
-      { id: "priya", rank: 5, name: "Priya K.", team: "Ground Control", points: 905.0, move: -2 },
-      { id: "jordan", rank: 6, name: "Jordan M.", team: "The Octagon", points: 871.5, move: 1 },
-    ]
-  : [];
-
-export const EVENT_STANDINGS: Standing[] = DEMO
-  ? [
-      { id: "me", rank: 1, name: "You", team: "Team Apex", points: 245.0, move: 3, isMe: true },
-      { id: "dave", rank: 2, name: "Dave M.", team: "Striker Squad", points: 238.0, move: -1 },
-      { id: "sofia", rank: 3, name: "Sofia R.", team: "Heavy Hitters", points: 231.0, move: 0 },
-      { id: "priya", rank: 4, name: "Priya K.", team: "Ground Control", points: 205.0, move: -2 },
-    ]
-  : [];
-
-export const RIVALRY: Rivalry | null = DEMO
-  ? {
-      you: { name: "You", team: "Team Apex", proj: 142.0, record: "5-1", live: 88.5 },
-      rival: { name: "Dave", team: "Striker Squad", proj: 138.5, record: "5-1", live: 76.0 },
-      gap: 12.5,
-      event: "UFC 300",
-    }
-  : null;
-
-export const MATCHUP_PICKS: MatchupPick[] = [];
-
-export const RISING_STARS: Riser[] = DEMO
-  ? [
-      { id: "1", name: "Priya K.", sub: "Up 4 places this week", delta: "+42%" },
-      { id: "2", name: "Jordan M.", sub: "Up 2 places this week", delta: "+18%" },
-    ]
-  : [];
-
-export const CHATTER: ChatMessage[] = DEMO
-  ? [
-      {
-        id: "1",
-        author: "Dave M.",
-        time: "2h ago",
-        text: "I need a big night from the main event to hold you off.",
-      },
-      {
-        id: "2",
-        author: "Sarah J.",
-        time: "5h ago",
-        text: "Anyone else fading the favourite? Feels like a trap.",
-      },
-    ]
-  : [];
-
-export const LEAGUE_STATS: LeagueStat[] = DEMO
-  ? [
-      { id: "winrate", label: "YOUR WIN RATE", value: "83%", delta: "+2.4", positive: true },
-      { id: "avg", label: "POINTS AVERAGE", value: "197", delta: "Stable", positive: null },
-      { id: "accuracy", label: "PICK ACCURACY", value: "68%", delta: "-1.2", positive: false },
-      { id: "percentile", label: "LEAGUE PERCENTILE", value: "TOP 17%", delta: "Rising", positive: true },
-    ]
-  : [
-      { id: "winrate", label: "YOUR WIN RATE", value: "—", delta: "No events yet", positive: null },
-      { id: "avg", label: "POINTS AVERAGE", value: "0", delta: "No events yet", positive: null },
-      { id: "accuracy", label: "PICK ACCURACY", value: "—", delta: "No picks yet", positive: null },
-      { id: "percentile", label: "LEAGUE PERCENTILE", value: "—", delta: "Unranked", positive: null },
-    ];
 
 /**
  * A read on how you pick, rather than a raw stat — the fantasy-league

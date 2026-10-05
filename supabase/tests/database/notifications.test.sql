@@ -68,8 +68,8 @@ update public.events set status = 'live', starts_at = now() - interval '1 hour',
 update public.bouts set locks_at = now() - interval '1 hour' where event_id = pg_temp.ev();
 insert into public.results (bout_id, status, winner_fighter_id, method, round, time, source)
 values (pg_temp.bid('n11'), 'provisional', pg_temp.fid('nr1'), 'KO', 2, '3:41', 'ufc_live');
-insert into public.scores (user_id, bout_id, points, breakdown, correct, counts_for_accuracy, provisional)
-values ('00000000-0000-0000-0000-0000000000c8', pg_temp.bid('n11'), 50, '{}', true, true, true);
+insert into public.scores (user_id, bout_id, points, casual_points, breakdown, correct, counts_for_accuracy, provisional)
+values ('00000000-0000-0000-0000-0000000000c8', pg_temp.bid('n11'), 50, 50, '{}', true, true, true);
 
 create temp table first_claim as select * from public.claim_event_notifications(pg_temp.ev());
 select results_eq(

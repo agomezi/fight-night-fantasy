@@ -49,11 +49,11 @@ insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, fin
   ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000b1', 1,
    '00000000-0000-0000-0000-0000000000f2', 'DEC');
 
-insert into public.scores (user_id, bout_id, season_id, points, breakdown, correct, counts_for_accuracy) values
+insert into public.scores (user_id, bout_id, season_id, points, casual_points, breakdown, correct, counts_for_accuracy) values
   ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000b1',
-   '00000000-0000-0000-0000-00000000005e', 100, '{}', true, true),
+   '00000000-0000-0000-0000-00000000005e', 100, 100, '{}', true, true),
   ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-0000000000b1',
-   '00000000-0000-0000-0000-00000000005e', 0, '{}', false, true);
+   '00000000-0000-0000-0000-00000000005e', 0, 0, '{}', false, true);
 
 -- L1: Alice owns it. Bob joined before Carol but is only queued.
 -- L2: Alice owns it and is its only member.

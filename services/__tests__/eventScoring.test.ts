@@ -37,6 +37,7 @@ describe("scoreEvent", () => {
         user_id: "u1",
         bout_id: "b1",
         points: 125,
+        casual_points: 125,
         breakdown: { fighter: 50, method: 50, round: 25, underdogBonus: 0 },
         correct: true,
         counts_for_accuracy: true,
@@ -100,9 +101,16 @@ describe("scoreEvent", () => {
     expect(prelim.points).toBe(125);
   });
 
-  test("plays full deductions for global scores", () => {
+  test("plays full deductions for global scores and halves them for Casual", () => {
     const [row] = scoreEvent([bout()], [result()], [pick({ picked_fighter_id: "blue", finish_round: 3, method: "SUB" })]);
     expect(row.points).toBe(-95);
+    expect(row.casual_points).toBe(-47);
+  });
+
+  test("scales Casual's wrong-fighter earnings with its deductions", () => {
+    const [row] = scoreEvent([bout()], [result()], [pick({ picked_fighter_id: "blue" })]);
+    expect(row.points).toBe(-13);
+    expect(row.casual_points).toBe(-7);
   });
 
   test("ignores picks on bouts outside the card", () => {
