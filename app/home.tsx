@@ -23,7 +23,7 @@ import Skeleton from "../components/Skeleton";
 import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCards";
 import { useHistory } from "../hooks/useHistory";
 import { useLeague } from "../hooks/useLeague";
-import { MIN_MEMBERS } from "../services/leagues";
+import { waitingLine } from "../services/leagues";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
 import { loadPicks, pickSummary } from "../services/picks";
@@ -638,9 +638,9 @@ export default function Home() {
                       footer: (
                         <>
                           <Text style={[commonStyles.cardSubtitle, { textAlign: "left", marginBottom: 14 }]}>
-                            {myLeague.members < MIN_MEMBERS
-                              ? `${myLeague.members} of ${MIN_MEMBERS} players — invite more so the league can play when the season starts.`
-                              : "Your rank and record start with the next season."}
+                            {(leagueState.status === "ready" &&
+                              waitingLine(myLeague, leagueState.standings, leagueState.weeks)) ||
+                              "Your rank shows here once the league has played a card."}
                           </Text>
                           <PressableScale
                             onPress={() => router.push("/leagues")}

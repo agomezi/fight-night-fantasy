@@ -108,7 +108,7 @@ export default function MatchupScreen() {
             <EmptyState
               icon="flash-outline"
               title="No matchups yet"
-              message="Head-to-heads start when the season does, once the league has at least four players."
+              message="Head-to-heads start once the league has at least four players."
               actionLabel="MAKE YOUR PICKS"
               onAction={() => router.push("/picks")}
             />
