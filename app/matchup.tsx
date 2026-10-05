@@ -35,13 +35,6 @@ function OtherMatchup({ m, index }: { m: Matchup; index: number }) {
       {points == null ? "—" : points}
     </Text>
   );
-  if (!m.b) {
-    return (
-      <Animated.View entering={appear(index)} style={styles.boutRow}>
-        <Text style={{ color: c.textMuted, fontSize: 13.5 }}>{m.a.name} has the bye</Text>
-      </Animated.View>
-    );
-  }
   return (
     <Animated.View entering={appear(index)} style={[styles.boutRow, { flexDirection: "row", alignItems: "center" }]}>
       <View style={[styles.pickSide, { flex: 1 }]}>
@@ -69,7 +62,8 @@ export default function MatchupScreen() {
 
   const weeks = state.status === "ready" ? state.weeks : [];
   const week = weeks.find((w) => w.week === picked) ?? currentWeek(weeks);
-  const mine = week?.matchups.find((m) => m.isMine) ?? null;
+  // Two in an odd league's doubleheader week.
+  const mine = week?.matchups.filter((m) => m.isMine) ?? [];
   const others = week?.matchups.filter((m) => !m.isMine) ?? [];
 
   return (
@@ -108,7 +102,7 @@ export default function MatchupScreen() {
             <EmptyState
               icon="flash-outline"
               title="No matchups yet"
-              message="Head-to-heads start when the season does, once the league has at least four players."
+              message="Head-to-heads start once the league has at least four players."
               actionLabel="MAKE YOUR PICKS"
               onAction={() => router.push("/picks")}
             />
@@ -147,8 +141,18 @@ export default function MatchupScreen() {
               <StatusPill state={week.state} />
             </View>
 
-            {mine ? (
-              <MatchupCard matchup={mine} />
+            {mine.length > 1 && (
+              <Text style={{ color: c.text2, fontSize: 12.5, lineHeight: 18, marginBottom: 4 }}>
+                Doubleheader — the league has an odd number of players, so this week you play two people.
+                Each matchup counts on its own.
+              </Text>
+            )}
+            {mine.length > 0 ? (
+              mine.map((m) => (
+                <View key={m.b.userId} style={{ marginBottom: 14 }}>
+                  <MatchupCard matchup={m} />
+                </View>
+              ))
             ) : (
               <Text style={{ color: c.textMuted, fontSize: 13.5, marginTop: 14 }}>
                 You aren&apos;t in the rotation this season — here&apos;s how everyone else is doing.
@@ -168,7 +172,7 @@ export default function MatchupScreen() {
                   <Text style={styles.cardMeta}>WEEK {week.week}</Text>
                 </View>
                 {others.map((m, i) => (
-                  <OtherMatchup key={`${m.a.userId}-${m.b?.userId ?? "bye"}`} m={m} index={i} />
+                  <OtherMatchup key={`${m.a.userId}-${m.b.userId}`} m={m} index={i} />
                 ))}
               </>
             )}

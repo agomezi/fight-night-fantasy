@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(53);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -58,6 +58,19 @@ create function pg_temp.score(n int, fight text, casual int, pro int default nul
 $$;
 
 set local role authenticated;
+
+-------------------------------------------------------------------------------
+-- The schedule
+-------------------------------------------------------------------------------
+
+select is((select count(*)::int from generate_series(1, 5) w, public.circle_pairings(5, w) p where p.b is null), 0,
+  'an odd league has no byes');
+select results_eq(
+  $$select count(*)::int from generate_series(1, 5) w, public.circle_pairings(5, w) p,
+           lateral (values (p.a), (p.b)) x(player) group by x.player order by 1$$,
+  $$values (6), (6), (6), (6), (6)$$,
+  'everyone in an odd league plays the same number of matchups per cycle, one doubleheader each'
+);
 
 -------------------------------------------------------------------------------
 -- Creating and joining
@@ -130,10 +143,73 @@ select throws_ok($$select public.join_league(pg_temp.code('F'))$$, 'P0001', 'Tha
 -------------------------------------------------------------------------------
 
 select pg_temp.act(1);
-select ok((select bool_and(rank is null and status = 'queued') from public.league_standings(pg_temp.id('L'))),
-  'before a season nobody is ranked');
+select is((select count(*)::int from public.league_matchups(pg_temp.id('L')) where week = 1 and state = 'upcoming'), 2,
+  'a new league of four previews its first pre-season week');
+select ok((select bool_and(rank is null and status = 'active') from public.league_standings(pg_temp.id('L'))),
+  'nobody is ranked before a card is played');
 select is((select distinct season_label from public.league_standings(pg_temp.id('L'))), 'PRE-SEASON', 'labelled pre-season');
-select is((select count(*)::int from public.league_matchups(pg_temp.id('L'))), 0, 'no matchups before a season');
+select is((select count(*)::int from public.league_matchups(pg_temp.id('S'))), 0, 'a league of three has no matchups');
+
+-- The leagues were made before both cards, which are now over.
+reset role;
+update public.leagues set created_at = created_at - interval '30 days';
+update public.league_members set joined_at = joined_at - interval '30 days';
+update public.events set status = 'complete' where ufc_event_id in ('lg1', 'lg2');
+
+-- Scores. Positions by join order: Alpha 0, Bravo 1, Charlie 2, Delta 3.
+-- Week 1 pairs Bravo-Charlie and Alpha-Delta; week 2 Alpha-Bravo and Charlie-Delta.
+--   Week 1: Alpha 100 beats Delta 50; Bravo 80 draws Charlie 80.
+--   Week 2: Bravo 60 beats Alpha 40; Delta 90 beats Charlie 10.
+-- Charlie's week 1 is -50 then +130: the floor holds the season total at 0
+-- after the first bout, so the card shows 80 but the season gets 130 (140 with week 2).
+select pg_temp.score(1, 'lg11', 100);
+select pg_temp.score(4, 'lg11', 50);
+select pg_temp.score(2, 'lg11', 80);
+select pg_temp.score(3, 'lg13', -50, -95);
+select pg_temp.score(3, 'lg11', 130);
+select pg_temp.score(1, 'lg21', 40);
+select pg_temp.score(2, 'lg21', 60);
+select pg_temp.score(3, 'lg21', 10);
+select pg_temp.score(4, 'lg21', 90);
+-- Delta's accuracy matches Alpha's: one more correct pick on a bout worth 0.
+select pg_temp.score(1, 'lg22', 0);
+update public.scores set correct = true where user_id = pg_temp.u(1) and bout_id = pg_temp.bid('lg22');
+
+set local role authenticated;
+select pg_temp.act(1);
+select results_eq(
+  $$select week, state, name_a, points_a, name_b, points_b, winner, is_mine
+    from public.league_matchups(pg_temp.id('L'))$$,
+  $$values
+    (1, 'final', 'Alpha', 100, 'Delta', 50, '00000000-0000-0000-0000-000000000001'::uuid, true),
+    (1, 'final', 'Bravo', 80, 'Charlie', 80, null::uuid, false),
+    (2, 'final', 'Alpha', 40, 'Bravo', 60, '00000000-0000-0000-0000-000000000002'::uuid, true),
+    (2, 'final', 'Charlie', 10, 'Delta', 90, '00000000-0000-0000-0000-000000000004'::uuid, false),
+    (3, 'upcoming', 'Alpha', null, 'Charlie', null, null::uuid, true),
+    (3, 'upcoming', 'Delta', null, 'Bravo', null, null::uuid, false)$$,
+  'the pre-season plays every card since the league was made'
+);
+select results_eq(
+  $$select rank, display_name, status, wins, losses, draws, points from public.league_standings(pg_temp.id('L'))$$,
+  $$values (1::bigint, 'Bravo', 'active', 1, 0, 1, 140), (2::bigint, 'Alpha', 'active', 1, 1, 0, 140),
+           (3::bigint, 'Delta', 'active', 1, 1, 0, 140), (4::bigint, 'Charlie', 'active', 0, 1, 1, 140)$$,
+  'and has a table'
+);
+
+-- Leaving in the pre-season keeps the weeks you played.
+select pg_temp.act(21);
+select public.leave_league(pg_temp.id('F'));
+select pg_temp.act(10);
+select ok(not exists (select 1 from public.league_standings(pg_temp.id('F')) where user_id = pg_temp.u(21)),
+  'someone who leaves in the pre-season leaves the table');
+select is((select count(*)::int from public.league_matchups(pg_temp.id('F'))
+           where week = 1 and pg_temp.u(21) in (user_a, user_b)), 1,
+  'but their past matchups stay');
+select is((select count(*)::int from public.league_matchups(pg_temp.id('F'))
+           where week = 3 and pg_temp.u(21) in (user_a, user_b)), 0,
+  'and they are out of the weeks to come');
+select pg_temp.act(1);
+select is(public.join_league(pg_temp.code('F')), pg_temp.id('F'), 'their place is free');
 
 -------------------------------------------------------------------------------
 -- The season opens
@@ -141,8 +217,20 @@ select is((select count(*)::int from public.league_matchups(pg_temp.id('L'))), 0
 
 reset role;
 insert into public.seasons (number, starts_at) values (1, now() - interval '10 days');
-update public.events e set season_id = (select id from public.seasons where number = 1), season_index = v.idx,
-  status = 'complete'
+
+-- Before any card is slotted, the season starts clean.
+set local role authenticated;
+select pg_temp.act(1);
+select results_eq(
+  $$select week, state from public.league_matchups(pg_temp.id('L'))$$,
+  $$values (1, 'upcoming'), (1, 'upcoming')$$,
+  'a new season starts at week 1'
+);
+select ok((select bool_and(rank is null and points = 0 and wins + losses + draws = 0)
+           from public.league_standings(pg_temp.id('L'))), 'with a clean table');
+reset role;
+
+update public.events e set season_id = (select id from public.seasons where number = 1), season_index = v.idx
 from (values ('lg1', 1), ('lg2', 2)) v(ev, idx) where e.ufc_event_id = v.ev;
 
 select results_eq(
@@ -163,24 +251,6 @@ reset role;
 select is((select status::text from public.league_members where league_id = pg_temp.id('S') and user_id = pg_temp.u(6)),
   'queued', 'and waits for the next season');
 
--- Scores. Positions by join order: Alpha 0, Bravo 1, Charlie 2, Delta 3.
--- Week 1 pairs Bravo-Charlie and Alpha-Delta; week 2 Alpha-Bravo and Charlie-Delta.
---   Week 1: Alpha 100 beats Delta 50; Bravo 80 draws Charlie 80.
---   Week 2: Bravo 60 beats Alpha 40; Delta 90 beats Charlie 10.
--- Charlie's week 1 is -50 then +130: the floor holds the season total at 0
--- after the first bout, so the card shows 80 but the season gets 130 (140 with week 2).
-select pg_temp.score(1, 'lg11', 100);
-select pg_temp.score(4, 'lg11', 50);
-select pg_temp.score(2, 'lg11', 80);
-select pg_temp.score(3, 'lg13', -50, -95);
-select pg_temp.score(3, 'lg11', 130);
-select pg_temp.score(1, 'lg21', 40);
-select pg_temp.score(2, 'lg21', 60);
-select pg_temp.score(3, 'lg21', 10);
-select pg_temp.score(4, 'lg21', 90);
--- Delta's accuracy matches Alpha's: one more correct pick on a bout worth 0.
-select pg_temp.score(1, 'lg22', 0);
-update public.scores set correct = true where user_id = pg_temp.u(1) and bout_id = pg_temp.bid('lg22');
 
 set local role authenticated;
 select pg_temp.act(1);
@@ -267,6 +337,25 @@ select results_eq(
   $$values (1::bigint, 'Alpha', 1, 0, 1, 170), (1::bigint, 'Delta', 1, 0, 1, 170),
            (3::bigint, 'Bravo', 0, 1, 1, 140), (4::bigint, 'Charlie', 0, 1, 1, 140)$$,
   'players level on everything, head-to-head included, share a rank'
+);
+
+-- A draw is a third of a win. Week 1: Delta 60 beats Alpha 50, Bravo draws
+-- Charlie. Week 2: Alpha draws Bravo 70-70, Charlie 90 beats Delta 10. Bravo
+-- (0-0-2) has more points than Delta (1-1) but ranks below: at half a win
+-- they would be level on record and Bravo's points would put them ahead.
+reset role;
+update public.scores set casual_points = 50 where user_id = pg_temp.u(1) and bout_id = pg_temp.bid('lg11');
+update public.scores set casual_points = 60 where user_id = pg_temp.u(4) and bout_id = pg_temp.bid('lg11');
+update public.scores set casual_points = 70 where user_id = pg_temp.u(2) and bout_id = pg_temp.bid('lg21');
+update public.scores set casual_points = 90 where user_id = pg_temp.u(3) and bout_id = pg_temp.bid('lg21');
+update public.scores set casual_points = 10 where user_id = pg_temp.u(4) and bout_id = pg_temp.bid('lg21');
+set local role authenticated;
+select pg_temp.act(1);
+select results_eq(
+  $$select rank, display_name, wins, losses, draws, points from public.league_standings(pg_temp.id('L'))$$,
+  $$values (1::bigint, 'Charlie', 1, 0, 1, 220), (2::bigint, 'Delta', 1, 1, 0, 70),
+           (3::bigint, 'Bravo', 0, 0, 2, 150), (4::bigint, 'Alpha', 0, 1, 1, 120)$$,
+  'a win is worth 3, a draw 1'
 );
 
 -------------------------------------------------------------------------------

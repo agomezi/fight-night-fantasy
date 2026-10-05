@@ -6,8 +6,10 @@ import {
   toMyLeagues,
   toStandings,
   toWeeks,
+  waitingLine,
   type MatchupState,
   type MemberStatus,
+  type MyLeague,
 } from "../leagues";
 
 const standing = (rank: number | null, name: string, extra: Partial<Record<string, unknown>> = {}) => ({
@@ -101,17 +103,19 @@ describe("toWeeks", () => {
       [
         matchup(1, "x", "y"),
         matchup(1, "z", "me", { is_mine: true, winner: "me", points_a: 10, points_b: 90 }),
-        matchup(2, "me", null, { is_mine: true, state: "upcoming", points_a: null, winner: null }),
+        matchup(2, "me", "x", { is_mine: true, state: "upcoming", points_a: null, points_b: null, winner: null }),
+        matchup(2, "y", "me", { is_mine: true, state: "upcoming", points_a: null, points_b: null, winner: null }),
       ],
       "me"
     );
-    expect(weeks.map((w) => [w.week, w.matchups.length])).toEqual([[1, 2], [2, 1]]);
+    expect(weeks.map((w) => [w.week, w.matchups.length])).toEqual([[1, 2], [2, 2]]);
     const mine = weeks[0].matchups[0];
     expect(mine.isMine).toBe(true);
     expect(mine.a).toEqual({ userId: "me", name: "ME", points: 90 });
     expect(mine.b).toEqual({ userId: "z", name: "Z", points: 10 });
     expect(matchupOutcome(mine)).toBe("won");
-    expect(weeks[1].matchups[0].b).toBeNull();
+    // A doubleheader: both of your week 2 matchups, you on side a in each.
+    expect(weeks[1].matchups.map((m) => [m.a.userId, m.b.userId])).toEqual([["me", "x"], ["me", "y"]]);
   });
 });
 
@@ -134,6 +138,30 @@ describe("matchupOutcome", () => {
     expect(matchupOutcome({ ...m, state: "live" })).toBe("leading");
     expect(matchupOutcome({ ...m, state: "live", a: { ...m.a, points: 50 } })).toBe("level");
     expect(matchupOutcome({ ...m, winnerId: null })).toBe("drew");
-    expect(matchupOutcome({ ...m, b: null })).toBeNull();
+    expect(matchupOutcome({ ...m, state: "upcoming", a: { ...m.a, points: null } })).toBeNull();
+  });
+});
+
+describe("waitingLine", () => {
+  const league = (members: number, status: MemberStatus = "active"): MyLeague => ({
+    id: "l", name: "L", tier: "casual", inviteCode: "AB12CD34", isOwner: false, members, status,
+    rank: null, record: "0-0", points: 0,
+  });
+  const pre = toStandings([standing(null, "Me", { is_me: true, status: "active", season_label: "PRE-SEASON" })]);
+  const ranked = toStandings([standing(1, "Me", { is_me: true })]);
+  const upcoming = toWeeks([matchup(1, "a", "b", { state: "upcoming" })], null);
+
+  test("a small league is told how many more it needs", () => {
+    expect(waitingLine(league(3), pre, [])).toBe("Invite 1 more — head-to-heads start once there are 4.");
+    expect(waitingLine(league(2), ranked, [])).toBe("Invite 2 more — a league needs 4 when the next season starts.");
+  });
+
+  test("a queued member waits for the season, others for the first card", () => {
+    expect(waitingLine(league(5, "queued"), ranked, upcoming)).toBe("You join the rotation when the next season starts.");
+    expect(waitingLine(league(5), pre, upcoming)).toBe("The table starts after the first card.");
+  });
+
+  test("nothing to say once you are ranked", () => {
+    expect(waitingLine(league(5), ranked, upcoming)).toBeNull();
   });
 });
