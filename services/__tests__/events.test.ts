@@ -1,6 +1,8 @@
-import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, toNextEvent } from "../events";
+import { boutLocked, countdown, divisionLabel, fighterRecord, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, toNextEvent } from "../events";
 
-const fighter = (id: string, name: string) => ({ id, name, nickname: null, photoUrl: null });
+const fighter = (id: string, name: string) => ({
+  id, name, nickname: null, photoUrl: null, wins: null, losses: null, draws: null, noContests: null,
+});
 const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "scheduled", locks_at: string | null = null) => ({
   id,
   fight_order: order,
@@ -95,5 +97,22 @@ describe("time", () => {
   test("start time is shown in Eastern", () => {
     expect(startLabel(new Date("2026-10-03T20:00:00Z"))).toBe("SAT · 4PM ET");
     expect(startLabel(new Date("2026-10-04T00:30:00Z"))).toBe("SAT · 8:30PM ET");
+  });
+});
+
+describe("fighterRecord", () => {
+  test("prints W-L-D, with no contests after", () => {
+    expect(fighterRecord({ wins: 27, losses: 7, draws: 0, noContests: 0 })).toBe("27-7-0");
+    expect(fighterRecord({ wins: 15, losses: 2, draws: 1, noContests: 2 })).toBe("15-2-1 (2 NC)");
+    expect(fighterRecord({ wins: null, losses: null, draws: null, noContests: null })).toBeNull();
+  });
+});
+
+describe("divisionLabel", () => {
+  test("shortens women's divisions to W.", () => {
+    expect(divisionLabel("Women's Strawweight")).toBe("W. STRAWWEIGHT");
+    expect(divisionLabel("Women’s Flyweight")).toBe("W. FLYWEIGHT");
+    expect(divisionLabel("Light Heavyweight")).toBe("LIGHT HEAVYWEIGHT");
+    expect(divisionLabel(null)).toBe("");
   });
 });

@@ -386,11 +386,12 @@ export default function Home() {
   }
 
   /*
-   * Nothing picked yet. This is the single most important card on a new
-   * account's home screen, so it gets a place in the carousel rather than
-   * being left to the nav bar to suggest.
+   * Your card for the next event, until it locks. A brand-new account gets
+   * the welcome; anyone who has played before sees where they are on this
+   * card instead — nothing picked, part way, or every bout called.
    */
-  if (event && !locked && picksStarted === 0) {
+  const newPlayer = history.status === "ready" && history.history.events.length === 0;
+  if (event && !locked && picksStarted === 0 && newPlayer) {
     carouselCards.push({
       tag: "GET STARTED",
       tagColor: c.red,
@@ -431,13 +432,11 @@ export default function Home() {
         </View>
       ),
     });
-  }
-
-  // Only if they started a card and walked away without submitting.
-  if (event && !locked && picksStarted > 0 && picksStarted < picksTotal) {
+  } else if (event && !locked && picksTotal > 0) {
+    const done = picksStarted >= picksTotal;
     carouselCards.push({
-      tag: "UNFINISHED CARD",
-      tagColor: c.red,
+      tag: done ? "CARD SET" : picksStarted > 0 ? "UNFINISHED CARD" : "YOUR PICKS",
+      tagColor: done ? c.green : c.red,
       serial: `LOCKS ${locksIn}`,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
@@ -447,22 +446,27 @@ export default function Home() {
             center={`${picksStarted}`}
             caption={`of ${picksTotal}`}
             size={116}
+            color={done ? c.green : undefined}
           />
           <View style={{ flex: 1, gap: 10 }}>
             <View>
               <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
-                Still open
+                {done ? "Every bout called" : picksStarted > 0 ? "Still open" : "This card is open"}
               </Text>
               <Text
                 style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 3 }}
               >
-                {picksTotal - picksStarted} bouts left · locks in {locksIn.toLowerCase()}
+                {done
+                  ? `You can change picks until it locks in ${locksIn.toLowerCase()}`
+                  : `${picksTotal - picksStarted} bouts left · locks in ${locksIn.toLowerCase()}`}
               </Text>
             </View>
             <PressableScale
               onPress={() => router.push("/picks")}
               style={{
-                backgroundColor: c.red,
+                backgroundColor: done ? "transparent" : c.red,
+                borderWidth: done ? 1 : 0,
+                borderColor: c.borderStrong,
                 borderRadius: 10,
                 paddingVertical: 11,
                 alignItems: "center",
@@ -470,13 +474,13 @@ export default function Home() {
             >
               <Text
                 style={{
-                  color: "#FFFFFF",
+                  color: done ? c.text : "#FFFFFF",
                   fontSize: 12,
                   fontWeight: "800",
                   letterSpacing: 1,
                 }}
               >
-                FINISH YOUR CARD
+                {done ? "REVIEW PICKS" : picksStarted > 0 ? "FINISH YOUR CARD" : "MAKE YOUR PICKS"}
               </Text>
             </PressableScale>
           </View>

@@ -138,7 +138,7 @@ export const makePicksStyles = (c: Palette) =>
     rowCenter: {
       alignItems: "center",
       justifyContent: "center",
-      width: 84,
+      width: 56,
       gap: 3,
     },
     rowDivision: {
@@ -146,6 +146,15 @@ export const makePicksStyles = (c: Palette) =>
       fontWeight: "700",
       letterSpacing: 1,
       color: c.textFaint,
+      textAlign: "center",
+      marginBottom: 8,
+    },
+    rowRecord: {
+      color: c.textFaint,
+      fontSize: 11,
+      fontWeight: "600",
+      marginTop: 2,
+      fontVariant: ["tabular-nums"],
     },
     vsSmall: { color: c.textFaint, fontWeight: "700", fontSize: 12 },
     rowBody: {

@@ -10,8 +10,8 @@ const bout: EventBout = {
   weightClass: "Women's Flyweight",
   version: 2,
   locksAt: new Date("2026-10-04T00:00:00Z"),
-  red: { id: "silva", name: "Natalia Silva", nickname: null, photoUrl: null },
-  blue: { id: "cong", name: "Wang Cong", nickname: "The Joker", photoUrl: null },
+  red: { id: "silva", name: "Natalia Silva", nickname: null, photoUrl: null, record: null },
+  blue: { id: "cong", name: "Wang Cong", nickname: "The Joker", photoUrl: null, record: null },
 };
 
 describe("pick rows", () => {
