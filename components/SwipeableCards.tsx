@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Text, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -13,6 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import FightCard from "./FightCard";
+import { SwipeGuardContext, type SwipeGuard } from "./swipeGuard";
 import { makeCommonStyles } from "../styles/common";
 
 export interface Card {
@@ -50,6 +51,17 @@ const SwipeableCards = ({
   const { width: windowWidth } = useWindowDimensions();
   const [index, setIndex] = useState(0);
   const translateX = useSharedValue(0);
+  // Read by every PressableScale on the card, so swiping never opens a screen.
+  const guard = useRef<SwipeGuard>({ swiping: false, endedAt: 0, pressStart: null }).current;
+  const swipeStarted = useCallback(() => {
+    guard.swiping = true;
+  }, [guard]);
+  const swipeEnded = useCallback(() => {
+    // A touch that never became a swipe (a tap) leaves nothing to clear.
+    if (!guard.swiping) return;
+    guard.swiping = false;
+    guard.endedAt = Date.now();
+  }, [guard]);
 
   useEffect(() => {
     setIndex((prev) =>
@@ -101,6 +113,12 @@ const SwipeableCards = ({
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
     .failOffsetY([-10, 10])
+    .onStart(() => {
+      runOnJS(swipeStarted)();
+    })
+    .onFinalize(() => {
+      runOnJS(swipeEnded)();
+    })
     .onUpdate((event) => {
       // Rubber-banding: the further you drag, the less it follows, so the
       // card feels physically attached rather than glued to your finger.
@@ -149,53 +167,55 @@ const SwipeableCards = ({
   }
 
   return (
-    <View>
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={animatedStyle}>
-          <FightCard
-            label={card.tag}
-            labelColor={card.tagColor}
-            serial={card.serial}
-            media={card.media}
-            mark={card.mark}
-            minHeight={minHeight}
-            style={{ aspectRatio: card.aspectRatio }}
-          >
-            {card.content ?? (
-              <>
-                {card.title ? (
-                  <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
-                    {card.title}
-                  </Text>
-                ) : null}
-                {card.subtitle ? (
-                  <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
-                    {card.subtitle}
-                  </Text>
-                ) : null}
-              </>
-            )}
-            {card.footer}
-          </FightCard>
-        </Animated.View>
-      </GestureDetector>
+    <SwipeGuardContext.Provider value={guard}>
+      <View>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={animatedStyle}>
+            <FightCard
+              label={card.tag}
+              labelColor={card.tagColor}
+              serial={card.serial}
+              media={card.media}
+              mark={card.mark}
+              minHeight={minHeight}
+              style={{ aspectRatio: card.aspectRatio }}
+            >
+              {card.content ?? (
+                <>
+                  {card.title ? (
+                    <Text style={[commonStyles.cardTitle, { textAlign: "left" }]}>
+                      {card.title}
+                    </Text>
+                  ) : null}
+                  {card.subtitle ? (
+                    <Text style={[commonStyles.cardSubtitle, { textAlign: "left" }]}>
+                      {card.subtitle}
+                    </Text>
+                  ) : null}
+                </>
+              )}
+              {card.footer}
+            </FightCard>
+          </Animated.View>
+        </GestureDetector>
 
-      {cards.length > 1 && (
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "center",
-            gap: 6,
-            marginTop: 12,
-            marginBottom: 4,
-          }}
-        >
-          {cards.map((_, i) => (
-            <Dot key={i} active={i === index} color={c.red} idle={c.borderStrong} />
-          ))}
-        </View>
-      )}
-    </View>
+        {cards.length > 1 && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 6,
+              marginTop: 12,
+              marginBottom: 4,
+            }}
+          >
+            {cards.map((_, i) => (
+              <Dot key={i} active={i === index} color={c.red} idle={c.borderStrong} />
+            ))}
+          </View>
+        )}
+      </View>
+    </SwipeGuardContext.Provider>
   );
 };
 
