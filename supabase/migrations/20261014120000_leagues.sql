@@ -10,11 +10,18 @@
 -- over the active members in join order, so they are a pure function of
 -- (members, week) and cannot drift. A week is an event's season slot.
 --
--- Standings rank on W-L-D record (win percentage, a draw worth half), then
--- season points, then accuracy, then the head-to-head result when exactly two
--- players are level. Anyone still level shares a rank. Points are the league's
--- tier: Casual uses its own per-bout points, and Casual and Amateur replay the
--- season with the floor (and Amateur's debt), as scoring's settleSeason does.
+-- Until Season 1 opens at launch, leagues play a pre-season: the same weekly
+-- head-to-heads and table over every card since the league was made, with each
+-- week's pairings drawn from whoever was in the league when that card locked.
+-- It is practice; everything starts clean when Season 1 opens.
+--
+-- Standings rank on record, a win worth 3, a draw 1 and a loss 0, per matchup
+-- played (so a bye neither helps nor hurts), then season points, then
+-- accuracy, then the head-to-head result when exactly two players are level.
+-- Anyone still level shares a rank, and nobody is ranked before the first
+-- card of the season has been played. Points are the league's tier: Casual
+-- uses its own per-bout points, and Casual and Amateur replay the season with
+-- the floor (and Amateur's debt), as scoring's settleSeason does.
 
 -------------------------------------------------------------------------------
 -- Membership
@@ -249,8 +256,9 @@ begin
 end;
 $$;
 
--- Takes `member` out of `league`. Queued members go at once; active ones stay
--- in the rotation until the season ends.
+-- Takes `member` out of `league`. During a season queued members go at once
+-- and active ones stay in the rotation until it ends. In the pre-season
+-- everyone has played, so the row stays to keep the weeks they were in.
 create function public.drop_league_member(league uuid, member uuid)
 returns void
 language plpgsql
@@ -258,8 +266,10 @@ security definer
 set search_path = ''
 as $$
 begin
-  delete from public.league_members
-   where league_id = league and user_id = member and status = 'queued';
+  if public.current_season() is not null then
+    delete from public.league_members
+     where league_id = league and user_id = member and status = 'queued';
+  end if;
   update public.league_members set left_at = coalesce(left_at, now())
    where league_id = league and user_id = member;
 
@@ -453,6 +463,8 @@ begin
     join public.events e on e.id = b.event_id
     where m.league_id = league
       and e.season_id is not distinct from season
+      -- The pre-season counts from when you joined the league.
+      and (season is not null or e.locks_at >= m.joined_at)
     order by s.user_id, e.starts_at, e.id, b.fight_order desc
   loop
     if cur is distinct from r.uid then
@@ -511,11 +523,11 @@ $$;
 
 revoke execute on function public.require_league_member(uuid) from public, anon, authenticated;
 
--- Every week of the current season so far, plus the next one: who plays whom,
--- the card, each side's points on it at the league's tier, and whether it is
--- upcoming, live or final. A matchup's points are the card's raw total; the
--- floor and debt apply to the season total, not to a single card. Empty for a
--- league that is not playing a ranked season.
+-- Every week of the current season (or the pre-season) so far, plus the next
+-- one: who plays whom, the card, each side's points on it at the league's
+-- tier, and whether it is upcoming, live or final. A matchup's points are the
+-- card's raw total; the floor and debt apply to the season total, not to a
+-- single card. Weeks with fewer than four players have no matchups.
 create function public.league_matchups(league uuid)
 returns table (
   week        integer,
@@ -541,40 +553,64 @@ declare
   t      public.league_tier;
 begin
   perform public.require_league_member(league);
-  if season is null then
-    return;
-  end if;
   select l.tier into t from public.leagues l where l.id = league;
 
   return query
-  with members as (
-    select m.user_id, (row_number() over (order by m.joined_at, m.user_id) - 1)::integer as pos
-    from public.league_members m
-    where m.league_id = league and m.status = 'active'
-  ),
-  n as (
-    select count(*)::integer as size from members
-  ),
-  last_week as (
-    select coalesce(max(e.season_index), 0)::integer as idx from public.events e where e.season_id = season
-  ),
-  weeks as (
-    select w from last_week, generate_series(1, least(last_week.idx + 1, 11)) w
-  ),
-  -- The week after the last slotted card is whichever card locks next; it
-  -- takes that slot when it locks.
+  with
+  -- A season's weeks are its slots so far plus the next one, every week
+  -- played by the active members. The pre-season's are every card that has
+  -- locked since the league was made plus the next, each played by whoever
+  -- was in the league when it locked.
   next_card as (
     select e.id, e.name, e.status, e.locks_at from public.events e
     where e.season_id is null and e.status <> 'cancelled' and e.locks_at > now()
     order by e.locks_at limit 1
   ),
-  cards as (
+  season_cards as (
     select wk.w,
            coalesce(e.id, nc.id) as id, coalesce(e.name, nc.name) as name,
            coalesce(e.status, nc.status) as status, coalesce(e.locks_at, nc.locks_at) as locks_at
-    from weeks wk
+    from generate_series(1, least(
+           (select coalesce(max(x.season_index), 0)::integer from public.events x where x.season_id = season) + 1,
+           11)) wk(w)
     left join public.events e on e.season_id = season and e.season_index = wk.w
     left join next_card nc on e.id is null
+    where season is not null
+  ),
+  preseason_played as (
+    select e.id, e.name, e.status, e.locks_at
+    from public.events e
+    where season is null
+      and e.season_id is null and e.status <> 'cancelled'
+      and e.locks_at <= now()
+      and e.locks_at >= (select l.created_at from public.leagues l where l.id = league)
+  ),
+  preseason_cards as (
+    select (row_number() over (order by p.locks_at, p.id))::integer as w, p.id, p.name, p.status, p.locks_at
+    from preseason_played p
+    union all
+    select (select count(*) from preseason_played)::integer + 1, nc.id, nc.name, nc.status, nc.locks_at
+    from next_card nc
+    where season is null
+  ),
+  cards as (
+    select * from season_cards
+    union all
+    select * from preseason_cards
+  ),
+  roster as (
+    select c.w, m.user_id,
+           (row_number() over (partition by c.w order by m.joined_at, m.user_id) - 1)::integer as pos
+    from cards c
+    join public.league_members m on m.league_id = league
+    where case
+      when season is not null then m.status = 'active'
+      else m.joined_at <= coalesce(c.locks_at, now())
+           and (m.left_at is null or m.left_at > coalesce(c.locks_at, now()))
+    end
+  ),
+  sizes as (
+    select r.w, count(*)::integer as size from roster r group by r.w
   ),
   card_points as (
     select b.event_id, s.user_id,
@@ -588,10 +624,10 @@ begin
   pairs as (
     select c.w, c.id, c.name, c.status, c.locks_at, ma.user_id as ua, mb.user_id as ub
     from cards c
-    cross join n
+    join sizes n on n.w = c.w
     cross join lateral public.circle_pairings(n.size, c.w) p
-    join members ma on ma.pos = p.a
-    left join members mb on mb.pos = p.b
+    join roster ma on ma.w = c.w and ma.pos = p.a
+    left join roster mb on mb.w = c.w and mb.pos = p.b
     where n.size >= (select min_members from public.league_limits())
   ),
   scored as (
@@ -646,11 +682,11 @@ revoke execute on function public.league_display_name(uuid) from public, anon, a
 -- Standings
 -------------------------------------------------------------------------------
 
--- The league table. Active members are ranked on record, then points, then
--- accuracy, then head-to-head between exactly two level players; queued
--- members are listed with their points but no rank, marked as joining next
--- season. Before a ranked season (pre-season, or too few members) nobody has
--- a rank and the points are those of the current season or pre-season.
+-- The league table. Members in the rotation are ranked on record, then
+-- points, then accuracy, then head-to-head between exactly two level players;
+-- queued members are listed with their points but no rank, marked as joining
+-- next season. Nobody has a rank until the first card has been played, or in
+-- a league too small to play.
 create function public.league_standings(league uuid)
 returns table (
   rank          bigint,
@@ -705,9 +741,11 @@ begin
            case
              when m.left_at is not null then 'left'
              when p.deleted_at is not null then 'former'
+             when season is null then 'active'
              else m.status::text
            end as st,
-           m.status = 'active' and exists (select 1 from schedule) as ranked,
+           case when season is null then m.left_at is null else m.status = 'active' end
+             and exists (select 1 from schedule sc where sc.state <> 'upcoming') as ranked,
            coalesce(rc.w, 0) as w, coalesce(rc.l, 0) as l, coalesce(rc.d, 0) as d,
            coalesce(t.points, 0) as pts,
            coalesce(t.correct, 0) as hit,
@@ -717,11 +755,14 @@ begin
     left join tally rc on rc.uid = m.user_id
     left join totals t on t.user_id = m.user_id
     where m.league_id = league
+      -- Someone who left during the pre-season is not coming back for the
+      -- rest of it; their old matchups still count for their opponents.
+      and not (season is null and m.left_at is not null)
   ),
   keyed as (
     select r.*,
            case when r.w + r.l + r.d = 0 then 0
-                else (r.w + 0.5 * r.d) / (r.w + r.l + r.d) end as pct,
+                else (3 * r.w + r.d)::numeric / (r.w + r.l + r.d) end as pct,
            case when r.cnt = 0 then 0 else r.hit::numeric / r.cnt end as acc
     from listed r
   ),
