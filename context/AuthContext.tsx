@@ -25,6 +25,8 @@ type AuthContextValue = {
   // Each resolves false if the user backed out of the provider's sheet.
   signInWithApple: () => Promise<boolean>;
   signInWithGoogle: () => Promise<boolean>;
+  // For accounts made in the dashboard, like App Review's demo account.
+  signInWithPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
 };
@@ -82,6 +84,11 @@ async function signInWithGoogle(): Promise<boolean> {
   return true;
 }
 
+async function signInWithPassword(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw error;
+}
+
 // Forget the Google account too, so the next sign-in offers the account picker.
 async function forgetGoogle() {
   await GoogleSignin.signOut().catch(() => {});
@@ -122,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ session, ready, signInWithApple, signInWithGoogle, signOut, deleteAccount }),
+    () => ({ session, ready, signInWithApple, signInWithGoogle, signInWithPassword, signOut, deleteAccount }),
     [session, ready]
   );
 
