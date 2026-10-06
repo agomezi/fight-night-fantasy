@@ -12,6 +12,7 @@ import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
+import CardBackdrop from "../components/CardBackdrop";
 import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
 import FighterPhoto from "../components/FighterPhoto";
@@ -313,6 +314,7 @@ export default function Home() {
   const carouselCards: CarouselCard[] = [
     {
       tag: "NEXT EVENT",
+      mark: <CardBackdrop variant="hero" />,
       tagColor: c.red,
       serial: event ? startLabel(event.startsAt) : undefined,
       // Content sits low in the card rather than crowding the header rule —
@@ -363,6 +365,7 @@ export default function Home() {
   if (event && !locked && picksStarted === 0 && newPlayer) {
     carouselCards.push({
       tag: "GET STARTED",
+      mark: <CardBackdrop variant="spotlight" />,
       tagColor: c.red,
       serial: `LOCKS ${locksIn}`,
       content: (
@@ -404,6 +407,7 @@ export default function Home() {
   } else if (event && !locked && picksTotal > 0) {
     const done = picksStarted >= picksTotal;
     carouselCards.push({
+      mark: <CardBackdrop variant="spotlight" />,
       tag: done ? "CARD SET" : picksStarted > 0 ? "UNFINISHED CARD" : "YOUR PICKS",
       tagColor: done ? c.green : c.red,
       serial: `LOCKS ${locksIn}`,
@@ -480,6 +484,7 @@ export default function Home() {
     );
     carouselCards.push({
       tag: myLeague ? "YOUR LEAGUE" : "LEAGUES",
+      mark: <CardBackdrop variant="fence" />,
       tagColor: "#E8A020",
       serial: myLeague ? leagueState.standings?.season : "NO LEAGUE",
       content: myLeague ? (
@@ -527,6 +532,7 @@ export default function Home() {
       tag: "LIVE",
       tagColor: c.red,
       serial: "IN PROGRESS",
+      mark: <CardBackdrop variant="line" />,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing value={4} total={7} center="4" caption="of 7" size={116} color={c.green} />
