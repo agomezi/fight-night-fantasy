@@ -17,18 +17,23 @@ import { useTheme } from "../context/ThemeContext";
  * - line: a single crimson diagonal across the top-right corner.
  *
  * The three drawn ones are SVG, so they stay crisp at any card size and
- * follow the theme. The hero is a dark painting, so it only shows in the
- * dark theme. Each family is switched in constants/cardArt.ts.
+ * follow the theme. The hero is a painting, so it has a version per theme.
+ * Each family is switched in constants/cardArt.ts.
  */
 export type BackdropVariant = "hero" | "spotlight" | "fence" | "line";
 
-const CAGE_GRAB = require("../assets/images/card-art/cage-grab.jpg");
+// The light version is the same painting with its greys inverted onto a
+// white ground and the crimson band left alone.
+const CAGE_GRAB = {
+  dark: require("../assets/images/card-art/cage-grab.jpg"),
+  light: require("../assets/images/card-art/cage-grab-light.jpg"),
+};
 
 export default function CardBackdrop({ variant }: { variant: BackdropVariant }) {
   const { c, mode } = useTheme();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
-  if (variant === "hero" ? !CARD_ART.heroImage || mode !== "dark" : !CARD_ART.backdrops) {
+  if (variant === "hero" ? !CARD_ART.heroImage : !CARD_ART.backdrops) {
     return null;
   }
 
@@ -40,7 +45,7 @@ export default function CardBackdrop({ variant }: { variant: BackdropVariant }) 
     >
       {variant === "hero" && (
         <Image
-          source={CAGE_GRAB}
+          source={CAGE_GRAB[mode]}
           contentFit="cover"
           contentPosition="right center"
           style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}

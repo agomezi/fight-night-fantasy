@@ -228,7 +228,7 @@ function ordinal(n: number) {
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, mode } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
   const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
@@ -503,7 +503,6 @@ export default function Home() {
     );
     carouselCards.push({
       tag: myLeague ? "YOUR LEAGUE" : "LEAGUES",
-      mark: <CardBackdrop variant="fence" />,
       tagColor: "#E8A020",
       serial: myLeague ? leagueState.standings?.season : "NO LEAGUE",
       content: myLeague ? (
@@ -766,7 +765,7 @@ export default function Home() {
               ...(lastScored
                 ? {
                     serial: splitEventName(lastScored.name).title.toUpperCase(),
-                    mark: <CardMark name="glove" top={44} />,
+                    mark: <CardMark name="glove" color={mode === "dark" ? c.textMuted : c.red} opacity={1} top={44} />,
                     tag: lastScored.live ? "LIVE EVENT POINTS" : "LAST EVENT POINTS",
                     tagColor: lastScored.live ? c.red : c.textMuted,
                     title: lastScored.points > 0 ? `+${lastScored.points}` : lastScored.points < 0 ? `−${-lastScored.points}` : "0",

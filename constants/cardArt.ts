@@ -6,10 +6,10 @@
  * backdrops, and the original line-art glove.
  */
 export const CARD_ART = {
-  /** Cage-grab illustration behind the NEXT EVENT card. Dark theme only. */
+  /** Cage-grab illustration behind the NEXT EVENT card, a version per theme. */
   heroImage: true,
-  /** Spotlight / fence / crimson-line backdrops on the other carousel cards. */
+  /** Spotlight and crimson-line backdrops on the picks and live cards. */
   backdrops: true,
-  /** Faceted glove mark instead of the line-art one. */
+  /** Faceted boxing glove mark instead of the line-art one. */
   flatGlove: true,
 } as const;

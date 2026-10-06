@@ -2,62 +2,52 @@ import Svg, { Path } from "react-native-svg";
 import { MarkProps } from "./types";
 
 /*
- * MMA glove, front-on, as flat faceted shapes rather than line art.
+ * Boxing glove, front-on, as flat faceted shapes rather than line art.
  *
- * Traced from the card-art exploration: four open finger tips, a tapered
- * palm with a lit facet down each side, the thumb tucked on the right, and
- * a wrist cuff. Everything is one colour at two strengths, so it still
- * follows the theme and still sits quietly behind a card via CardMark.
+ * Traced from the card-art exploration: a mitt with its crown catching the
+ * light, the thumb tucked on the left, and a wrist cuff. Everything is one
+ * colour at two strengths, so it follows the theme in light and dark and
+ * still sits quietly behind a card via CardMark.
  *
  * Pieces meet at small gaps instead of touching. In one colour, shapes that
- * touch merge into a blob, and the gaps are what keep the fingers and cuff
+ * touch merge into a blob, and the gaps are what keep the thumb and cuff
  * readable at 74px.
+ *
+ * It sits in the same box as the line-art glove (x 15–60, y 10–71), so
+ * swapping one for the other moves nothing on the card.
  *
  * Fills only, so strokeWidth is ignored.
  */
 const BASE = 0.45;
-const LIT = 0.8;
+const MID = 0.6;
 
 export default function GloveFlat({ size = 74, color }: MarkProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 80 80">
-      {/* palm, with a lit facet down each side */}
-      <Path d="M5 20 70.5 20 66 59.5 12.5 59.5z" fill={color} fillOpacity={BASE} />
-      <Path d="M5 20 17 29 21.5 59.5 12.5 59.5z" fill={color} fillOpacity={LIT} />
-      <Path d="M70.5 20 58.5 29 52 59.5 66 59.5z" fill={color} fillOpacity={LIT} />
-
+      {/* mitt */}
+      <Path
+        d="M23.1 16.2 29.3 11.3 34.8 10.1 49.7 11.9 56.2 15.8 59 21.4 60.1 26.9 52.9 52.2 48.7 54.5 33.8 54.5 28.6 52.9 27.6 48 27.3 33 22.2 20z"
+        fill={color}
+        fillOpacity={BASE}
+      />
+      {/* crown — laid over the mitt, so the two strengths add up to the lit top */}
+      <Path
+        d="M23.1 16.2 29.3 11.3 34.8 10.1 49.7 11.9 56.2 15.8 59 21.4 60.1 26.9 54.3 33.5 45.9 34.7 36.4 32.1 31.3 25 28 21.1z"
+        fill={color}
+        fillOpacity={BASE}
+      />
       {/* thumb */}
       <Path
-        d="M71.5 25.5 76.5 27.5 78 33.5 73.5 46.5 67.5 52.5 69 36z"
+        d="M14.8 31 18.2 24.6 22.6 23.8 25.4 26.8 25.3 34.3 26.3 46.5 25.5 49.5 20.8 45.8 16.4 39z"
         fill={color}
-        fillOpacity={BASE}
+        fillOpacity={MID}
       />
-      <Path d="M76.5 27.5 78 33.5 73.5 46.5 72.5 34z" fill={color} fillOpacity={LIT} />
-
-      {/* finger tips — the band across each top catches the light */}
-      {FINGERS.map(([tip]) => (
-        <Path key={tip} d={tip} fill={color} fillOpacity={BASE} />
-      ))}
-      {FINGERS.map(([, band]) => (
-        <Path key={band} d={band} fill={color} fillOpacity={BASE} />
-      ))}
-
-      {/* cuff, lit at both ends */}
+      {/* cuff */}
       <Path
-        d="M12 61.5h50.5l1 1v15.5l-1 1h-50.5l-1-1v-15.5z"
+        d="M27.4 56.6 29.3 58.1 34.5 59 48.1 58.7 53 56.6 53.2 69 50.7 71 29 70.4 27.4 68.4z"
         fill={color}
-        fillOpacity={BASE}
+        fillOpacity={MID}
       />
-      <Path d="M12 61.5h6.5l3.5 4.5v8l-3.5 5h-6.5l-1-1v-15.5z" fill={color} fillOpacity={LIT} />
-      <Path d="M62.5 61.5h-6.5l-3.5 4.5v8l3.5 5h6.5l1-1v-15.5z" fill={color} fillOpacity={LIT} />
     </Svg>
   );
 }
-
-/** [tip, light band] per finger, left to right. */
-const FINGERS: [string, string][] = [
-  ["M8 1.5h11.5l2 2v12l-3 3h-10l-2.5-3v-12z", "M8 1.5h11.5l2 2v3.5h-15.5v-3.5z"],
-  ["M25.5 1.5h9.5l1.5 2v12l-3 3h-7l-2.5-3v-12z", "M25.5 1.5h9.5l1.5 2v3.5h-12.5v-3.5z"],
-  ["M41.5 1.5h10l1.5 2v12l-3 3h-7l-2.5-3v-12z", "M41.5 1.5h10l1.5 2v3.5h-12.5v-3.5z"],
-  ["M56.5 1.5h12l2 2v12l-3 3h-10l-2.5-3v-12z", "M56.5 1.5h12l2 2v3.5h-16v-3.5z"],
-];
