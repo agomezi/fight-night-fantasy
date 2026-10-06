@@ -5,7 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Text,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -17,16 +20,21 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { GUTTER, makeLoginStyles, titleLine, titleSize } from "../styles/login";
 
-type Provider = "apple" | "google";
+type Provider = "apple" | "google" | "password";
 
 export default function LoginScreen() {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLoginStyles);
   const { width } = useWindowDimensions();
   const title = useMemo(() => titleLine(titleSize(width - GUTTER * 2)), [width]);
-  const { signInWithApple, signInWithGoogle } = useAuth();
+  const { signInWithApple, signInWithGoogle, signInWithPassword } = useAuth();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [busy, setBusy] = useState<Provider | null>(null);
+  // Email sign-in is for accounts made in the dashboard, like App Review's demo
+  // account. New users always come through Apple or Google.
+  const [emailForm, setEmailForm] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => {});
@@ -37,7 +45,12 @@ export default function LoginScreen() {
     if (busy) return;
     setBusy(provider);
     try {
-      await (provider === "apple" ? signInWithApple() : signInWithGoogle());
+      if (provider === "password") {
+        Keyboard.dismiss();
+        await signInWithPassword(email, password);
+      } else {
+        await (provider === "apple" ? signInWithApple() : signInWithGoogle());
+      }
     } catch (e) {
       Alert.alert("Sign in failed", e instanceof Error ? e.message : "Please try again.");
     } finally {
@@ -50,6 +63,50 @@ export default function LoginScreen() {
   };
 
   const ink = styles.heading.color;
+  const canSubmit = email.trim().length > 0 && password.length > 0 && busy === null;
+
+  const emailFields = (
+    <View style={styles.buttons}>
+      <TextInput
+        style={styles.input}
+        value={email}
+        onChangeText={setEmail}
+        placeholder="Email"
+        placeholderTextColor={styles.footnote.color}
+        autoCapitalize="none"
+        autoCorrect={false}
+        autoComplete="email"
+        keyboardType="email-address"
+        textContentType="username"
+        returnKeyType="next"
+      />
+      <TextInput
+        style={styles.input}
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Password"
+        placeholderTextColor={styles.footnote.color}
+        secureTextEntry
+        autoComplete="password"
+        textContentType="password"
+        returnKeyType="go"
+        onSubmitEditing={() => canSubmit && run("password")}
+      />
+      <TouchableOpacity
+        style={[styles.button, styles.appleButton, !canSubmit && styles.buttonDimmed]}
+        onPress={() => run("password")}
+        disabled={!canSubmit}
+        accessibilityRole="button"
+        accessibilityLabel="Sign in"
+      >
+        {busy === "password" ? (
+          <ActivityIndicator color={styles.appleText.color} />
+        ) : (
+          <Text style={[styles.buttonText, styles.appleText]}>Sign in</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
 
   const button = (provider: Provider) => {
     const apple = provider === "apple";
@@ -85,44 +142,77 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={styles.eyebrow}>
-        <View style={styles.eyebrowMark} />
-        <Text style={styles.eyebrowText}>FANTASY MMA</Text>
-      </View>
-
-      <View style={styles.titleBlock} accessibilityRole="header" accessibilityLabel="Fight Night">
-        <View style={title.line}>
-          <Text style={[title.text, { color: ink }]}>FIGHT</Text>
+      {/* The spacer shrinks so the email form clears the keyboard. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        <View style={styles.eyebrow}>
+          <View style={styles.eyebrowMark} />
+          <Text style={styles.eyebrowText}>FANTASY MMA</Text>
         </View>
-        <View style={title.gap} />
-        <View style={title.line}>
-          <View style={[title.band, { backgroundColor: c.red }]} />
-          <Text style={[title.text, { color: ink }]}>NIGHT</Text>
+
+        <View style={styles.titleBlock} accessibilityRole="header" accessibilityLabel="Fight Night">
+          <View style={title.line}>
+            <Text style={[title.text, { color: ink }]}>FIGHT</Text>
+          </View>
+          <View style={title.gap} />
+          <View style={title.line}>
+            <View style={[title.band, { backgroundColor: c.red }]} />
+            <Text style={[title.text, { color: ink }]}>NIGHT</Text>
+          </View>
         </View>
-      </View>
-      <Text style={styles.tagline}>YOUR PICKS. YOUR NIGHT.</Text>
+        <Text style={styles.tagline}>YOUR PICKS. YOUR NIGHT.</Text>
 
-      <View style={{ flex: 1 }} />
+        <View style={{ flex: 1 }} />
 
-      <Text style={styles.heading}>Make your picks.</Text>
-      <Text style={styles.subheading}>Sign in or create your account.</Text>
-
-      <View style={styles.buttons}>
-        {appleAvailable && button("apple")}
-        {button("google")}
-      </View>
-
-      <Text style={styles.footnote}>New here? Your account is created automatically.</Text>
-
-      <View style={styles.legal}>
-        <Text style={styles.legalText} onPress={() => openLink(TERMS_URL)}>
-          Terms of Service
+        <Text style={styles.heading}>Make your picks.</Text>
+        <Text style={styles.subheading}>
+          {emailForm ? "Sign in with email." : "Sign in or create your account."}
         </Text>
-        <Text style={styles.legalText}>·</Text>
-        <Text style={styles.legalText} onPress={() => openLink(PRIVACY_URL)}>
-          Privacy Policy
-        </Text>
-      </View>
+
+        {emailForm ? (
+          emailFields
+        ) : (
+          <View style={styles.buttons}>
+            {appleAvailable && button("apple")}
+            {button("google")}
+          </View>
+        )}
+
+        {emailForm ? (
+          <>
+            <Text style={styles.footnote}>
+              Email sign-in is for existing accounts. New here? Use Apple or Google.
+            </Text>
+            <Text
+              style={styles.emailLink}
+              onPress={() => setEmailForm(false)}
+              accessibilityRole="button"
+            >
+              Back to Apple and Google
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.footnote}>New here? Your account is created automatically.</Text>
+            <Text
+              style={styles.emailLink}
+              onPress={() => setEmailForm(true)}
+              accessibilityRole="button"
+            >
+              Sign in with email
+            </Text>
+          </>
+        )}
+
+        <View style={styles.legal}>
+          <Text style={styles.legalText} onPress={() => openLink(TERMS_URL)}>
+            Terms of Service
+          </Text>
+          <Text style={styles.legalText}>·</Text>
+          <Text style={styles.legalText} onPress={() => openLink(PRIVACY_URL)}>
+            Privacy Policy
+          </Text>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
