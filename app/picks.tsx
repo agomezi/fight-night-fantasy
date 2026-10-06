@@ -34,7 +34,7 @@ import FighterPhoto from "../components/FighterPhoto";
 import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
-import { divisionLabel, formatOdds, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
+import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
@@ -50,8 +50,7 @@ type Fighter = {
   initials: string;
   record: string;
   photoUrl: string | null;
-  /** Main card only, where the underdog bonus applies. */
-  odds?: string;
+  /** The main-card underdog, which earns the multiplier. */
   dog: boolean;
 };
 type Fight = {
@@ -68,9 +67,8 @@ type Fight = {
 };
 
 function toFight(bout: EventBout): Fight {
-  // The underdog bonus is main card only, so odds elsewhere would only
-  // suggest a bonus that is not there.
-  const priced = bout.segment === "main";
+  // The underdog bonus is main card only, so the tag is too.
+  const mainCard = bout.segment === "main";
   const fighter = (f: EventBout["red"], corner: "red" | "blue"): Fighter => ({
     id: f.id,
     name: lastName(f.name).toUpperCase(),
@@ -78,8 +76,7 @@ function toFight(bout: EventBout): Fight {
     // The record, or the nickname until card sync has one.
     record: f.record ?? f.nickname ?? "",
     photoUrl: f.photoUrl,
-    odds: priced && bout.odds ? formatOdds(bout.odds[corner]) : undefined,
-    dog: priced && bout.underdog === corner,
+    dog: mainCard && bout.underdog === corner,
   });
   return {
     id: bout.id,
@@ -212,7 +209,7 @@ function CardSkeleton() {
               <Skeleton width="45%" height={13} />
             </View>
             <Skeleton width={56} height={10} />
-            <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
+            <View style={[styles.rowFighter, { justifyContent: "flex-start" }]}>
               <Skeleton width="45%" height={13} />
               <Skeleton width={36} height={36} radius={10} />
             </View>
@@ -503,13 +500,6 @@ export default function Picks() {
           </Animated.View>
         )}
 
-        {mainOpenWithDog && (
-          <Text style={styles.dogNote}>
-            Picking the underdog on the main card earns {UNDERDOG_MULTIPLIER}× when you’re right. Odds move until the
-            main card locks, then the underdog is set.
-          </Text>
-        )}
-
         {UNDERCARD.map((fight, i) => {
           const picked = picks[fight.id];
           const isOpen = expanded[fight.id];
@@ -556,9 +546,9 @@ export default function Picks() {
                       >
                         {fight.a.name}
                       </Text>
-                      {!!(fight.a.record || fight.a.odds) && (
+                      {!!fight.a.record && (
                         <Text style={styles.rowRecord} numberOfLines={1}>
-                          {[fight.a.record, fight.a.odds].filter(Boolean).join(" · ")}
+                          {fight.a.record}
                         </Text>
                       )}
                       {fight.a.dog && <Text style={styles.rowDog}>{UNDERDOG_MULTIPLIER}× DOG</Text>}
@@ -578,7 +568,7 @@ export default function Picks() {
                     <Chevron open={!!isOpen} size={14} />
                   </View>
 
-                  <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
+                  <View style={[styles.rowFighter, { justifyContent: "flex-start" }]}>
                     <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
                       <Text
                         style={[
@@ -590,9 +580,9 @@ export default function Picks() {
                       >
                         {fight.b.name}
                       </Text>
-                      {!!(fight.b.record || fight.b.odds) && (
+                      {!!fight.b.record && (
                         <Text style={[styles.rowRecord, { textAlign: "right" }]} numberOfLines={1}>
-                          {[fight.b.record, fight.b.odds].filter(Boolean).join(" · ")}
+                          {fight.b.record}
                         </Text>
                       )}
                       {fight.b.dog && <Text style={[styles.rowDog, { textAlign: "right" }]}>{UNDERDOG_MULTIPLIER}× DOG</Text>}
@@ -625,6 +615,13 @@ export default function Picks() {
             </View>
           );
         })}
+
+        {mainOpenWithDog && (
+          <Text style={styles.dogNote}>
+            DOG marks a main-card underdog: picking them right scores {UNDERDOG_MULTIPLIER}×. It can change until the
+            main card locks.
+          </Text>
+        )}
       </ScrollView>
 
       <View style={styles.bottomBar}>

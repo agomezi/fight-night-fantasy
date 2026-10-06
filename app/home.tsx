@@ -288,7 +288,7 @@ export default function Home() {
   });
 
   // --- carousel -----------------------------------------------------------
-  // Two always-on cards, then two that only appear when they're relevant.
+  // The next event, your picks, your league, and the live card while one runs.
   // The league the Leagues tab shows, and where you sit in it once ranked.
   const leagueState = useLeague();
   const myLeague = leagueState.status === "ready" ? leagueState.league : null;
@@ -353,37 +353,6 @@ export default function Home() {
       ),
     },
   ];
-
-  if (myLeague && myStanding) {
-    carouselCards.push({
-      tag: "YOUR LEAGUE",
-      tagColor: "#E8A020",
-
-      serial: leagueState.status === "ready" ? leagueState.standings?.season : undefined,
-      content: (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
-          <ProgressRing
-            value={ranked.length - myStanding.rank + 1}
-            total={ranked.length}
-            center={myStanding.tied ? `T-${myStanding.rank}` : ordinal(myStanding.rank)}
-            caption={`of ${ranked.length}`}
-            size={116}
-            color="#E8A020"
-          />
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: c.text, fontSize: 19, fontWeight: "800" }}>
-              {myLeague.name}
-            </Text>
-            <Text
-              style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}
-            >
-              {myStanding.record} · {myStanding.points.toLocaleString()} pts
-            </Text>
-          </View>
-        </View>
-      ),
-    });
-  }
 
   /*
    * Your card for the next event, until it locks. A brand-new account gets
@@ -484,6 +453,69 @@ export default function Home() {
               </Text>
             </PressableScale>
           </View>
+        </View>
+      ),
+    });
+  }
+
+  /*
+   * The league, always third. Ranked shows where you sit; in a league but
+   * not ranked yet (pre-season, or no card played) says when that changes;
+   * no league is the way into one.
+   */
+  if (leagueState.status === "ready") {
+    const leagueButton = (label: string) => (
+      <PressableScale
+        onPress={() => router.push("/leagues")}
+        style={{
+          borderWidth: 1,
+          borderColor: c.borderStrong,
+          borderRadius: 10,
+          paddingVertical: 11,
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: c.text, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>{label}</Text>
+      </PressableScale>
+    );
+    carouselCards.push({
+      tag: myLeague ? "YOUR LEAGUE" : "LEAGUES",
+      tagColor: "#E8A020",
+      serial: myLeague ? leagueState.standings?.season : "NO LEAGUE",
+      content: myLeague ? (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <ProgressRing
+            value={myStanding ? ranked.length - myStanding.rank + 1 : 0}
+            total={myStanding ? ranked.length : 1}
+            center={myStanding ? (myStanding.tied ? `T-${myStanding.rank}` : ordinal(myStanding.rank)) : "—"}
+            caption={myStanding ? `of ${ranked.length}` : "unranked"}
+            size={116}
+            color="#E8A020"
+          />
+          <View style={{ flex: 1, gap: 10 }}>
+            <View>
+              <Text style={{ color: c.text, fontSize: 19, fontWeight: "800" }} numberOfLines={2}>
+                {myLeague.name}
+              </Text>
+              <Text style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>
+                {myStanding
+                  ? `${myStanding.record} · ${myStanding.points.toLocaleString()} pts`
+                  : waitingLine(myLeague, leagueState.standings, leagueState.weeks) ||
+                    "Your rank shows here once the league has played a card."}
+              </Text>
+            </View>
+            {leagueButton("VIEW LEAGUE")}
+          </View>
+        </View>
+      ) : (
+        <View style={{ flex: 1, justifyContent: "flex-end", gap: 12 }}>
+          <View>
+            <Text style={{ color: c.text, fontSize: 26, fontWeight: "800" }}>Find your people</Text>
+            <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19, marginTop: 4 }}>
+              Rank, records and weekly matchups all start once you&apos;re in a league.
+            </Text>
+          </View>
+          {leagueButton("CREATE OR JOIN")}
         </View>
       ),
     });
