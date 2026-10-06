@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Modal,
@@ -35,6 +35,7 @@ import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
+import { clearDraft, getDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
 import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
@@ -114,11 +115,14 @@ function Avatar({
   initials,
   photoUrl,
   selected,
+  dog,
   size = 96,
 }: {
   initials: string;
   photoUrl?: string | null;
   selected?: boolean;
+  /** Tags the tile as the underdog, on the tile so it costs the name no room. */
+  dog?: boolean;
   size?: number;
 }) {
   const { c } = useTheme();
@@ -178,6 +182,25 @@ function Avatar({
           <Ionicons name="checkmark" size={badgeSize * 0.7} color="#FFFFFF" />
         </Animated.View>
       )}
+
+      {/* Hangs just below the tile. Positioned absolutely, so it adds
+          no height to the row. */}
+      {dog && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            bottom: -12,
+            alignSelf: "center",
+            backgroundColor: c.red,
+            borderRadius: 4,
+            paddingHorizontal: 4,
+            paddingVertical: 1,
+          }}
+        >
+          <Text style={{ color: "#FFFFFF", fontSize: 7.5, fontWeight: "800", letterSpacing: 0.8 }}>DOG</Text>
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -209,7 +232,7 @@ function CardSkeleton() {
               <Skeleton width="45%" height={13} />
             </View>
             <Skeleton width={56} height={10} />
-            <View style={[styles.rowFighter, { justifyContent: "flex-start" }]}>
+            <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
               <Skeleton width="45%" height={13} />
               <Skeleton width={36} height={36} radius={10} />
             </View>
@@ -264,6 +287,8 @@ export default function Picks() {
   const [lockedIn, setLockedIn] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showLockedModal, setShowLockedModal] = useState(false);
+  // Whether the lane holds edits made here, rather than just what loaded.
+  const edited = useRef(false);
 
   // Load what this user already saved for the card. Quick Pick on home hands
   // off a fighter id: it seeds the main event, or switches a saved main event
@@ -277,17 +302,23 @@ export default function Picks() {
     loadPicks(event.bouts)
       .then((saved) => {
         if (cancelled) return;
-        const seeded = { ...saved };
+        // Unsaved edits from earlier in this session win over the saved card.
+        const draft = session ? getDraft(session.user.id, event.id) : undefined;
+        const openIds = event.bouts.filter((b) => !isLocked(b)).map((b) => b.id);
+        const seeded = { ...withDraft(saved, draft, openIds) };
         const corner = main && fighter ? (fighter === main.red.id ? "red" : fighter === main.blue.id ? "blue" : null) : null;
         const switched = !!main && !!corner && canEditPicks && seeded[main.id]?.corner !== corner;
         if (main && corner && switched) {
           seeded[main.id] = seeded[main.id] ? { ...seeded[main.id], corner } : { corner, finish: "ANY" };
         }
+        // A switch from home is an edit like any other, so it's kept if you
+        // leave before locking in.
+        edited.current = switched;
         setLane(seeded);
         // A saved card opens locked in. One missing its main event (a fighter
         // replaced since) opens for editing, since that pick has to be redone,
-        // and so does one just switched on home, so it can be saved.
-        setLockedIn(!!main && !!saved[main.id] && !switched);
+        // and so does one just switched on home or carrying unsaved edits.
+        setLockedIn(!!main && !!saved[main.id] && !switched && samePicks(seeded, saved));
       })
       .catch(() => {});
     return () => {
@@ -307,8 +338,15 @@ export default function Picks() {
     return winners;
   }, [allFights, lane]);
 
+  // Every edit is kept as a draft until you lock in, so leaving the screen
+  // doesn't put the saved card back.
+  useEffect(() => {
+    if (edited.current && session && eventId) setDraft(session.user.id, eventId, lane);
+  }, [lane, session, eventId]);
+
   const setLanePick = (fight: Fight, next: LanePick | null) => {
     if (lockedIn || isLocked(fight)) return;
+    edited.current = true;
     setLane((p) => {
       if (!next) {
         const { [fight.id]: _drop, ...rest } = p;
@@ -386,6 +424,8 @@ export default function Picks() {
     setSaving(true);
     try {
       await savePicks(session.user.id, event.bouts, lane);
+      clearDraft(session.user.id, event.id);
+      edited.current = false;
       setLockedIn(true);
       setShowLockedModal(true);
       // The moment notifications make sense: picks are in and there is a card
@@ -528,34 +568,25 @@ export default function Picks() {
                 layout={LinearTransition.duration(220)}
                 style={styles.rowCard}
               >
-                {/* Collapsed row is a readout; all picking happens in the lane.
-                    The division has its own line, so a long name can't push it. */}
-                <PressableScale onPress={() => toggle(fight.id)}>
-                {!!fight.division && (
-                  <Text style={styles.rowDivision} numberOfLines={1}>
-                    {fight.division}
-                  </Text>
-                )}
-                <View style={styles.row}>
-                  <View style={styles.rowFighter}>
-                    <Avatar initials={fight.a.initials} photoUrl={fight.a.photoUrl} selected={picked === fight.a.id} size={36} />
-                    <View style={{ flexShrink: 1 }}>
-                      <Text
-                        style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
-                        numberOfLines={1}
-                      >
-                        {fight.a.name}
-                      </Text>
-                      {!!fight.a.record && (
-                        <Text style={styles.rowRecord} numberOfLines={1}>
-                          {fight.a.record}
-                        </Text>
-                      )}
-                      {fight.a.dog && <Text style={styles.rowDog}>{UNDERDOG_MULTIPLIER}× DOG</Text>}
-                    </View>
+                {/* Collapsed row is a one-line readout; all picking happens in
+                    the lane, which also carries the records. */}
+                <PressableScale style={styles.row} onPress={() => toggle(fight.id)}>
+                  <View style={[styles.rowFighter, { justifyContent: "flex-start" }]}>
+                    <Avatar initials={fight.a.initials} photoUrl={fight.a.photoUrl} selected={picked === fight.a.id} dog={fight.a.dog} size={36} />
+                    <Text
+                      style={[styles.rowName, picked === fight.a.id && styles.rowNamePicked]}
+                      numberOfLines={1}
+                    >
+                      {fight.a.name}
+                    </Text>
                   </View>
 
                   <View style={styles.rowCenter}>
+                    {!!fight.division && (
+                      <Text style={styles.rowDivision} numberOfLines={1}>
+                        {fight.division}
+                      </Text>
+                    )}
                     {picked ? (
                       <Animated.View entering={popIn}>
                         <Ionicons name="checkmark-circle" size={16} color={c.red} />
@@ -565,31 +596,22 @@ export default function Picks() {
                         VS
                       </Animated.Text>
                     )}
-                    <Chevron open={!!isOpen} size={14} />
+                    <Chevron open={!!isOpen} size={12} />
                   </View>
 
-                  <View style={[styles.rowFighter, { justifyContent: "flex-start" }]}>
-                    <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
-                      <Text
-                        style={[
-                          styles.rowName,
-                          { textAlign: "right" },
-                          picked === fight.b.id && styles.rowNamePicked,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {fight.b.name}
-                      </Text>
-                      {!!fight.b.record && (
-                        <Text style={[styles.rowRecord, { textAlign: "right" }]} numberOfLines={1}>
-                          {fight.b.record}
-                        </Text>
-                      )}
-                      {fight.b.dog && <Text style={[styles.rowDog, { textAlign: "right" }]}>{UNDERDOG_MULTIPLIER}× DOG</Text>}
-                    </View>
-                    <Avatar initials={fight.b.initials} photoUrl={fight.b.photoUrl} selected={picked === fight.b.id} size={36} />
+                  <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
+                    <Text
+                      style={[
+                        styles.rowName,
+                        { textAlign: "right" },
+                        picked === fight.b.id && styles.rowNamePicked,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {fight.b.name}
+                    </Text>
+                    <Avatar initials={fight.b.initials} photoUrl={fight.b.photoUrl} selected={picked === fight.b.id} dog={fight.b.dog} size={36} />
                   </View>
-                </View>
                 </PressableScale>
 
                 {isOpen && (
@@ -643,20 +665,31 @@ export default function Picks() {
           ) : (
             <Animated.View style={shakeStyle}>
               {/* Fills as picks are made, so how close you are to locking in
-                  is readable without doing the arithmetic yourself. */}
-              <AnimatedBar
-                percent={totalFights ? (madePicks / totalFights) * 100 : 0}
-                height={3}
-                delay={0}
-                style={{ marginBottom: 10 }}
-              />
+                  is readable without doing the arithmetic yourself. Nothing
+                  to show until the first pick. */}
+              {madePicks > 0 && (
+                <AnimatedBar
+                  percent={totalFights ? (madePicks / totalFights) * 100 : 0}
+                  height={3}
+                  delay={0}
+                  style={{ marginBottom: 10 }}
+                />
+              )}
+              {/* Stays grey and locked until the main event is picked, the one
+                  pick a card needs; then it unlocks. Tapping it early shakes. */}
               <PressableScale
-                style={[styles.lockBtn, (!canLockIn || saving) && styles.lockBtnDisabled]}
+                style={[styles.lockBtn, !canLockIn && styles.lockBtnIdle, saving && styles.lockBtnDisabled]}
                 onPress={lockIn}
               >
-                <Ionicons name="lock-closed" size={18} color="#FFFFFF" />
-                <Text style={styles.lockText}>{saving ? "SAVING…" : "LOCK IN PICKS"}</Text>
-                <Text style={styles.lockCount}>
+                <Ionicons
+                  name={canLockIn ? "lock-open" : "lock-closed"}
+                  size={18}
+                  color={canLockIn ? "#FFFFFF" : c.textFaint}
+                />
+                <Text style={[styles.lockText, !canLockIn && { color: c.textFaint }]}>
+                  {saving ? "SAVING…" : canLockIn ? "LOCK IN PICKS" : "PICK THE MAIN EVENT"}
+                </Text>
+                <Text style={[styles.lockCount, !canLockIn && { color: c.textFaint }]}>
                   {madePicks}/{totalFights}
                 </Text>
               </PressableScale>

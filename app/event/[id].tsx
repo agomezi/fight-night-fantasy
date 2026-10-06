@@ -41,7 +41,7 @@ export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, mode } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const state = useEventDetail(id);
   const detail = state.status === "ready" ? state.detail : null;
@@ -90,7 +90,7 @@ export default function EventScreen() {
                 label={statusLabel}
                 labelColor={detail.status === "live" ? c.red : c.textMuted}
                 serial={detail.status === "upcoming" ? startLabel(detail.startsAt) : `${detail.picked} PICKED`}
-                mark={<CardMark name="glove" top={44} />}
+                mark={<CardMark name="glove" color={mode === "dark" ? c.textMuted : c.red} opacity={1} top={44} />}
               >
                 {detail.headline && (
                   <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: 6 }}>{detail.headline}</Text>

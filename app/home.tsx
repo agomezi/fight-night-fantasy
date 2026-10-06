@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Animated, {
   ZoomOut,
@@ -12,6 +12,7 @@ import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
+import CardBackdrop from "../components/CardBackdrop";
 import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
 import FighterPhoto from "../components/FighterPhoto";
@@ -26,6 +27,8 @@ import { useLeague } from "../hooks/useLeague";
 import { waitingLine } from "../services/leagues";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
+import { useAuth } from "../context/AuthContext";
+import { getDraft, samePicks, withDraft } from "../services/pickDraft";
 import { loadPicks, pickSummary } from "../services/picks";
 import type { LanePick } from "../services/pickTypes";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -225,7 +228,7 @@ function ordinal(n: number) {
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { c } = useTheme();
+  const { c, mode } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
   const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
@@ -251,22 +254,39 @@ export default function Home() {
 
   // What this user has saved for the card, reloaded whenever home comes back
   // into view so returning from the picks screen shows the card as it stands.
-  const [saved, setSaved] = useState<Record<string, LanePick>>({});
+  // Edits made there but not locked in yet are a draft, which home shows in
+  // place of the saved card, flagged as unsaved.
+  const { session } = useAuth();
+  const userId = session?.user.id;
+  const [serverPicks, setServerPicks] = useState<Record<string, LanePick>>({});
+  const [draft, setDraftPicks] = useState<Record<string, LanePick> | undefined>(undefined);
   useFocusEffect(
     useCallback(() => {
       if (!event) {
-        setSaved({});
+        setServerPicks({});
+        setDraftPicks(undefined);
         return;
       }
+      setDraftPicks(userId ? getDraft(userId, event.id) : undefined);
       let current = true;
       loadPicks(event.bouts)
-        .then((picks) => current && setSaved(picks))
+        .then((picks) => current && setServerPicks(picks))
         .catch(() => {});
       return () => {
         current = false;
       };
-    }, [event])
+    }, [event, userId])
   );
+  const saved = useMemo(
+    () =>
+      withDraft(
+        serverPicks,
+        draft,
+        (event?.bouts ?? []).filter((b) => !boutLocked(b, next.now)).map((b) => b.id)
+      ),
+    [serverPicks, draft, event, next.now]
+  );
+  const unsaved = !!draft && !samePicks(saved, serverPicks);
   const savedMain = mainEvent ? saved[mainEvent.id] : undefined;
   const savedMainFighter =
     mainEvent && savedMain ? (savedMain.corner === "red" ? mainEvent.red.id : mainEvent.blue.id) : null;
@@ -313,6 +333,7 @@ export default function Home() {
   const carouselCards: CarouselCard[] = [
     {
       tag: "NEXT EVENT",
+      mark: <CardBackdrop variant="hero" />,
       tagColor: c.red,
       serial: event ? startLabel(event.startsAt) : undefined,
       // Content sits low in the card rather than crowding the header rule —
@@ -363,6 +384,7 @@ export default function Home() {
   if (event && !locked && picksStarted === 0 && newPlayer) {
     carouselCards.push({
       tag: "GET STARTED",
+      mark: <CardBackdrop variant="spotlight" />,
       tagColor: c.red,
       serial: `LOCKS ${locksIn}`,
       content: (
@@ -404,8 +426,9 @@ export default function Home() {
   } else if (event && !locked && picksTotal > 0) {
     const done = picksStarted >= picksTotal;
     carouselCards.push({
-      tag: done ? "CARD SET" : picksStarted > 0 ? "UNFINISHED CARD" : "YOUR PICKS",
-      tagColor: done ? c.green : c.red,
+      mark: <CardBackdrop variant="spotlight" />,
+      tag: unsaved ? "UNSAVED CHANGES" : done ? "CARD SET" : picksStarted > 0 ? "UNFINISHED CARD" : "YOUR PICKS",
+      tagColor: done && !unsaved ? c.green : c.red,
       serial: `LOCKS ${locksIn}`,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
@@ -527,6 +550,7 @@ export default function Home() {
       tag: "LIVE",
       tagColor: c.red,
       serial: "IN PROGRESS",
+      mark: <CardBackdrop variant="line" />,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
           <ProgressRing value={4} total={7} center="4" caption="of 7" size={116} color={c.green} />
@@ -741,7 +765,7 @@ export default function Home() {
               ...(lastScored
                 ? {
                     serial: splitEventName(lastScored.name).title.toUpperCase(),
-                    mark: <CardMark name="glove" top={44} />,
+                    mark: <CardMark name="glove" color={mode === "dark" ? c.textMuted : c.red} opacity={1} top={44} />,
                     tag: lastScored.live ? "LIVE EVENT POINTS" : "LAST EVENT POINTS",
                     tagColor: lastScored.live ? c.red : c.textMuted,
                     title: lastScored.points > 0 ? `+${lastScored.points}` : lastScored.points < 0 ? `−${-lastScored.points}` : "0",
