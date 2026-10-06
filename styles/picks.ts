@@ -121,13 +121,12 @@ export const makePicksStyles = (c: Palette) =>
       flexDirection: "row",
       alignItems: "center",
     },
-    // Each fighter sits against the VS, not out at the card's edge; a long
-    // name truncates within its half instead of crossing the middle.
+    // Each fighter sits out at the card's edge, avatar outermost; a long name
+    // truncates within its half instead of crossing the middle.
     rowFighter: {
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "flex-end",
       gap: 10,
     },
     rowName: {
@@ -138,11 +137,13 @@ export const makePicksStyles = (c: Palette) =>
       flexShrink: 1,
     },
     rowNamePicked: { color: c.red },
+    // Division, VS and chevron stacked. Kept tight so this column is no
+    // taller than the avatars and the row's height is set by the fighters.
     rowCenter: {
       alignItems: "center",
       justifyContent: "center",
-      width: 56,
-      gap: 3,
+      width: 84,
+      gap: 0,
     },
     rowDivision: {
       fontSize: 9,
@@ -150,18 +151,9 @@ export const makePicksStyles = (c: Palette) =>
       letterSpacing: 1,
       color: c.textFaint,
       textAlign: "center",
-      marginBottom: 8,
     },
-    rowRecord: {
-      color: c.textFaint,
-      fontSize: 11,
-      fontWeight: "600",
-      marginTop: 2,
-      fontVariant: ["tabular-nums"],
-    },
-    rowDog: { color: c.red, fontSize: 8.5, fontWeight: "800", letterSpacing: 1, marginTop: 2 },
     dogNote: { color: c.textFaint, fontSize: 11, lineHeight: 15, textAlign: "center", marginTop: 10, marginHorizontal: 12 },
-    vsSmall: { color: c.textFaint, fontWeight: "700", fontSize: 12 },
+    vsSmall: { color: c.textFaint, fontWeight: "700", fontSize: 12, lineHeight: 14 },
     rowBody: {
       marginTop: 12,
       paddingTop: 4,
@@ -191,6 +183,8 @@ export const makePicksStyles = (c: Palette) =>
       paddingVertical: 16,
     },
     lockBtnDisabled: { opacity: 0.4 },
+    // Before the main event is picked: present, but plainly not ready.
+    lockBtnIdle: { backgroundColor: c.inset, borderWidth: 1, borderColor: c.border },
     lockText: {
       color: "#FFFFFF",
       fontWeight: "700",

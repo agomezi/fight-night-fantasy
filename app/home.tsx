@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Animated, {
   ZoomOut,
@@ -27,6 +27,8 @@ import { useLeague } from "../hooks/useLeague";
 import { waitingLine } from "../services/leagues";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
+import { useAuth } from "../context/AuthContext";
+import { getDraft, samePicks, withDraft } from "../services/pickDraft";
 import { loadPicks, pickSummary } from "../services/picks";
 import type { LanePick } from "../services/pickTypes";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -252,22 +254,39 @@ export default function Home() {
 
   // What this user has saved for the card, reloaded whenever home comes back
   // into view so returning from the picks screen shows the card as it stands.
-  const [saved, setSaved] = useState<Record<string, LanePick>>({});
+  // Edits made there but not locked in yet are a draft, which home shows in
+  // place of the saved card, flagged as unsaved.
+  const { session } = useAuth();
+  const userId = session?.user.id;
+  const [serverPicks, setServerPicks] = useState<Record<string, LanePick>>({});
+  const [draft, setDraftPicks] = useState<Record<string, LanePick> | undefined>(undefined);
   useFocusEffect(
     useCallback(() => {
       if (!event) {
-        setSaved({});
+        setServerPicks({});
+        setDraftPicks(undefined);
         return;
       }
+      setDraftPicks(userId ? getDraft(userId, event.id) : undefined);
       let current = true;
       loadPicks(event.bouts)
-        .then((picks) => current && setSaved(picks))
+        .then((picks) => current && setServerPicks(picks))
         .catch(() => {});
       return () => {
         current = false;
       };
-    }, [event])
+    }, [event, userId])
   );
+  const saved = useMemo(
+    () =>
+      withDraft(
+        serverPicks,
+        draft,
+        (event?.bouts ?? []).filter((b) => !boutLocked(b, next.now)).map((b) => b.id)
+      ),
+    [serverPicks, draft, event, next.now]
+  );
+  const unsaved = !!draft && !samePicks(saved, serverPicks);
   const savedMain = mainEvent ? saved[mainEvent.id] : undefined;
   const savedMainFighter =
     mainEvent && savedMain ? (savedMain.corner === "red" ? mainEvent.red.id : mainEvent.blue.id) : null;
@@ -408,8 +427,8 @@ export default function Home() {
     const done = picksStarted >= picksTotal;
     carouselCards.push({
       mark: <CardBackdrop variant="spotlight" />,
-      tag: done ? "CARD SET" : picksStarted > 0 ? "UNFINISHED CARD" : "YOUR PICKS",
-      tagColor: done ? c.green : c.red,
+      tag: unsaved ? "UNSAVED CHANGES" : done ? "CARD SET" : picksStarted > 0 ? "UNFINISHED CARD" : "YOUR PICKS",
+      tagColor: done && !unsaved ? c.green : c.red,
       serial: `LOCKS ${locksIn}`,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
