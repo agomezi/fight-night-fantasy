@@ -28,7 +28,7 @@ import { waitingLine } from "../services/leagues";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
 import { useAuth } from "../context/AuthContext";
-import { getDraft, samePicks, withDraft } from "../services/pickDraft";
+import { loadDraft, samePicks, withDraft } from "../services/pickDraft";
 import { loadPicks, pickSummary } from "../services/picks";
 import type { LanePick } from "../services/pickTypes";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -267,8 +267,9 @@ export default function Home() {
         setDraftPicks(undefined);
         return;
       }
-      setDraftPicks(userId ? getDraft(userId, event.id) : undefined);
       let current = true;
+      if (userId) loadDraft(userId, event.id).then((d) => current && setDraftPicks(d));
+      else setDraftPicks(undefined);
       loadPicks(event.bouts)
         .then((picks) => current && setServerPicks(picks))
         .catch(() => {});
