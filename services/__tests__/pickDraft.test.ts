@@ -60,6 +60,31 @@ describe("draft store", () => {
     expect(withDraft({ a: red, b: blueKo }, draft, ["a", "b"])).toEqual({ b: blueKo });
   });
 
+  it("keeps new picks that weren't locked in after the app closes", async () => {
+    setDraft("u1", "e1", { a: red, b: blueKo });
+    resetDraftCache();
+    const draft = await loadDraft("u1", "e1");
+    // Nothing saved on the server yet: the card is the draft.
+    expect(withDraft({}, draft, ["a", "b"])).toEqual({ a: red, b: blueKo });
+  });
+
+  it("keeps a mix of new, switched and cleared picks after the app closes", async () => {
+    const switched = { ...red, corner: "blue" as const };
+    // Saved: a and b. Edited: a switched, b cleared, c added.
+    setDraft("u1", "e1", { a: switched, c: red });
+    resetDraftCache();
+    const draft = await loadDraft("u1", "e1");
+    expect(withDraft({ a: red, b: blueKo }, draft, ["a", "b", "c"])).toEqual({ a: switched, c: red });
+  });
+
+  it("keeps every pick cleared after the app closes", async () => {
+    setDraft("u1", "e1", {});
+    resetDraftCache();
+    const draft = await loadDraft("u1", "e1");
+    expect(draft).toEqual({});
+    expect(withDraft({ a: red, b: blueKo }, draft, ["a", "b"])).toEqual({});
+  });
+
   it("is gone after lock-in, even after the app closes", async () => {
     setDraft("u1", "e1", { a: red });
     clearDraft("u1", "e1");
