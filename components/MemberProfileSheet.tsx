@@ -92,7 +92,7 @@ export default function MemberProfileSheet({
           <Text style={[muted, { textAlign: "center" }]}>
             {step === "sent"
               ? `Thanks. We'll review ${profile.name}'s name.`
-              : `You've already reported ${profile.name}'s name. We'll review it.`}
+              : `You've already reported ${profile.name}. You can only report a player once.`}
           </Text>
           <PressableScale onPress={onClose} style={{ paddingVertical: 12 }}>
             <Text style={{ color: c.text2, fontSize: 15, fontWeight: "700" }}>Done</Text>

@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(22);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -126,6 +126,17 @@ select is(public.report_league_member(pg_temp.gym(), pg_temp.u(2), 'other', 'aga
   'a second report of the same name adds nothing');
 select is((select reported from public.league_member_profile(pg_temp.gym(), pg_temp.u(2))), true,
   'the profile shows it has been reported');
+
+-- Ben renames; Ana still can't report him again, from the league or the leaderboard.
+reset role;
+update public.profiles set display_name = 'Ben_Two', name_changed_at = null where id = pg_temp.u(2);
+set local role authenticated;
+select pg_temp.act(1);
+select is(public.report_league_member(pg_temp.gym(), pg_temp.u(2), 'offensive name'), false,
+  'a renamed player cannot be reported again by the same player');
+select public.report_display_name(pg_temp.u(2), 'offensive name');
+select is((select reported from public.league_member_profile(pg_temp.gym(), pg_temp.u(2))), true,
+  'the profile still shows them as reported after the rename');
 select is(public.report_league_member(pg_temp.gym(), pg_temp.u(4), 'other'), false,
   'reporting a deleted account records nothing');
 
@@ -142,6 +153,7 @@ reset role;
 
 select results_eq(
   $$select reporter_id, display_name, reason, league_id, note from public.name_reports where reported_id = pg_temp.u(2)$$,
+  -- One row: neither the second league report nor the leaderboard one was kept.
   $$values (pg_temp.u(1), 'Ben'::text, 'impersonation'::text, pg_temp.gym(), 'pretends to be a pro'::text)$$,
   'the report keeps the name, reason, league and the trimmed note'
 );

@@ -55,7 +55,7 @@ export async function loadLeaderboard(maxRows = 100): Promise<Leaderboard> {
   return toLeaderboard((data ?? []) as Raw[]);
 }
 
-/** Reports a player's current name for review. Repeating it adds nothing. */
+/** Reports a player's name for review. Each player can report another once; repeats add nothing. */
 export async function reportName(userId: string, reason = "offensive name"): Promise<void> {
   const { supabase } = await import("./supabase");
   const { error } = await supabase.rpc("report_display_name", { reported: userId, reason });

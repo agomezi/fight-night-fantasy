@@ -6,8 +6,8 @@
 --
 -- Reports go into the existing name_reports table, now with the league they
 -- came from, a reason and an optional note, so every report is reviewed in one
--- place (the reported_names view). One report per player per name still
--- holds, so repeating one adds nothing.
+-- place (the reported_names view). Each player can report another once, ever,
+-- even after a name change, so reports can't be spammed.
 
 -------------------------------------------------------------------------------
 -- Reports
@@ -16,6 +16,45 @@
 alter table public.name_reports
   add column league_id uuid references public.leagues (id) on delete set null,
   add column note      text check (char_length(note) <= 500);
+
+-- One report per player per target, from wherever it was sent. Earlier
+-- reports of a target's other names are folded into the first.
+delete from public.name_reports r
+using public.name_reports first
+where first.reporter_id = r.reporter_id
+  and first.reported_id = r.reported_id
+  and (first.created_at, first.id) < (r.created_at, r.id);
+
+alter table public.name_reports
+  drop constraint name_reports_reporter_id_reported_id_display_name_key,
+  add constraint name_reports_once unique (reporter_id, reported_id);
+
+-- As before, under the one-report rule.
+create or replace function public.report_display_name(reported uuid, reason text default null)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  me   uuid := (select auth.uid());
+  name text;
+begin
+  if me is null then
+    raise exception 'Sign in to report a name.' using errcode = 'P0001';
+  end if;
+  if reported = me then
+    raise exception 'You can''t report yourself.' using errcode = 'P0001';
+  end if;
+  select display_name into name from public.profiles where id = reported and deleted_at is null;
+  if name is null then
+    return; -- No name to report, or the account is gone.
+  end if;
+  insert into public.name_reports (reporter_id, reported_id, display_name, reason)
+  values (me, reported, name, left(reason, 200))
+  on conflict (reporter_id, reported_id) do nothing;
+end;
+$$;
 
 -- True when both players are in the league, including anyone still in this
 -- season's rotation after leaving.
@@ -33,7 +72,7 @@ $$;
 revoke execute on function public.shares_league(uuid, uuid) from public, anon, authenticated;
 
 -- Reports a league member's name. Returns false when there was nothing new to
--- record: this name was already reported by you, or the account is gone.
+-- record: you have reported this player before, or the account is gone.
 create function public.report_league_member(league uuid, member uuid, reason text, note text default null)
 returns boolean
 language plpgsql
@@ -65,7 +104,7 @@ begin
 
   insert into public.name_reports (reporter_id, reported_id, display_name, reason, league_id, note)
   values (me, member, name, reason, league, nullif(left(btrim(note), 500), ''))
-  on conflict (reporter_id, reported_id, display_name) do nothing;
+  on conflict (reporter_id, reported_id) do nothing;
   get diagnostics added = row_count;
   return added > 0;
 end;
@@ -147,7 +186,7 @@ as $$
          member <> (select auth.uid()) and p.deleted_at is null and p.display_name is not null,
          exists (
            select 1 from public.name_reports r
-           where r.reporter_id = (select auth.uid()) and r.reported_id = member and r.display_name = p.display_name
+           where r.reporter_id = (select auth.uid()) and r.reported_id = member
          )
   from p, acc
   where public.shares_league(league, member);
