@@ -61,4 +61,14 @@ describe("notificationText", () => {
       data: { screen: "history" },
     });
   });
+
+  test("a league join names the player and opens that league", () => {
+    expect(
+      notificationText("league_join", { league: "Weekend Warriors", leagueId: "lg-1", member: "Sam" })
+    ).toEqual({
+      title: "Sam joined Weekend Warriors",
+      body: "Tap to see where they fit in your league.",
+      data: { screen: "league-standings", leagueId: "lg-1" },
+    });
+  });
 });

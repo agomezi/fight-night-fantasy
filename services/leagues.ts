@@ -242,6 +242,47 @@ export function matchupOutcome(m: Matchup): "won" | "lost" | "drew" | "leading" 
   return m.a.points > m.b.points ? "leading" : "trailing";
 }
 
+/** What a league mate's profile shows. Nothing else about them is sent. */
+export type MemberProfile = {
+  name: string;
+  accuracy: number | null;
+  favoriteDivision: string | null;
+  isMe: boolean;
+  canReport: boolean;
+  reported: boolean;
+};
+
+export type RawMemberProfile = {
+  display_name: string;
+  accuracy: number | null;
+  favorite_division: string | null;
+  is_me: boolean;
+  can_report: boolean;
+  reported: boolean;
+};
+
+/** Null when the profile isn't available: the player isn't in the league, or you aren't. */
+export function toMemberProfile(raw: RawMemberProfile[]): MemberProfile | null {
+  const r = raw[0];
+  if (!r) return null;
+  return {
+    name: r.display_name,
+    accuracy: r.accuracy,
+    favoriteDivision: r.favorite_division,
+    isMe: r.is_me,
+    canReport: r.can_report,
+    reported: r.reported,
+  };
+}
+
+export type ReportReason = "offensive name" | "impersonation" | "other";
+
+export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
+  { value: "offensive name", label: "Offensive name" },
+  { value: "impersonation", label: "Impersonation" },
+  { value: "other", label: "Something else" },
+];
+
 /* ------------------------------------------------------------------ *
  * Database
  * ------------------------------------------------------------------ */
@@ -289,6 +330,29 @@ export async function leaveLeague(leagueId: string): Promise<void> {
 export async function removeMember(leagueId: string, userId: string): Promise<void> {
   const { error } = await (await db()).rpc("remove_league_member", { league: leagueId, member: userId });
   if (error) throw new Error(error.message);
+}
+
+export async function loadMemberProfile(leagueId: string, userId: string): Promise<MemberProfile | null> {
+  const { data, error } = await (await db()).rpc("league_member_profile", { league: leagueId, member: userId });
+  if (error) throw new Error(error.message);
+  return toMemberProfile((data ?? []) as RawMemberProfile[]);
+}
+
+/** Reports a league mate's name. False when that name was already reported by you. */
+export async function reportMember(
+  leagueId: string,
+  userId: string,
+  reason: ReportReason,
+  note?: string
+): Promise<boolean> {
+  const { data, error } = await (await db()).rpc("report_league_member", {
+    league: leagueId,
+    member: userId,
+    reason,
+    note: note?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  return data as boolean;
 }
 
 export function inviteMessage(league: { name: string; inviteCode: string }): string {

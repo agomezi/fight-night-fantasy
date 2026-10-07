@@ -1,7 +1,7 @@
 // What each push notification says. Pure and dependency-free, so the results
 // sync imports it under Deno and jest tests it here.
 
-export type NotificationKind = "reminder" | "scored" | "final";
+export type NotificationKind = "reminder" | "scored" | "final" | "league_join";
 
 export type ReminderPayload = { event: string; minutes: number; hasMainPick: boolean };
 export type ScoredPayload = {
@@ -21,8 +21,10 @@ export type ScoredPayload = {
   correction: boolean;
 };
 export type FinalPayload = { event: string; points: number; hit: number; total: number };
+export type LeagueJoinPayload = { league: string; leagueId: string; member: string };
 
-export type Message = { title: string; body: string; data: { screen: string } };
+/** `screen` is where tapping it goes; `leagueId` picks the league there. */
+export type Message = { title: string; body: string; data: { screen: string; leagueId?: string } };
 
 const METHOD = { KO: "KO/TKO", SUB: "Submission", DEC: "Decision" } as const;
 const VOID = {
@@ -79,8 +81,17 @@ function final(p: FinalPayload): Message {
   };
 }
 
+function leagueJoin(p: LeagueJoinPayload): Message {
+  return {
+    title: `${p.member} joined ${p.league}`,
+    body: "Tap to see where they fit in your league.",
+    data: { screen: "league-standings", leagueId: p.leagueId },
+  };
+}
+
 export function notificationText(kind: NotificationKind, payload: unknown): Message {
   if (kind === "reminder") return reminder(payload as ReminderPayload);
   if (kind === "scored") return scored(payload as ScoredPayload);
+  if (kind === "league_join") return leagueJoin(payload as LeagueJoinPayload);
   return final(payload as FinalPayload);
 }
