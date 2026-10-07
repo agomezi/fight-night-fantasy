@@ -35,7 +35,7 @@ import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
-import { clearDraft, getDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
+import { clearDraft, loadDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
 import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
@@ -299,11 +299,10 @@ export default function Picks() {
     let cancelled = false;
     const main = event.bouts[0];
     setExpanded(main ? { [main.id]: true } : {});
-    loadPicks(event.bouts)
-      .then((saved) => {
+    Promise.all([loadPicks(event.bouts), session ? loadDraft(session.user.id, event.id) : undefined])
+      .then(([saved, draft]) => {
         if (cancelled) return;
-        // Unsaved edits from earlier in this session win over the saved card.
-        const draft = session ? getDraft(session.user.id, event.id) : undefined;
+        // Unsaved edits, even from before the app was closed, win over the saved card.
         const openIds = event.bouts.filter((b) => !isLocked(b)).map((b) => b.id);
         const seeded = { ...withDraft(saved, draft, openIds) };
         const corner = main && fighter ? (fighter === main.red.id ? "red" : fighter === main.blue.id ? "blue" : null) : null;
