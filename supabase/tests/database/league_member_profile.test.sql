@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(26);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -162,6 +162,27 @@ select results_eq(
   $$values (1::bigint, array['impersonation'], array['pretends to be a pro'], array['Gym League'])$$,
   'the review view shows the reasons, notes and leagues'
 );
+
+-------------------------------------------------------------------------------
+-- A chosen favorite division
+-------------------------------------------------------------------------------
+
+set local role authenticated;
+select pg_temp.act(2);
+update public.profiles set fav_division = 'Welterweight' where id = pg_temp.u(2);
+select pg_temp.act(1);
+select is((select favorite_division from public.league_member_profile(pg_temp.gym(), pg_temp.u(2))), 'Welterweight',
+  'a division the player chose wins over the one they pick most');
+select throws_ok($$update public.profiles set fav_division = 'Catchweight' where id = pg_temp.u(1)$$, '23514', null,
+  'only a real division can be chosen');
+-- Ana trying to set Ben's changes nothing.
+update public.profiles set fav_division = 'Heavyweight' where id = pg_temp.u(2);
+reset role;
+select is((select fav_division from public.profiles where id = pg_temp.u(2)), 'Welterweight',
+  'nobody can set another player''s division');
+update public.profiles set display_name = null, deleted_at = now() where id = pg_temp.u(2);
+select is((select fav_division from public.profiles where id = pg_temp.u(2)), null,
+  'deleting the account clears it');
 
 select * from finish();
 rollback;

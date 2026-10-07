@@ -23,6 +23,8 @@ type StatBoxProps = {
   label?: string;
   /** Colours the value — used for the figure that matters most. */
   accent?: boolean;
+  /** Shrinks a long value to fit on one line rather than cutting it off. */
+  fit?: boolean;
   icon?: React.ReactNode;
   /** Set by the row; not passed by hand. */
   last?: boolean;
@@ -49,14 +51,19 @@ export function StatBoxRow({
   );
 }
 
-export function StatBox({ value, label, accent, icon, last }: StatBoxProps) {
+export function StatBox({ value, label, accent, fit, icon, last }: StatBoxProps) {
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={[styles.column, !last && styles.divided]}>
       {icon ? (
         <View style={styles.iconWrapper}>{icon}</View>
       ) : (
-        <Text style={[styles.value, accent && styles.valueAccent]} numberOfLines={1}>
+        <Text
+          style={[styles.value, accent && styles.valueAccent]}
+          numberOfLines={1}
+          adjustsFontSizeToFit={fit}
+          minimumFontScale={fit ? 0.5 : undefined}
+        >
           {value}
         </Text>
       )}
