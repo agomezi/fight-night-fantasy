@@ -66,13 +66,18 @@ export async function disablePush(): Promise<void> {
   } catch {}
 }
 
-export type NotifyPrefs = { notify_reminders: boolean; notify_results: boolean; notify_summary: boolean };
+export type NotifyPrefs = {
+  notify_reminders: boolean;
+  notify_results: boolean;
+  notify_summary: boolean;
+  notify_league_activity: boolean;
+};
 
 export async function loadNotifyPrefs(userId: string): Promise<NotifyPrefs> {
   const { supabase } = await import("./supabase");
   const { data, error } = await supabase
     .from("profiles")
-    .select("notify_reminders, notify_results, notify_summary")
+    .select("notify_reminders, notify_results, notify_summary, notify_league_activity")
     .eq("id", userId)
     .single();
   if (error) throw new Error(error.message);

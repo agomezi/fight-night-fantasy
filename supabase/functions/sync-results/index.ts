@@ -4,6 +4,7 @@
 //   {}                       every event that is due now
 //   { "eventId": "…" }       one stored event, due or not, for a manual re-run
 //   { "mode": "reminders" }  lock reminders for cards starting within the hour
+//   { "mode": "activity" }   league activity (joins), sent as it happens
 //
 // For each event: read the UFC stats feed, write any result that changed,
 // re-score the whole card, send any notifications that are now due, then
@@ -123,8 +124,8 @@ Deno.serve(async request => {
 
   const db = createClient(env("SUPABASE_URL"), env("SUPABASE_SERVICE_ROLE_KEY"), { auth: { persistSession: false } });
 
-  if (mode === "reminders") {
-    const { data, error } = await db.rpc("claim_reminders");
+  if (mode === "reminders" || mode === "activity") {
+    const { data, error } = await db.rpc(mode === "reminders" ? "claim_reminders" : "claim_activity_notifications");
     const report = error ? { mode, error: error.message } : { mode, ...(await notify(db, (data ?? []) as Claimed[])) };
     console.log(JSON.stringify(report));
     return Response.json(report, { status: error ? 500 : 200 });

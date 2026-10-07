@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ProfileProvider, useProfile } from "../context/ProfileContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
+import { notificationHref } from "../services/inbox";
 import { enablePush } from "../services/push";
 
 SplashScreen.preventAutoHideAsync();
@@ -34,8 +35,8 @@ function ThemedApp() {
   const router = useRouter();
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-      const screen = response.notification.request.content.data?.screen;
-      if (screen === "history" || screen === "picks") router.push(`/${screen}`);
+      const href = notificationHref(response.notification.request.content.data);
+      if (href) router.push(href);
     });
     return () => sub.remove();
   }, [router]);
