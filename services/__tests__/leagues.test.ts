@@ -3,6 +3,7 @@ import {
   matchupOutcome,
   rankLabel,
   recordOf,
+  toMemberProfile,
   toMyLeagues,
   toStandings,
   toWeeks,
@@ -163,5 +164,19 @@ describe("waitingLine", () => {
 
   test("nothing to say once you are ranked", () => {
     expect(waitingLine(league(5), ranked, upcoming)).toBeNull();
+  });
+});
+
+describe("toMemberProfile", () => {
+  it("is null when the profile isn't available", () => {
+    expect(toMemberProfile([])).toBeNull();
+  });
+
+  it("carries only the profile's fields", () => {
+    expect(
+      toMemberProfile([
+        { display_name: "Ben", accuracy: 60, favorite_division: "Lightweight", is_me: false, can_report: true, reported: false },
+      ])
+    ).toEqual({ name: "Ben", accuracy: 60, favoriteDivision: "Lightweight", isMe: false, canReport: true, reported: false });
   });
 });

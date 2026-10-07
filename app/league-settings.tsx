@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
 import { Alert, ActivityIndicator, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import EmptyState from "../components/EmptyState";
+import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import ScoringRules from "../components/ScoringRules";
 import { appear } from "../constants/motion";
@@ -34,6 +36,7 @@ export default function LeagueSettings() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const state = useLeague(id);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const league = state.status === "ready" ? state.league : null;
   const members = state.status === "ready" ? (state.standings?.rows ?? []) : [];
@@ -181,13 +184,19 @@ export default function LeagueSettings() {
               borderBottomColor: c.border,
             }}
           >
-            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.inset, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: "800" }}>{getInitials(m.name)}</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: m.isMe ? c.red : c.text, fontSize: 14, fontWeight: "700" }}>{m.name}</Text>
-              {MEMBER_NOTE[m.status] && <Text style={{ color: c.textFaint, fontSize: 11.5 }}>{MEMBER_NOTE[m.status]}</Text>}
-            </View>
+            <PressableScale
+              onPress={() => setViewing(m.userId)}
+              scaleTo={0.98}
+              style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12 }}
+            >
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.inset, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: "800" }}>{getInitials(m.name)}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: m.isMe ? c.red : c.text, fontSize: 14, fontWeight: "700" }}>{m.name}</Text>
+                {MEMBER_NOTE[m.status] && <Text style={{ color: c.textFaint, fontSize: 11.5 }}>{MEMBER_NOTE[m.status]}</Text>}
+              </View>
+            </PressableScale>
             {m.isOwner && <Text style={{ color: c.gold, fontSize: 10, fontWeight: "800", letterSpacing: 1 }}>OWNER</Text>}
             {league.isOwner && !m.isMe && (m.status === "active" || m.status === "queued") && (
               <PressableScale onPress={() => confirmRemove(m)} hitSlop={10}>
@@ -210,6 +219,7 @@ export default function LeagueSettings() {
       </ScrollView>
 
       <View style={{ height: insets.bottom }} />
+      <MemberProfileSheet leagueId={league.id} userId={viewing} onClose={() => setViewing(null)} />
     </SafeAreaView>
   );
 }

@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useState } from "react";
 import { ActivityIndicator, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import LeagueStandingRow from "../components/LeagueStandingRow";
+import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import { EmptyScorecard } from "../components/Scorecard";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -20,6 +22,7 @@ export default function LeagueStandings() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeLeaguesStyles);
   const state = useLeague(id);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const league = state.status === "ready" ? state.league : null;
   const standings = state.status === "ready" ? state.standings : null;
@@ -83,7 +86,7 @@ export default function LeagueStandings() {
                   <Text style={styles.columnLabel}>PTS</Text>
                 </View>
                 {rows.map((row, i) => (
-                  <LeagueStandingRow key={row.userId} row={row} index={i} />
+                  <LeagueStandingRow key={row.userId} row={row} index={i} onPress={() => setViewing(row.userId)} />
                 ))}
               </>
             )}
@@ -106,6 +109,7 @@ export default function LeagueStandings() {
       </ScrollView>
 
       <View style={{ height: insets.bottom }} />
+      {league && <MemberProfileSheet leagueId={league.id} userId={viewing} onClose={() => setViewing(null)} />}
     </SafeAreaView>
   );
 }

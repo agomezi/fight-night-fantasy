@@ -7,6 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import EmptyState from "../components/EmptyState";
 import LiveDot from "../components/LiveDot";
 import MatchupCard from "../components/MatchupCard";
+import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -26,8 +27,8 @@ function StatusPill({ state }: { state: MatchupState }) {
   );
 }
 
-/** Someone else's matchup that week, on one line. */
-function OtherMatchup({ m, index }: { m: Matchup; index: number }) {
+/** Someone else's matchup that week, on one line. Tapping a name opens that player. */
+function OtherMatchup({ m, index, onPressPlayer }: { m: Matchup; index: number; onPressPlayer: (userId: string) => void }) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
   const score = (points: number | null, won: boolean) => (
@@ -37,15 +38,19 @@ function OtherMatchup({ m, index }: { m: Matchup; index: number }) {
   );
   return (
     <Animated.View entering={appear(index)} style={[styles.boutRow, { flexDirection: "row", alignItems: "center" }]}>
-      <View style={[styles.pickSide, { flex: 1 }]}>
+      <PressableScale style={[styles.pickSide, { flex: 1 }]} onPress={() => onPressPlayer(m.a.userId)} scaleTo={0.97}>
         <Text style={styles.pickName} numberOfLines={1}>{m.a.name}</Text>
         {score(m.a.points, m.winnerId === m.a.userId)}
-      </View>
+      </PressableScale>
       <Text style={{ color: c.textFaint, fontSize: 11, fontWeight: "800", marginHorizontal: 10 }}>VS</Text>
-      <View style={[styles.pickSide, { flex: 1, alignItems: "flex-end" }]}>
+      <PressableScale
+        style={[styles.pickSide, { flex: 1, alignItems: "flex-end" }]}
+        onPress={() => onPressPlayer(m.b.userId)}
+        scaleTo={0.97}
+      >
         <Text style={styles.pickName} numberOfLines={1}>{m.b.name}</Text>
         {score(m.b.points, m.winnerId === m.b.userId)}
-      </View>
+      </PressableScale>
     </Animated.View>
   );
 }
@@ -59,6 +64,7 @@ export default function MatchupScreen() {
   const styles = useThemedStyles(makeLeaguesStyles);
   const state = useLeague(id);
   const [picked, setPicked] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const weeks = state.status === "ready" ? state.weeks : [];
   const week = weeks.find((w) => w.week === picked) ?? currentWeek(weeks);
@@ -150,7 +156,7 @@ export default function MatchupScreen() {
             {mine.length > 0 ? (
               mine.map((m) => (
                 <View key={m.b.userId} style={{ marginBottom: 14 }}>
-                  <MatchupCard matchup={m} />
+                  <MatchupCard matchup={m} onPressPlayer={setViewing} />
                 </View>
               ))
             ) : (
@@ -172,7 +178,7 @@ export default function MatchupScreen() {
                   <Text style={styles.cardMeta}>WEEK {week.week}</Text>
                 </View>
                 {others.map((m, i) => (
-                  <OtherMatchup key={`${m.a.userId}-${m.b.userId}`} m={m} index={i} />
+                  <OtherMatchup key={`${m.a.userId}-${m.b.userId}`} m={m} index={i} onPressPlayer={setViewing} />
                 ))}
               </>
             )}
@@ -181,6 +187,9 @@ export default function MatchupScreen() {
       </ScrollView>
 
       <View style={{ height: insets.bottom }} />
+      {state.status === "ready" && state.league && (
+        <MemberProfileSheet leagueId={state.league.id} userId={viewing} onClose={() => setViewing(null)} />
+      )}
     </SafeAreaView>
   );
 }

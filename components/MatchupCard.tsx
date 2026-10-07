@@ -5,6 +5,7 @@ import { matchupOutcome, type Matchup } from "../services/leagues";
 import { makeLeaguesStyles } from "../styles/leagues";
 import AnimatedBar from "./AnimatedBar";
 import LiveDot from "./LiveDot";
+import PressableScale from "./PressableScale";
 
 const OUTCOME_TEXT = {
   won: "YOU WON",
@@ -16,8 +17,14 @@ const OUTCOME_TEXT = {
 } as const;
 
 /** A head-to-head on one card: both names and their points at the league's
- * tier. Your side is on the left. */
-export default function MatchupCard({ matchup }: { matchup: Matchup }) {
+ * tier. Your side is on the left. Tapping a side opens that player. */
+export default function MatchupCard({
+  matchup,
+  onPressPlayer,
+}: {
+  matchup: Matchup;
+  onPressPlayer?: (userId: string) => void;
+}) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
   const { a, b, state } = matchup;
@@ -31,7 +38,12 @@ export default function MatchupCard({ matchup }: { matchup: Matchup }) {
   const share = pa + pb === 0 ? 50 : (pa / (pa + pb)) * 100;
 
   const side = (s: typeof a, lead: boolean, me: boolean) => (
-    <View style={styles.versusSide}>
+    <PressableScale
+      style={styles.versusSide}
+      onPress={onPressPlayer ? () => onPressPlayer(s.userId) : undefined}
+      disabled={!onPressPlayer}
+      scaleTo={0.96}
+    >
       <View style={[styles.versusAvatar, me && styles.versusAvatarMe]}>
         <Text style={styles.avatarText}>{getInitials(s.name)}</Text>
       </View>
@@ -41,7 +53,7 @@ export default function MatchupCard({ matchup }: { matchup: Matchup }) {
       <Text style={[styles.versusScore, lead && styles.versusScoreLead]}>
         {s.points == null ? "—" : s.points}
       </Text>
-    </View>
+    </PressableScale>
   );
 
   return (

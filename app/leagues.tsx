@@ -9,6 +9,7 @@ import EmptyState from "../components/EmptyState";
 import HeaderBar from "../components/HeaderBar";
 import LeaderboardRow from "../components/LeaderboardRow";
 import LeagueStandingRow from "../components/LeagueStandingRow";
+import MemberProfileSheet from "../components/MemberProfileSheet";
 import MatchupCard from "../components/MatchupCard";
 import PressableScale from "../components/PressableScale";
 import ProgressRing from "../components/ProgressRing";
@@ -41,6 +42,8 @@ export default function Leagues() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeLeaguesStyles);
   const state = useLeague();
+  // The league mate whose profile is open.
+  const [viewing, setViewing] = useState<string | null>(null);
 
   // The global table: the top five and, if you're further down, you.
   const [board, setBoard] = useState<Leaderboard | null>(null);
@@ -258,7 +261,7 @@ export default function Leagues() {
                   serial: week.eventName ?? undefined,
                   content: (
                     <View style={{ gap: 12 }}>
-                      <MatchupCard matchup={myMatchup} />
+                      <MatchupCard matchup={myMatchup} onPressPlayer={setViewing} />
                       {mine.length > 1 && (
                         <Text style={{ color: c.text2, fontSize: 12, textAlign: "center" }}>
                           Doubleheader week — you also play {mine[1].b.name}
@@ -306,7 +309,7 @@ export default function Leagues() {
               <Text style={styles.columnLabel}>PTS</Text>
             </View>
             {standings.rows.slice(0, 4).map((row, i) => (
-              <LeagueStandingRow key={row.userId} row={row} index={i} />
+              <LeagueStandingRow key={row.userId} row={row} index={i} onPress={() => setViewing(row.userId)} />
             ))}
           </>
         ) : (
@@ -319,6 +322,7 @@ export default function Leagues() {
       </View>
 
       {globalCard}
+      <MemberProfileSheet leagueId={league.id} userId={viewing} onClose={() => setViewing(null)} />
     </>
   );
 }
