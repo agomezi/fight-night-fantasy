@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 import Animated, {
   useAnimatedProps,
@@ -15,8 +15,10 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
  * Donut with a figure in the middle.
  *
  * This is the "where am I" glance — how much of the card you've picked, or
- * where you sit in the league. It sweeps from empty on mount so returning to
- * the app re-states your progress rather than just showing a static number.
+ * where you sit in the league. It opens already at its value: the home cards
+ * remount as you swipe between them, and a sweep from empty on every return
+ * read as progress lost. It moves only when the value does, from where it was
+ * to where it is. `animateOnMount` brings back the opening sweep.
  */
 export default function ProgressRing({
   value,
@@ -27,6 +29,7 @@ export default function ProgressRing({
   thickness = 13,
   color,
   delay = 140,
+  animateOnMount = false,
 }: {
   value: number;
   total: number;
@@ -36,18 +39,33 @@ export default function ProgressRing({
   size?: number;
   thickness?: number;
   color?: string;
+  /** Delay before the opening sweep, when there is one. */
   delay?: number;
+  /** Sweep from empty when the ring first appears. */
+  animateOnMount?: boolean;
 }) {
   const { c } = useTheme();
   const r = (size - thickness) / 2;
   const circumference = 2 * Math.PI * r;
   const pct = total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
 
-  const sweep = useSharedValue(0);
+  const sweep = useSharedValue(animateOnMount ? 0 : pct);
+  // The value last drawn, so only a real change animates. Kept in a ref, so a
+  // re-run of the effect with the same value (a re-render, or React's dev-mode
+  // double mount) leaves the ring alone.
+  const drawn = useRef<number | null>(null);
 
   useEffect(() => {
-    sweep.value = withDelay(delay, withTiming(pct, { duration: 750 }));
-  }, [delay, pct, sweep]);
+    const first = drawn.current == null;
+    if (drawn.current === pct) return;
+    drawn.current = pct;
+    if (first) {
+      if (animateOnMount) sweep.value = withDelay(delay, withTiming(pct, { duration: 750 }));
+      return;
+    }
+    // From wherever it is now, so a change mid-sweep carries on smoothly.
+    sweep.value = withTiming(pct, { duration: 600 });
+  }, [animateOnMount, delay, pct, sweep]);
 
   const animatedProps = useAnimatedProps(() => ({
     strokeDashoffset: circumference * (1 - sweep.value),
