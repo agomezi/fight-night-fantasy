@@ -45,7 +45,9 @@ export default function LeaderboardScreen() {
         onPress: () =>
           reportName(row.userId)
             .then(() => Alert.alert("Thanks", "We'll review it."))
-            .catch(() => Alert.alert("Couldn't send the report", "Please try again.")),
+            .catch((e) =>
+              Alert.alert("Couldn't send the report", e instanceof Error ? e.message : "Please try again.")
+            ),
       },
     ]);
   };

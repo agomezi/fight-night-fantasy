@@ -1,11 +1,12 @@
 -- Report emails: a new report waits to be emailed and asks for the sender,
--- the sender claims each one once with everything the email needs, reports
+-- the sender claims each one once with everything the email needs, more
+-- reports against the same player within the hour go out together, reports
 -- it couldn't send go back in the queue, and players can't reach any of it.
 -- Runs with `npx supabase test db`.
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid
@@ -48,42 +49,60 @@ select ok(exists (select 1 from pg_trigger where tgname = 'name_reports_email' a
 -------------------------------------------------------------------------------
 
 set local role service_role;
+create temp table claimed as select * from public.claim_report_emails();
+reset role;
 select results_eq(
-  $$select reported_id, reported_name, current_name, past_names, reason, note, league, reporter_id, reporter_name, reporters
-    from public.claim_report_emails()$$,
-  $$values (pg_temp.u(3), 'Cal'::text, 'Cal'::text, array['Calvin'], 'impersonation'::text, 'Pretending to be me'::text,
-            'Gym League'::text, pg_temp.u(1), 'Ana'::text, 1)$$,
-  'the sender claims it with the names, reason, note, league and reporter'
+  $$select reported_id, current_name, past_names, protected, reporters, leagues, jsonb_array_length(reports) from claimed$$,
+  $$values (pg_temp.u(3), 'Cal'::text, array['Calvin'], false, 1, 1, 1)$$,
+  'the sender claims one email for the player, with their names'
 );
+select results_eq(
+  $$select r->>'reportedName', r->>'reason', r->>'note', r->>'league', r->>'reporterName', (r->>'reporterId')::uuid
+    from claimed, jsonb_array_elements(reports) r$$,
+  $$values ('Cal'::text, 'impersonation'::text, 'Pretending to be me'::text, 'Gym League'::text, 'Ana'::text, pg_temp.u(1))$$,
+  'and the report with its reason, note, league and reporter'
+);
+set local role service_role;
 select is_empty($$select * from public.claim_report_emails()$$, 'and it is claimed only once');
 reset role;
 
--- Ben reports Cal too; the count covers both reporters.
+-------------------------------------------------------------------------------
+-- More within the hour
+-------------------------------------------------------------------------------
+
 set local role authenticated;
 select pg_temp.act(2);
 select pg_temp.report(2, 'offensive name', null);
 reset role;
 
 set local role service_role;
+select is_empty($$select * from public.claim_report_emails()$$,
+  'a second report within the hour of the first email waits');
+reset role;
+select ok(public.report_email_held(pg_temp.u(3)), 'the player''s emails are held');
+
+-- The hour passes.
+update public.name_reports set emailed_at = now() - interval '61 minutes' where emailed_at is not null;
+set local role service_role;
+drop table claimed;
 create temp table claimed as select * from public.claim_report_emails();
-select results_eq($$select reporter_name, reporters, note from claimed$$, $$values ('Ben'::text, 2, null::text)$$,
-  'a second reporter''s email counts both reporters');
+reset role;
+select results_eq(
+  $$select reporters, jsonb_array_length(reports), reports->0->>'reporterName' from claimed$$,
+  $$values (2, 1, 'Ben'::text)$$,
+  'after the hour it goes out, counting both reporters'
+);
 
 -------------------------------------------------------------------------------
 -- Failing to send
 -------------------------------------------------------------------------------
 
-select public.release_report_emails(array(select report_id from claimed));
-select results_eq($$select reporter_name from public.claim_report_emails()$$, $$values ('Ben'::text)$$,
+update public.name_reports set emailed_at = now() - interval '61 minutes' where reporter_id = pg_temp.u(1);
+set local role service_role;
+select public.release_report_emails(array(select (r->>'id')::bigint from claimed, jsonb_array_elements(reports) r));
+select results_eq($$select reports->0->>'reporterName' from public.claim_report_emails()$$, $$values ('Ben'::text)$$,
   'a report the sender couldn''t email is claimed again next time');
 reset role;
-
--- A report of the same player again adds nothing to send.
-set local role authenticated;
-select pg_temp.act(2);
-select is(pg_temp.report(2, 'other', null), false, 'reporting the same player again records nothing');
-reset role;
-select is((select count(*)::int from public.name_reports where emailed_at is null), 0, 'so nothing waits to be emailed');
 
 -------------------------------------------------------------------------------
 -- Access
@@ -93,6 +112,7 @@ set local role authenticated;
 select pg_temp.act(1);
 select throws_ok($$select * from public.claim_report_emails()$$, '42501', null, 'players can''t claim report emails');
 select throws_ok($$select public.release_report_emails(array[1::bigint])$$, '42501', null, 'or release them');
+select throws_ok($$select public.report_email_held(pg_temp.u(3))$$, '42501', null, 'or see whether emails are held');
 reset role;
 
 -- The five-minute backstop runs when a report is waiting, even with no
