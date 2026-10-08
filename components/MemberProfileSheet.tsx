@@ -5,6 +5,7 @@ import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme } from "../context/ThemeContext";
+import { blockPlayer, unblockPlayer } from "../services/blocks";
 import { divisionLabel } from "../services/events";
 import {
   loadMemberProfile,
@@ -16,12 +17,13 @@ import {
 import PressableScale from "./PressableScale";
 import { StatBox, StatBoxRow } from "./StatBox";
 
-type Step = "profile" | "report" | "sent" | "already";
+type Step = "profile" | "report" | "sent" | "already" | "block" | "blocked";
 
 /**
  * A league mate's profile, in a card over the screen: name, accuracy this
- * season and favorite division. Reporting sits behind the menu in the corner
- * so it stays out of the way. Open it by passing a member's id; null closes it.
+ * season and favorite division. Reporting and blocking sit behind the menu in
+ * the corner so they stay out of the way; a blocked player's menu offers only
+ * Unblock. Open it by passing a member's id; null closes it.
  */
 export default function MemberProfileSheet({
   leagueId,
@@ -60,6 +62,37 @@ export default function MemberProfileSheet({
     };
   }, [leagueId, userId]);
 
+  // Blocking keeps the name on this card until it closes, so a report filed
+  // straight after still says who it's about.
+  const block = async (thenReport: boolean) => {
+    if (!userId || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      await blockPlayer(userId);
+      setProfile((p) => (p ? { ...p, blocked: true } : p));
+      setStep(thenReport ? "report" : "blocked");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't block this player. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const unblock = async () => {
+    if (!userId || sending) return;
+    setMenuOpen(false);
+    setSending(true);
+    try {
+      await unblockPlayer(userId);
+      setProfile((await loadMemberProfile(leagueId, userId)) ?? null);
+    } catch {
+      setError("Couldn't unblock this player. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const send = async () => {
     if (!userId || !reason || sending) return;
     setSending(true);
@@ -96,6 +129,59 @@ export default function MemberProfileSheet({
           </Text>
           <PressableScale onPress={onClose} style={{ paddingVertical: 12 }}>
             <Text style={{ color: c.text2, fontSize: 15, fontWeight: "700" }}>Done</Text>
+          </PressableScale>
+        </View>
+      );
+    }
+
+    if (step === "blocked") {
+      return (
+        <View style={{ alignItems: "center", paddingVertical: 16, gap: 10 }}>
+          <Ionicons name="ban" size={40} color={c.textMuted} />
+          <Text style={title}>Blocked</Text>
+          <Text style={[muted, { textAlign: "center" }]}>
+            You won&apos;t see {profile.name}&apos;s name in your leagues or on the leaderboard, and won&apos;t hear when they join
+            your leagues. You can unblock them in Settings.
+          </Text>
+          <PressableScale onPress={onClose} style={{ paddingVertical: 12 }}>
+            <Text style={{ color: c.text2, fontSize: 15, fontWeight: "700" }}>Done</Text>
+          </PressableScale>
+        </View>
+      );
+    }
+
+    if (step === "block") {
+      const canAlsoReport = profile.canReport && !profile.reported;
+      return (
+        <View>
+          <Text style={title}>Block {profile.name}?</Text>
+          <Text style={[muted, { marginTop: 6, marginBottom: 16 }]}>
+            They&apos;ll show as &ldquo;Blocked player&rdquo; to you in your leagues, matchups and the leaderboard, and you won&apos;t
+            hear when they join your leagues. They aren&apos;t told, and you both stay in your leagues.
+          </Text>
+          {error && <Text style={{ color: c.red, fontSize: 13, marginBottom: 10 }}>{error}</Text>}
+          <PressableScale
+            onPress={() => block(false)}
+            disabled={sending}
+            style={{ backgroundColor: c.red, borderRadius: 12, paddingVertical: 14, alignItems: "center" }}
+          >
+            {sending ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "800", letterSpacing: 1 }}>BLOCK</Text>
+            )}
+          </PressableScale>
+          {canAlsoReport && (
+            <PressableScale
+              onPress={() => block(true)}
+              disabled={sending}
+              style={{ marginTop: 10, borderRadius: 12, paddingVertical: 13, alignItems: "center", borderWidth: 1, borderColor: c.border }}
+            >
+              <Text style={{ color: c.text, fontSize: 14, fontWeight: "800" }}>Block and report</Text>
+            </PressableScale>
+          )}
+          <PressableScale onPress={() => setStep("profile")} disabled={sending} style={{ paddingVertical: 13, alignItems: "center" }}>
+            <Text style={{ color: c.text2, fontSize: 15, fontWeight: "700" }}>Cancel</Text>
           </PressableScale>
         </View>
       );
@@ -215,19 +301,50 @@ export default function MemberProfileSheet({
               minWidth: 170,
             }}
           >
-            <PressableScale
-              onPress={() => {
-                setMenuOpen(false);
-                if (!profile.reported) setStep("report");
-              }}
-              disabled={profile.reported}
-              style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 11 }}
-            >
-              <Ionicons name="flag-outline" size={17} color={profile.reported ? c.textFaint : c.red} />
-              <Text style={{ color: profile.reported ? c.textFaint : c.text, fontSize: 14.5, fontWeight: "600" }}>
-                {profile.reported ? "Reported" : "Report"}
-              </Text>
-            </PressableScale>
+            {profile.blocked ? (
+              <PressableScale
+                onPress={unblock}
+                style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 11 }}
+              >
+                <Ionicons name="lock-open-outline" size={17} color={c.text2} />
+                <Text style={{ color: c.text, fontSize: 14.5, fontWeight: "600" }}>Unblock</Text>
+              </PressableScale>
+            ) : (
+              <>
+                <PressableScale
+                  onPress={() => {
+                    setMenuOpen(false);
+                    if (!profile.reported) setStep("report");
+                  }}
+                  disabled={profile.reported}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 11 }}
+                >
+                  <Ionicons name="flag-outline" size={17} color={profile.reported ? c.textFaint : c.red} />
+                  <Text style={{ color: profile.reported ? c.textFaint : c.text, fontSize: 14.5, fontWeight: "600" }}>
+                    {profile.reported ? "Reported" : "Report"}
+                  </Text>
+                </PressableScale>
+                <PressableScale
+                  onPress={() => {
+                    setMenuOpen(false);
+                    setError(null);
+                    setStep("block");
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
+                    paddingHorizontal: 14,
+                    paddingVertical: 11,
+                    borderTopWidth: 1,
+                    borderTopColor: c.border,
+                  }}
+                >
+                  <Ionicons name="ban-outline" size={17} color={c.red} />
+                  <Text style={{ color: c.text, fontSize: 14.5, fontWeight: "600" }}>Block</Text>
+                </PressableScale>
+              </>
+            )}
           </View>
         )}
 
