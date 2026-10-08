@@ -1,7 +1,7 @@
 // What each push notification says. Pure and dependency-free, so the results
 // sync imports it under Deno and jest tests it here.
 
-export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation";
+export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation" | "moderation_case";
 
 export type ReminderPayload = { event: string; minutes: number; hasMainPick: boolean };
 export type ScoredPayload = {
@@ -25,11 +25,14 @@ export type LeagueJoinPayload = { league: string; leagueId: string; member: stri
 /** A moderator's decision. `until` is when a suspension ends. */
 export type ModerationPayload = { action: "warn" | "reset_name" | "suspend" | "lift"; reason?: string; until?: string };
 
+/** For moderators: a case opened, or reached three reporters. */
+export type ModerationCasePayload = { caseId: number; stage: "opened" | "three"; name: string; reason: string | null; reporters: number };
+
 /** Where players write to appeal a decision. */
 export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
 
-/** `screen` is where tapping it goes; `leagueId` picks the league there. */
-export type Message = { title: string; body: string; data: { screen: string; leagueId?: string } };
+/** `screen` is where tapping it goes; `leagueId` or `caseId` picks what to show there. */
+export type Message = { title: string; body: string; data: { screen: string; leagueId?: string; caseId?: number } };
 
 const METHOD = { KO: "KO/TKO", SUB: "Submission", DEC: "Decision" } as const;
 const VOID = {
@@ -128,10 +131,19 @@ function moderation(p: ModerationPayload): Message {
   };
 }
 
+function moderationCase(p: ModerationCasePayload): Message {
+  return {
+    title: p.stage === "three" ? `${p.name} now has 3 reporters` : `New report: ${p.name}`,
+    body: p.stage === "three" ? "Tap to review the case." : `${p.reason ?? "No reason given"}. Tap to review.`,
+    data: { screen: "moderation-case", caseId: p.caseId },
+  };
+}
+
 export function notificationText(kind: NotificationKind, payload: unknown): Message {
   if (kind === "reminder") return reminder(payload as ReminderPayload);
   if (kind === "scored") return scored(payload as ScoredPayload);
   if (kind === "league_join") return leagueJoin(payload as LeagueJoinPayload);
   if (kind === "moderation") return moderation(payload as ModerationPayload);
+  if (kind === "moderation_case") return moderationCase(payload as ModerationCasePayload);
   return final(payload as FinalPayload);
 }

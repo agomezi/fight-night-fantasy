@@ -19,6 +19,7 @@ const KIND: Record<NotificationKind, { icon: keyof typeof Ionicons.glyphMap; tin
   league_join: { icon: "people", tint: (c) => c.gold },
   reminder: { icon: "time", tint: (c) => c.blue },
   moderation: { icon: "shield-checkmark", tint: (c) => c.textMuted },
+  moderation_case: { icon: "flag", tint: (c) => c.red },
 };
 
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; items: InboxItem[] };

@@ -10,6 +10,7 @@ import { appear } from "../constants/motion";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { isModerator } from "../services/moderation";
 import { disablePush, enablePush, loadNotifyPrefs, pushPermission, saveNotifyPref, type NotifyPrefs } from "../services/push";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -31,6 +32,12 @@ export default function Settings() {
   useEffect(() => {
     pushPermission().then((p) => setPushOn(p === "granted")).catch(() => {});
     if (userId) loadNotifyPrefs(userId).then(setPrefs).catch(() => {});
+  }, [userId]);
+
+  // Only moderators see the way in; the server checks every call anyway.
+  const [moderator, setModerator] = useState(false);
+  useEffect(() => {
+    if (userId) isModerator().then(setModerator).catch(() => {});
   }, [userId]);
 
   const togglePush = async (on: boolean) => {
@@ -202,6 +209,21 @@ export default function Settings() {
             <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
           </PressableScale>
         </Animated.View>
+
+        {moderator && (
+          <>
+            <Text style={styles.sectionLabel}>MODERATION</Text>
+            <View style={styles.card}>
+              <PressableScale style={styles.row} onPress={() => router.push("/moderation")}>
+                <View style={styles.rowIcon}>
+                  <Ionicons name="shield-half-outline" size={20} color={c.text2} />
+                </View>
+                <Text style={styles.rowLabel}>Reports and cases</Text>
+                <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+              </PressableScale>
+            </View>
+          </>
+        )}
 
         <Text style={styles.sectionLabel}>LEGAL</Text>
         <Animated.View entering={appear(3)} style={styles.card}>
