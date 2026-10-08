@@ -68,9 +68,12 @@ export async function loadPicks(bouts: EventBout[]): Promise<Record<string, Lane
 }
 
 export class PicksLockedError extends Error {}
+/** The account is suspended or banned; the message says which, and until when. */
+export class AccountRestrictedError extends Error {}
 
 function check(error: { hint?: string; message: string } | null) {
   if (error?.hint === "locked") throw new PicksLockedError("Picks are locked for this card.");
+  if (error?.hint === "suspended" || error?.hint === "banned") throw new AccountRestrictedError(error.message);
   if (error) throw new Error(error.message);
 }
 

@@ -18,6 +18,7 @@ const ana: NewReport = {
 
 const target: ClaimedTarget = {
   reported_id: PLAYER,
+  case_id: 12,
   current_name: "Ben",
   past_names: ["Benny"],
   protected: false,
@@ -25,6 +26,8 @@ const target: ClaimedTarget = {
   established: 2,
   leagues: 1,
   burst: false,
+  strikes: 0,
+  standing: "active",
   reports: [ana],
 };
 
@@ -48,10 +51,22 @@ describe("reportEmail", () => {
     );
   });
 
-  it("includes SQL ready to run against the reported player", () => {
+  it("includes SQL ready to run on the case", () => {
     const { text } = reportEmail(target);
-    expect(text).toContain(`select public.reset_display_name('${PLAYER}');`);
+    expect(text).toContain("Case:          12");
+    expect(text).toContain("select * from public.moderate(12, 'dismiss');");
+    expect(text).toContain("select * from public.moderate(12, 'reset_name', 'Offensive name');");
+    expect(text).toContain("select * from public.moderate(12, 'suspend', 'Offensive name', null, interval '7 days');");
+    expect(text).not.toContain("'lift'");
     expect(text).toContain(`select * from public.reported_names where player = '${PLAYER}';`);
+  });
+
+  it("suggests the next step from the player's strikes", () => {
+    expect(reportEmail(target).text).toContain("Standing:      active, 0 strikes (suggested: reset the name and warn)");
+    expect(reportEmail({ ...target, strikes: 1 }).text).toContain("1 strike (suggested: reset the name and suspend for 7 days)");
+    const { text } = reportEmail({ ...target, strikes: 2, standing: "suspended" });
+    expect(text).toContain("Standing:      suspended, 2 strikes (suggested: ban)");
+    expect(text).toContain("select * from public.moderate(12, 'lift', 'Appeal accepted');");
   });
 
   it("gathers several reports into one email", () => {

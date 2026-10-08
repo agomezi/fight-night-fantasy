@@ -36,7 +36,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { clearDraft, loadDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
-import { loadPicks, PicksLockedError, savePicks } from "../services/picks";
+import { AccountRestrictedError, loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -432,6 +432,10 @@ export default function Picks() {
       enablePush(true);
     } catch (e) {
       shake();
+      if (e instanceof AccountRestrictedError) {
+        Alert.alert("Can't save your picks", e.message);
+        return;
+      }
       Alert.alert(
         e instanceof PicksLockedError ? "Picks are locked" : "Couldn't save your picks",
         e instanceof PicksLockedError

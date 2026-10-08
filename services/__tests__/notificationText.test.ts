@@ -1,4 +1,4 @@
-import { notificationText, type ScoredPayload } from "../notificationText";
+import { notificationText, SUPPORT_EMAIL, type ScoredPayload } from "../notificationText";
 
 const fight: ScoredPayload = {
   event: "UFC 332: Silva vs. Wang",
@@ -69,6 +69,38 @@ describe("notificationText", () => {
       title: "Sam joined Weekend Warriors",
       body: "Tap to see where they fit in your league.",
       data: { screen: "league-standings", leagueId: "lg-1" },
+    });
+  });
+
+  describe("moderation", () => {
+    it("asks a warned player to rename, with the reason and where to appeal", () => {
+      const m = notificationText("moderation", { action: "warn", reason: "Offensive name." });
+      expect(m.title).toBe("Please change your display name");
+      expect(m.body).toBe(
+        `Your name was reported and breaks our rules. Reason: Offensive name. Change it in Edit Profile. Think this is a mistake? Email ${SUPPORT_EMAIL}.`
+      );
+      expect(m.data).toEqual({ screen: "edit-profile" });
+    });
+
+    it("explains a reset name", () => {
+      const m = notificationText("moderation", { action: "reset_name" });
+      expect(m.title).toBe("Your display name was reset");
+      expect(m.body).toContain("You'll pick a new one the next time you open the app.");
+      expect(m.body).not.toContain("Reason:");
+    });
+
+    it("says when a suspension ends", () => {
+      const m = notificationText("moderation", { action: "suspend", reason: "Spam", until: "2026-10-15T04:00:00Z" });
+      expect(m.title).toBe("Your account is suspended");
+      expect(m.body).toMatch(/^Until Oct 15, you can look around but can't make picks, join leagues or report players\. Reason: Spam\./);
+    });
+
+    it("welcomes a player back after a lift", () => {
+      expect(notificationText("moderation", { action: "lift" })).toEqual({
+        title: "Your account is back in good standing",
+        body: "You can make picks and join leagues again.",
+        data: { screen: "picks" },
+      });
     });
   });
 });
