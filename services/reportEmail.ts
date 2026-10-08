@@ -19,6 +19,7 @@ export type NewReport = {
 /** One reported player, as `claim_report_emails` returns it. */
 export type ClaimedTarget = {
   reported_id: string;
+  case_id: number;
   current_name: string | null;
   past_names: string[];
   protected: boolean;
@@ -26,8 +27,18 @@ export type ClaimedTarget = {
   established: number;
   leagues: number;
   burst: boolean;
+  /** Cases against them that ended in action, for the escalation policy. */
+  strikes: number;
+  standing: "active" | "suspended" | "banned";
   reports: NewReport[];
 };
+
+/** The escalation policy's next step after this many strikes. */
+function suggestion(strikes: number): string {
+  if (strikes === 0) return "reset the name and warn";
+  if (strikes === 1) return "reset the name and suspend for 7 days";
+  return "ban";
+}
 
 /** Every subject starts with this, so the reports can be filtered. */
 export const SUBJECT_TAG = "[REPORT-REVIEW]";
@@ -87,6 +98,8 @@ export function reportEmail(t: ClaimedTarget): { subject: string; text: string }
     `Past names:    ${past.length ? past.join(", ") : "(none)"}`,
     `Protected:     ${t.protected ? "yes (moderator), never hidden automatically" : "no"}`,
     `Reporters:     ${t.reporters} in total, ${t.established} established, from ${plural(t.leagues, "league")}`,
+    `Standing:      ${t.standing}, ${plural(t.strikes, "strike")} (suggested: ${suggestion(t.strikes)})`,
+    `Case:          ${t.case_id}`,
     "",
     single ? "The report:" : "New reports:",
   );
@@ -102,8 +115,13 @@ export function reportEmail(t: ClaimedTarget): { subject: string; text: string }
     "",
     "Established: an account at least a week old with picks on a scored card.",
     "",
-    "Clear their name (they pick a new one the next time they open the app):",
-    `  select public.reset_display_name('${t.reported_id}');`,
+    "Decide in the SQL editor. The reason is shown to the player; the note is not:",
+    `  select * from public.moderate(${t.case_id}, 'dismiss');`,
+    `  select * from public.moderate(${t.case_id}, 'warn', 'Offensive name');`,
+    `  select * from public.moderate(${t.case_id}, 'reset_name', 'Offensive name');`,
+    `  select * from public.moderate(${t.case_id}, 'suspend', 'Offensive name', null, interval '7 days');`,
+    `  select * from public.moderate(${t.case_id}, 'ban', 'Repeated offensive names');`,
+    ...(t.standing === "active" ? [] : [`  select * from public.moderate(${t.case_id}, 'lift', 'Appeal accepted');`]),
     "",
     "Every report against them:",
     `  select * from public.reported_names where player = '${t.reported_id}';`,

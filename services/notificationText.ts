@@ -1,7 +1,7 @@
 // What each push notification says. Pure and dependency-free, so the results
 // sync imports it under Deno and jest tests it here.
 
-export type NotificationKind = "reminder" | "scored" | "final" | "league_join";
+export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation";
 
 export type ReminderPayload = { event: string; minutes: number; hasMainPick: boolean };
 export type ScoredPayload = {
@@ -22,6 +22,11 @@ export type ScoredPayload = {
 };
 export type FinalPayload = { event: string; points: number; hit: number; total: number };
 export type LeagueJoinPayload = { league: string; leagueId: string; member: string };
+/** A moderator's decision. `until` is when a suspension ends. */
+export type ModerationPayload = { action: "warn" | "reset_name" | "suspend" | "lift"; reason?: string; until?: string };
+
+/** Where players write to appeal a decision. */
+export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
 
 /** `screen` is where tapping it goes; `leagueId` picks the league there. */
 export type Message = { title: string; body: string; data: { screen: string; leagueId?: string } };
@@ -89,9 +94,44 @@ function leagueJoin(p: LeagueJoinPayload): Message {
   };
 }
 
+function moderation(p: ModerationPayload): Message {
+  const why = p.reason ? ` Reason: ${p.reason.replace(/\.+$/, "")}.` : "";
+  const appeal = ` Think this is a mistake? Email ${SUPPORT_EMAIL}.`;
+  if (p.action === "warn") {
+    return {
+      title: "Please change your display name",
+      body: `Your name was reported and breaks our rules.${why} Change it in Edit Profile.${appeal}`,
+      data: { screen: "edit-profile" },
+    };
+  }
+  if (p.action === "reset_name") {
+    return {
+      title: "Your display name was reset",
+      body: `It broke our rules.${why} You'll pick a new one the next time you open the app.${appeal}`,
+      data: { screen: "moderation" },
+    };
+  }
+  if (p.action === "suspend") {
+    const until = p.until
+      ? new Date(p.until).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+      : "further notice";
+    return {
+      title: "Your account is suspended",
+      body: `Until ${until}, you can look around but can't make picks, join leagues or report players.${why}${appeal}`,
+      data: { screen: "moderation" },
+    };
+  }
+  return {
+    title: "Your account is back in good standing",
+    body: "You can make picks and join leagues again.",
+    data: { screen: "picks" },
+  };
+}
+
 export function notificationText(kind: NotificationKind, payload: unknown): Message {
   if (kind === "reminder") return reminder(payload as ReminderPayload);
   if (kind === "scored") return scored(payload as ScoredPayload);
   if (kind === "league_join") return leagueJoin(payload as LeagueJoinPayload);
+  if (kind === "moderation") return moderation(payload as ModerationPayload);
   return final(payload as FinalPayload);
 }

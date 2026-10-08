@@ -234,7 +234,7 @@ update public.events e set season_id = (select id from public.seasons where numb
 from (values ('lg1', 1), ('lg2', 2)) v(ev, idx) where e.ufc_event_id = v.ev;
 
 select results_eq(
-  $$select user_id, status::text from public.league_members where league_id = pg_temp.id('L') order by joined_at$$,
+  $$select user_id, status::text from public.league_members where league_id = pg_temp.id('L') order by joined_at, user_id$$,
   $$values ('00000000-0000-0000-0000-000000000001'::uuid, 'active'), ('00000000-0000-0000-0000-000000000002'::uuid, 'active'),
            ('00000000-0000-0000-0000-000000000003'::uuid, 'active'), ('00000000-0000-0000-0000-000000000004'::uuid, 'active')$$,
   'a league of four is activated'
@@ -401,7 +401,7 @@ select is((select status from public.league_standings(pg_temp.id('L')) where dis
 reset role;
 insert into public.seasons (number, starts_at) values (2, now() - interval '1 day');
 select results_eq(
-  $$select user_id, status::text from public.league_members where league_id = pg_temp.id('L') order by joined_at$$,
+  $$select user_id, status::text from public.league_members where league_id = pg_temp.id('L') order by joined_at, user_id$$,
   $$values ('00000000-0000-0000-0000-000000000002'::uuid, 'queued'), ('00000000-0000-0000-0000-000000000003'::uuid, 'queued'),
            ('00000000-0000-0000-0000-000000000004'::uuid, 'queued')$$,
   'members who left are gone, and a league below four waits'
