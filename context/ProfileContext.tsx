@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { LEGACY_PROFILE_KEY, profileStorageKey } from "../constants/storage";
-import { fetchDisplayName, nextNameChange, saveDisplayName } from "../services/profile";
+import { fetchDisplayName, nextNameChange, saveDisplayName, saveFavDivision } from "../services/profile";
 import { useAuth } from "./AuthContext";
 
 export type Profile = {
@@ -12,7 +12,8 @@ export type Profile = {
   bio: string;
 };
 
-/** The parts of the profile kept on this phone, per account. */
+/** The parts of the profile kept on this phone, per account. The favorite
+ * division is also saved to the server, where league mates see it. */
 type LocalProfile = Omit<Profile, "username">;
 
 const DEFAULT_LOCAL: LocalProfile = {
@@ -60,22 +61,36 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     let current = true;
     const saved = AsyncStorage.getItem(profileStorageKey(userId))
       .then((raw) => {
-        if (!current || !raw) return;
+        if (!raw) return null;
         // Older saves also held a username; the handle now lives on the server.
         const { username: _old, ...rest } = JSON.parse(raw);
-        setLocal({ ...DEFAULT_LOCAL, ...rest });
+        const stored: LocalProfile = { ...DEFAULT_LOCAL, ...rest };
+        if (current) setLocal(stored);
+        return stored;
       })
-      .catch(() => {});
+      .catch(() => null);
     const name = fetchDisplayName(userId)
-      .then(({ name: n, changedAt }) => {
-        if (!current) return;
-        setUsernameState(n);
-        setNameChangedAt(changedAt);
+      .then((server) => {
+        if (!current) return null;
+        setUsernameState(server.name);
+        setNameChangedAt(server.changedAt);
+        return server;
       })
       // Offline at launch: let them in rather than trapping them in
       // onboarding; the next launch reads it again.
-      .catch(() => current && setUsernameState(""));
-    Promise.all([saved, name]).finally(() => current && setReady(true));
+      .catch(() => {
+        if (current) setUsernameState("");
+        return null;
+      });
+    Promise.all([saved, name])
+      .then(([stored, server]) => {
+        if (!current || !server) return;
+        // The server's division wins. One chosen before it was saved there is
+        // sent up once, so league mates see it.
+        if (server.favDivision) setLocal((l) => ({ ...l, favDivision: server.favDivision! }));
+        else if (stored?.favDivision) saveFavDivision(userId, stored.favDivision).catch(() => {});
+      })
+      .finally(() => current && setReady(true));
     return () => {
       current = false;
     };
@@ -83,10 +98,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = useCallback(
     (next: LocalProfile) => {
+      if (userId) {
+        AsyncStorage.setItem(profileStorageKey(userId), JSON.stringify(next)).catch(() => {});
+        if (next.favDivision && next.favDivision !== local.favDivision) {
+          saveFavDivision(userId, next.favDivision).catch(() => {});
+        }
+      }
       setLocal(next);
-      if (userId) AsyncStorage.setItem(profileStorageKey(userId), JSON.stringify(next)).catch(() => {});
     },
-    [userId]
+    [userId, local.favDivision]
   );
 
   const setUsername = useCallback(

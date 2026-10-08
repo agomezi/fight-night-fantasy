@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, Text, TextInput, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated from "react-native-reanimated";
+import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme } from "../context/ThemeContext";
 import { divisionLabel } from "../services/events";
@@ -18,9 +19,9 @@ import { StatBox, StatBoxRow } from "./StatBox";
 type Step = "profile" | "report" | "sent" | "already";
 
 /**
- * A league mate's profile: name, accuracy this season and favorite division.
- * Reporting sits behind the menu in the corner so it stays out of the way.
- * Open it by passing a member's id; null closes it.
+ * A league mate's profile, in a card over the screen: name, accuracy this
+ * season and favorite division. Reporting sits behind the menu in the corner
+ * so it stays out of the way. Open it by passing a member's id; null closes it.
  */
 export default function MemberProfileSheet({
   leagueId,
@@ -32,7 +33,6 @@ export default function MemberProfileSheet({
   onClose: () => void;
 }) {
   const { c } = useTheme();
-  const insets = useSafeAreaInsets();
   const [profile, setProfile] = useState<MemberProfile | null | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -231,39 +231,40 @@ export default function MemberProfileSheet({
           </View>
         )}
 
-        <View style={{ marginTop: 20 }}>
-          <StatBoxRow>
+        <View style={{ marginTop: 4 }}>
+          <StatBoxRow inline>
             <StatBox value={profile.accuracy == null ? "—" : `${profile.accuracy}%`} label="ACCURACY" accent />
-            <StatBox value={profile.favoriteDivision ? divisionLabel(profile.favoriteDivision) : "—"} label="FAVORITE DIVISION" />
+            <StatBox value={profile.favoriteDivision ? divisionLabel(profile.favoriteDivision) : "—"} label="FAVORITE DIVISION" fit />
           </StatBoxRow>
         </View>
         {profile.accuracy == null && profile.favoriteDivision == null && (
           <Text style={[muted, { marginTop: 12, fontSize: 12.5 }]}>No scored picks yet. Stats fill in after a few cards.</Text>
         )}
+        <PressableScale onPress={onClose} style={{ paddingTop: 18, paddingBottom: 2, alignItems: "center" }}>
+          <Text style={{ color: c.text2, fontSize: 15, fontWeight: "700" }}>Close</Text>
+        </PressableScale>
       </View>
     );
   };
 
   return (
-    <Modal visible={!!userId} transparent animationType="slide" statusBarTranslucent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <Pressable style={{ flex: 1, backgroundColor: c.overlay }} onPress={sending ? undefined : onClose} />
-        <View
-          style={{
-            backgroundColor: c.card,
-            borderTopLeftRadius: 22,
-            borderTopRightRadius: 22,
-            borderWidth: 1,
-            borderBottomWidth: 0,
-            borderColor: c.border,
-            paddingHorizontal: 22,
-            paddingTop: 10,
-            paddingBottom: insets.bottom + 18,
-          }}
+    <Modal visible={!!userId} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1, justifyContent: "center", padding: 24 }}
+      >
+        {/* Tapping outside the card closes it. */}
+        <Pressable
+          style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: c.overlay }}
+          onPress={sending ? undefined : onClose}
+          accessibilityLabel="Close"
+        />
+        <Animated.View
+          entering={appear()}
+          style={{ backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.border, padding: 22 }}
         >
-          <View style={{ alignSelf: "center", width: 38, height: 4, borderRadius: 2, backgroundColor: c.border, marginBottom: 18 }} />
           {body()}
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   );

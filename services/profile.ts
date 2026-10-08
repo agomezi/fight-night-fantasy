@@ -36,18 +36,28 @@ export function nextNameChange(changedAt: Date | null, now: Date = new Date()): 
   return next.getTime() > now.getTime() ? next : null;
 }
 
-export async function fetchDisplayName(userId: string): Promise<{ name: string | null; changedAt: Date | null }> {
+export async function fetchDisplayName(
+  userId: string
+): Promise<{ name: string | null; changedAt: Date | null; favDivision: string | null }> {
   const { supabase } = await import("./supabase");
   const { data, error } = await supabase
     .from("profiles")
-    .select("display_name, name_changed_at")
+    .select("display_name, name_changed_at, fav_division")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return {
     name: (data?.display_name as string | null | undefined) ?? null,
     changedAt: data?.name_changed_at ? new Date(data.name_changed_at as string) : null,
+    favDivision: (data?.fav_division as string | null | undefined) ?? null,
   };
+}
+
+/** Saves the favorite division league mates see on your profile. */
+export async function saveFavDivision(userId: string, division: string): Promise<void> {
+  const { supabase } = await import("./supabase");
+  const { error } = await supabase.from("profiles").update({ fav_division: division }).eq("id", userId);
+  if (error) throw new Error(error.message);
 }
 
 export class HandleBlockedError extends Error {
