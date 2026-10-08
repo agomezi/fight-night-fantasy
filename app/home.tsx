@@ -16,6 +16,7 @@ import CardBackdrop from "../components/CardBackdrop";
 import CardMark from "../components/CardMark";
 import EmptyState from "../components/EmptyState";
 import FighterPhoto from "../components/FighterPhoto";
+import FighterSpotlight from "../components/FighterSpotlight";
 import HeaderBar from "../components/HeaderBar";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
@@ -26,7 +27,7 @@ import { useHistory } from "../hooks/useHistory";
 import { useLeague } from "../hooks/useLeague";
 import { waitingLine } from "../services/leagues";
 import { useNextEvent } from "../hooks/useNextEvent";
-import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, startLabel } from "../services/events";
+import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, spotlightFighters, startLabel } from "../services/events";
 import { useAuth } from "../context/AuthContext";
 import { loadDraft, samePicks, withDraft } from "../services/pickDraft";
 import { loadPicks, pickSummary } from "../services/picks";
@@ -1173,76 +1174,12 @@ export default function Home() {
               tag: "FIGHTER SPOTLIGHT",
               tagColor: c.textMuted,
               footer: (
-                <View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 14,
-                      marginBottom: 16,
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: 52,
-                        height: 52,
-                        borderRadius: 10,
-                        backgroundColor: c.input,
-                        borderWidth: 1,
-                        borderColor: c.borderStrong,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "700",
-                          color: c.text,
-                        }}
-                      >
-                        AP
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          commonStyles.cardTitle,
-                          { textAlign: "left", fontSize: 20, marginBottom: 2 },
-                        ]}
-                      >
-                        ALEX PEREIRA
-                      </Text>
-                      <Text
-                        style={[
-                          commonStyles.cardSubtitle,
-                          { textAlign: "left", marginBottom: 0 },
-                        ]}
-                      >
-                        Light Heavyweight · 29-3
-                      </Text>
-                    </View>
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: c.text2,
-                      marginBottom: 16,
-                      lineHeight: 18,
-                    }}
-                  >
-                    <Text style={{ fontWeight: "700" }}>
-                      Finishes 80% of his wins.
-                    </Text>{" "}
-                    9 of his last 12 victories ended by knockout — he rarely
-                    leaves it to the judges.
-                  </Text>
-                  <StatBoxRow inline>
-                    <StatBox value="80%" label="FINISH RATE" accent />
-                    <StatBox value="4" label="WIN STREAK" />
-                    <StatBox value='79"' label="REACH" />
-                  </StatBoxRow>
-                </View>
+                <FighterSpotlight
+                  // A new card starts again from its first fighter.
+                  key={event?.id ?? "none"}
+                  fighters={next.status === "loading" ? null : event ? spotlightFighters(event) : []}
+                  now={next.now}
+                />
               ),
             },
           ]}
