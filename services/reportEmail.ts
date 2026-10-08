@@ -1,20 +1,32 @@
 // What the report email to the owner says. Pure and dependency-free, so the
 // results sync imports it under Deno and jest tests it here.
 
-/** One claimed report, as `claim_report_emails` returns it. */
-export type ClaimedReport = {
-  report_id: number;
-  reported_id: string;
-  reported_name: string;
-  current_name: string | null;
-  past_names: string[];
+/** One new report against the player. */
+export type NewReport = {
+  id: number;
+  reportedName: string;
   reason: string | null;
   note: string | null;
   league: string | null;
-  reporter_id: string;
-  reporter_name: string | null;
-  reported_at: string;
+  reporterId: string;
+  reporterName: string | null;
+  reporterAgeDays: number;
+  reporterReports: number;
+  reporterEstablished: boolean;
+  reportedAt: string;
+};
+
+/** One reported player, as `claim_report_emails` returns it. */
+export type ClaimedTarget = {
+  reported_id: string;
+  current_name: string | null;
+  past_names: string[];
+  protected: boolean;
   reporters: number;
+  established: number;
+  leagues: number;
+  burst: boolean;
+  reports: NewReport[];
 };
 
 /** Every subject starts with this, so the reports can be filtered. */
@@ -29,39 +41,74 @@ function utc(iso: string): string {
   return new Date(iso).toISOString().replace("T", " ").slice(0, 16) + " UTC";
 }
 
-export function reportEmail(r: ClaimedReport): { subject: string; text: string } {
-  const name = oneLine(r.reported_name);
-  const reason = r.reason ?? "no reason given";
-  const reporters = `${r.reporters} ${r.reporters === 1 ? "reporter" : "reporters"}`;
-  const subject = `${SUBJECT_TAG} ${name} — ${reason} (${reporters})`;
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
 
-  const current = r.current_name == null ? "(cleared)" : oneLine(r.current_name);
-  const past = r.past_names.filter(n => n !== r.reported_name).map(oneLine);
-  const note = r.note == null ? "(none)" : `"${oneLine(r.note)}"`;
-  const reporter = `${r.reporter_name == null ? "(no name)" : oneLine(r.reporter_name)} (${r.reporter_id})`;
-  const others = r.reporters - 1;
+function reasonOf(r: NewReport): string {
+  return r.reason ?? "no reason given";
+}
 
-  const text = [
-    `${name} was reported for ${reason}.`,
+function reporterLine(r: NewReport): string {
+  const name = r.reporterName == null ? "(no name)" : oneLine(r.reporterName);
+  const age = r.reporterAgeDays === 0 ? "made today" : `${plural(r.reporterAgeDays, "day")} old`;
+  const standing = r.reporterEstablished ? "established" : "NEW ACCOUNT";
+  return `${name} (${r.reporterId}): ${standing}, account ${age}, ${plural(r.reporterReports, "report")} filed`;
+}
+
+export function reportEmail(t: ClaimedTarget): { subject: string; text: string } {
+  const latest = t.reports[t.reports.length - 1];
+  const name = oneLine(t.current_name ?? latest.reportedName);
+  const single = t.reports.length === 1;
+  const reasons = [...new Set(t.reports.map(reasonOf))].join(", ");
+
+  const what = single ? reasons : `${t.reports.length} new reports: ${reasons}`;
+  const subject = `${SUBJECT_TAG}${t.burst ? " [BURST]" : ""} ${name} — ${what} (${plural(t.reporters, "reporter")})`;
+
+  const reported = new Set(t.reports.map(r => r.reportedName));
+  const past = t.past_names.filter(n => n !== t.current_name && !reported.has(n)).map(oneLine);
+  const reportedNames = [...reported].filter(n => n !== t.current_name).map(oneLine);
+
+  const lines = [
+    single ? `${name} was reported for ${reasons}.` : `${name} has ${t.reports.length} new reports.`,
     "",
-    `Reported name: ${name}`,
-    `Current name:  ${current}`,
+  ];
+  if (t.burst) {
+    lines.push(
+      "Possible pile-on: three or more reports within the hour, or most reporters",
+      "are new accounts. Check who is reporting before acting.",
+      "",
+    );
+  }
+  lines.push(
+    `Player:        ${name} (${t.reported_id})`,
+    `Current name:  ${t.current_name == null ? "(cleared)" : oneLine(t.current_name)}`,
+    ...(reportedNames.length ? [`Reported as:   ${reportedNames.join(", ")}`] : []),
     `Past names:    ${past.length ? past.join(", ") : "(none)"}`,
-    `Reason:        ${reason}`,
-    `Note:          ${note}`,
-    `League:        ${r.league == null ? "(none)" : oneLine(r.league)}`,
-    `Reporter:      ${reporter}`,
-    `Reported at:   ${utc(r.reported_at)}`,
-    `Reporters:     ${r.reporters}${others > 0 ? ` (${others} before this one)` : " (the first)"}`,
-    `Player id:     ${r.reported_id}`,
+    `Protected:     ${t.protected ? "yes (moderator), never hidden automatically" : "no"}`,
+    `Reporters:     ${t.reporters} in total, ${t.established} established, from ${plural(t.leagues, "league")}`,
+    "",
+    single ? "The report:" : "New reports:",
+  );
+  t.reports.forEach((r, i) => {
+    lines.push(
+      `${single ? "" : `${i + 1}. `}${reasonOf(r)}, ${utc(r.reportedAt)}`,
+      `   Note:     ${r.note == null ? "(none)" : `"${oneLine(r.note)}"`}`,
+      `   League:   ${r.league == null ? "(none, from the leaderboard)" : oneLine(r.league)}`,
+      `   Reporter: ${reporterLine(r)}`,
+    );
+  });
+  lines.push(
+    "",
+    "Established: an account at least a week old with picks on a scored card.",
     "",
     "Clear their name (they pick a new one the next time they open the app):",
-    `  select public.reset_display_name('${r.reported_id}');`,
+    `  select public.reset_display_name('${t.reported_id}');`,
     "",
     "Every report against them:",
-    `  select * from public.reported_names where player = '${r.reported_id}';`,
+    `  select * from public.reported_names where player = '${t.reported_id}';`,
     "",
-  ].join("\n");
+  );
 
-  return { subject, text };
+  return { subject, text: lines.join("\n") };
 }

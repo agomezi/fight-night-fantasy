@@ -3,7 +3,7 @@
 // address reports go to. Without a verified domain Resend's shared sender
 // only delivers to the account's own address, which is all this needs.
 
-import { reportEmail, type ClaimedReport } from "../../../services/reportEmail.ts";
+import { reportEmail, type ClaimedTarget } from "../../../services/reportEmail.ts";
 
 const RESEND = "https://api.resend.com/emails";
 const FROM = "Fight Night Fantasy <onboarding@resend.dev>";
@@ -14,8 +14,9 @@ type Db = {
   rpc(name: string, args?: Record<string, unknown>): PromiseLike<{ data: unknown; error: { message: string } | null }>;
 };
 
-/** Claims every report not yet emailed and sends one email for each. Anything
- * that couldn't be sent is released for the next run. Never throws. */
+/** Claims the reports that can go out now and sends one email per reported
+ * player. Anything that couldn't be sent is released for the next run. Never
+ * throws. */
 export async function emailReports(db: Db) {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   const to = Deno.env.get("MODERATION_EMAIL");
@@ -24,14 +25,14 @@ export async function emailReports(db: Db) {
 
   const { data, error } = await db.rpc("claim_report_emails");
   if (error) return { error: error.message };
-  const reports = (data ?? []) as ClaimedReport[];
+  const targets = (data ?? []) as ClaimedTarget[];
 
   let sent = 0;
   let failure: string | undefined;
-  for (const [i, report] of reports.entries()) {
+  for (const [i, target] of targets.entries()) {
     if (i > 0) await new Promise(resolve => setTimeout(resolve, SPACING_MS));
     try {
-      const { subject, text } = reportEmail(report);
+      const { subject, text } = reportEmail(target);
       const response = await fetch(RESEND, {
         method: "POST",
         headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
@@ -47,10 +48,11 @@ export async function emailReports(db: Db) {
     }
   }
 
-  const unsent = reports.slice(sent).map(r => r.report_id);
+  const unsent = targets.slice(sent).flatMap(t => t.reports.map(r => r.id));
   if (unsent.length) {
     const { error: releaseError } = await db.rpc("release_report_emails", { report_ids: unsent });
     if (releaseError) failure = `${failure}; release failed: ${releaseError.message}`;
   }
-  return { claimed: reports.length, sent, ...(failure ? { error: failure } : {}) };
+  const claimed = targets.reduce((n, t) => n + t.reports.length, 0);
+  return { claimed, emails: targets.length, sent, ...(failure ? { error: failure } : {}) };
 }
