@@ -7,6 +7,7 @@ import PressableScale from "../components/PressableScale";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { selectedLeagueKey } from "../constants/storage";
 import { useAuth } from "../context/AuthContext";
+import { useStanding } from "../context/StandingContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import {
   createLeague,
@@ -17,6 +18,7 @@ import {
   TIER_LABEL,
   type LeagueTier,
 } from "../services/leagues";
+import { suspendedReason } from "../services/standing";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 
@@ -41,7 +43,9 @@ export default function LeagueJoin() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ready = mode === "create" ? name.trim().length > 0 : code.trim().length >= 8;
+  // A suspended player can't create or join, so say why instead of failing.
+  const blocked = suspendedReason(useStanding());
+  const ready = !blocked && (mode === "create" ? name.trim().length > 0 : code.trim().length >= 8);
 
   const submit = async () => {
     if (!ready || busy) return;
@@ -194,7 +198,13 @@ export default function LeagueJoin() {
             ))}
           </View>
 
-          {error && (
+          {blocked && (
+            <Text style={{ color: c.red, fontSize: 13.5, fontWeight: "700", marginTop: 18, textAlign: "center" }}>
+              {blocked}
+            </Text>
+          )}
+
+          {!blocked && error && (
             <Text style={{ color: c.red, fontSize: 13.5, fontWeight: "700", marginTop: 18, textAlign: "center" }}>
               {error}
             </Text>

@@ -1,8 +1,10 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
+import { useStanding } from "../context/StandingContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { loadUnreadCount } from "../services/inbox";
+import { suspendedBanner } from "../services/standing";
 import { makeCommonStyles } from "../styles/common";
 import { NotificationBell, ProfileBadge } from "./svg/icons";
 import PressableScale from "./PressableScale";
@@ -32,6 +34,8 @@ export default function HeaderBar({ title = "Fight Night Fantasy" }: { title?: s
   );
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
+  // Shown under the header on every main screen while suspended.
+  const banner = suspendedBanner(useStanding());
 
   return (
     <>
@@ -57,6 +61,17 @@ export default function HeaderBar({ title = "Fight Night Fantasy" }: { title?: s
         </PressableScale>
       </View>
       <View style={[commonStyles.divider, { backgroundColor: c.border }]} />
+      {banner && (
+        <View
+          accessibilityRole="alert"
+          style={{ backgroundColor: c.redTint, borderColor: c.red, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 12 }}
+        >
+          <Text style={{ color: c.red, fontWeight: "800", fontSize: 13 }}>{banner}</Text>
+          <Text style={{ color: c.text2, fontSize: 12.5, marginTop: 3, lineHeight: 17 }}>
+            You can look around, but can&apos;t make picks, join or create leagues, or report players until then.
+          </Text>
+        </View>
+      )}
     </>
   );
 }

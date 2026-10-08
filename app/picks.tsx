@@ -44,6 +44,8 @@ import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
 import { makePicksStyles } from "../styles/picks";
 import { UNDERDOG_MULTIPLIER } from "../services/scoring";
+import { useStanding } from "../context/StandingContext";
+import { suspendedReason } from "../services/standing";
 
 type Fighter = {
   id: string;
@@ -286,6 +288,8 @@ export default function Picks() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [lockedIn, setLockedIn] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Suspended: say so instead of letting the save fail.
+  const blocked = suspendedReason(useStanding());
   const [showLockedModal, setShowLockedModal] = useState(false);
   // Whether the lane holds edits made here, rather than just what loaded.
   const edited = useRef(false);
@@ -416,6 +420,10 @@ export default function Picks() {
 
   const lockIn = async () => {
     if (!event || !session || saving) return;
+    if (blocked) {
+      Alert.alert("Can't save your picks", blocked);
+      return;
+    }
     if (!canLockIn) {
       shake();
       return;
