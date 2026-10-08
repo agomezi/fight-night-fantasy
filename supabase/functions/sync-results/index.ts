@@ -4,7 +4,8 @@
 //   {}                       every event that is due now
 //   { "eventId": "…" }       one stored event, due or not, for a manual re-run
 //   { "mode": "reminders" }  lock reminders for cards starting within the hour
-//   { "mode": "activity" }   league activity (joins), sent as it happens
+//   { "mode": "activity" }   league activity (joins) and new reports, sent as
+//                            they happen
 //
 // For each event: read the UFC stats feed, write any result that changed,
 // re-score the whole card, send any notifications that are now due, then
@@ -15,6 +16,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { parseResults, type LiveCard } from "../../../services/ingestion/results.ts";
 import { scoreEvent } from "../../../services/eventScoring.ts";
 import { sendClaimed, type Claimed } from "./push.ts";
+import { emailReports } from "./email.ts";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36";
 const SECOND = 1000;
@@ -126,9 +128,12 @@ Deno.serve(async request => {
 
   if (mode === "reminders" || mode === "activity") {
     const { data, error } = await db.rpc(mode === "reminders" ? "claim_reminders" : "claim_activity_notifications");
-    const report = error ? { mode, error: error.message } : { mode, ...(await notify(db, (data ?? []) as Claimed[])) };
+    const pushed = error ? { mode, error: error.message } : { mode, ...(await notify(db, (data ?? []) as Claimed[])) };
+    const reports = mode === "activity" ? await emailReports(db) : undefined;
+    const report = reports ? { ...pushed, reports } : pushed;
+    const failed = error != null || (reports != null && "error" in reports);
     console.log(JSON.stringify(report));
-    return Response.json(report, { status: error ? 500 : 200 });
+    return Response.json(report, { status: failed ? 500 : 200 });
   }
   const feed = env("UFC_FEED_BASE_URL").replace(/\/+$/, "");
 
