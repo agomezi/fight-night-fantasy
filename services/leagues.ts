@@ -250,6 +250,8 @@ export type MemberProfile = {
   isMe: boolean;
   canReport: boolean;
   reported: boolean;
+  /** You've blocked them; their name reads "Blocked player". */
+  blocked: boolean;
 };
 
 export type RawMemberProfile = {
@@ -259,6 +261,7 @@ export type RawMemberProfile = {
   is_me: boolean;
   can_report: boolean;
   reported: boolean;
+  blocked: boolean;
 };
 
 /** Null when the profile isn't available: the player isn't in the league, or you aren't. */
@@ -272,6 +275,7 @@ export function toMemberProfile(raw: RawMemberProfile[]): MemberProfile | null {
     isMe: r.is_me,
     canReport: r.can_report,
     reported: r.reported,
+    blocked: !!r.blocked,
   };
 }
 

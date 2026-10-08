@@ -175,8 +175,8 @@ describe("toMemberProfile", () => {
   it("carries only the profile's fields", () => {
     expect(
       toMemberProfile([
-        { display_name: "Ben", accuracy: 60, favorite_division: "Lightweight", is_me: false, can_report: true, reported: false },
+        { display_name: "Ben", accuracy: 60, favorite_division: "Lightweight", is_me: false, can_report: true, reported: false, blocked: true },
       ])
-    ).toEqual({ name: "Ben", accuracy: 60, favoriteDivision: "Lightweight", isMe: false, canReport: true, reported: false });
+    ).toEqual({ name: "Ben", accuracy: 60, favoriteDivision: "Lightweight", isMe: false, canReport: true, reported: false, blocked: true });
   });
 });

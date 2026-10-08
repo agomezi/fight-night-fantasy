@@ -194,6 +194,13 @@ export default function Settings() {
             <Text style={styles.rowLabel}>Download My Data</Text>
             <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
           </PressableScale>
+          <PressableScale style={[styles.row, styles.rowBorder]} onPress={() => router.push("/blocked-players")}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="ban-outline" size={20} color={c.text2} />
+            </View>
+            <Text style={styles.rowLabel}>Blocked Players</Text>
+            <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+          </PressableScale>
         </Animated.View>
 
         <Text style={styles.sectionLabel}>LEGAL</Text>

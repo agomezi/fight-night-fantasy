@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
+import { blockPlayer, unblockPlayer } from "../../services/blocks";
 import { reportMember, loadMemberProfile, type MemberProfile } from "../../services/leagues";
 import MemberProfileSheet from "../MemberProfileSheet";
 
@@ -28,7 +29,11 @@ jest.mock("../../services/leagues", () => ({
   reportMember: jest.fn(),
 }));
 
+jest.mock("../../services/blocks", () => ({ blockPlayer: jest.fn(), unblockPlayer: jest.fn() }));
+
 const load = loadMemberProfile as jest.MockedFunction<typeof loadMemberProfile>;
+const block = blockPlayer as jest.MockedFunction<typeof blockPlayer>;
+const unblock = unblockPlayer as jest.MockedFunction<typeof unblockPlayer>;
 const report = reportMember as jest.MockedFunction<typeof reportMember>;
 
 const ben: MemberProfile = {
@@ -38,11 +43,14 @@ const ben: MemberProfile = {
   isMe: false,
   canReport: true,
   reported: false,
+  blocked: false,
 };
 
 beforeEach(() => {
   load.mockReset();
   report.mockReset();
+  block.mockReset().mockResolvedValue();
+  unblock.mockReset().mockResolvedValue();
 });
 
 async function open(profile: MemberProfile | null, onClose = jest.fn()) {
@@ -166,5 +174,68 @@ describe("MemberProfileSheet", () => {
     });
     expect(await screen.findByText("You can only report players in your leagues.")).toBeTruthy();
     expect(screen.getByText("SEND REPORT")).toBeTruthy();
+  });
+
+  describe("blocking", () => {
+    it("confirms before blocking, then says what it did", async () => {
+      await open(ben);
+      await screen.findByText("Ben");
+      fireEvent.press(screen.getByLabelText("More options"));
+      fireEvent.press(screen.getByText("Block"));
+      expect(screen.getByText("Block Ben?")).toBeTruthy();
+      expect(block).not.toHaveBeenCalled();
+
+      await act(async () => {
+        fireEvent.press(screen.getByText("BLOCK"));
+      });
+      expect(block).toHaveBeenCalledWith("u-ben");
+      expect(await screen.findByText("Blocked")).toBeTruthy();
+      expect(screen.getByText(/You can unblock them in Settings/)).toBeTruthy();
+    });
+
+    it("can block and report in one go, still naming the player", async () => {
+      await open(ben);
+      await screen.findByText("Ben");
+      fireEvent.press(screen.getByLabelText("More options"));
+      fireEvent.press(screen.getByText("Block"));
+      await act(async () => {
+        fireEvent.press(screen.getByText("Block and report"));
+      });
+      expect(block).toHaveBeenCalledWith("u-ben");
+      expect(screen.getByText("Report Ben")).toBeTruthy();
+    });
+
+    it("doesn't offer to report again with the block", async () => {
+      await open({ ...ben, reported: true });
+      await screen.findByText("Ben");
+      fireEvent.press(screen.getByLabelText("More options"));
+      fireEvent.press(screen.getByText("Block"));
+      expect(screen.queryByText("Block and report")).toBeNull();
+    });
+
+    it("can be cancelled", async () => {
+      await open(ben);
+      await screen.findByText("Ben");
+      fireEvent.press(screen.getByLabelText("More options"));
+      fireEvent.press(screen.getByText("Block"));
+      fireEvent.press(screen.getByText("Cancel"));
+      expect(screen.queryByText("Block Ben?")).toBeNull();
+      expect(block).not.toHaveBeenCalled();
+    });
+
+    it("offers only Unblock on a blocked player, and unblocking shows their name again", async () => {
+      await open({ ...ben, name: "Blocked player", blocked: true });
+      await screen.findByText("Blocked player");
+      fireEvent.press(screen.getByLabelText("More options"));
+      expect(screen.queryByText("Report")).toBeNull();
+      expect(screen.queryByText("Block")).toBeNull();
+
+      load.mockResolvedValue(ben);
+      await act(async () => {
+        fireEvent.press(screen.getByText("Unblock"));
+      });
+      expect(unblock).toHaveBeenCalledWith("u-ben");
+      expect(await screen.findByText("Ben")).toBeTruthy();
+    });
   });
 });
