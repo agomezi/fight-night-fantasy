@@ -19,6 +19,7 @@ import { PRIVACY_URL, TERMS_URL } from "../constants/legal";
 import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { GUTTER, makeLoginStyles, titleLine, titleSize } from "../styles/login";
+import { signInError } from "../services/standing";
 
 type Provider = "apple" | "google" | "password";
 
@@ -52,7 +53,8 @@ export default function LoginScreen() {
         await (provider === "apple" ? signInWithApple() : signInWithGoogle());
       }
     } catch (e) {
-      Alert.alert("Sign in failed", e instanceof Error ? e.message : "Please try again.");
+      const { title, message } = signInError(e instanceof Error ? e.message : "Please try again.");
+      Alert.alert(title, message);
     } finally {
       setBusy(null);
     }

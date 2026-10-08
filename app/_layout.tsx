@@ -8,6 +8,7 @@ import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ProfileProvider, useProfile } from "../context/ProfileContext";
+import { StandingProvider } from "../context/StandingContext";
 import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { notificationHref } from "../services/inbox";
 import { enablePush } from "../services/push";
@@ -96,7 +97,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
           <ProfileProvider>
-            <ThemedApp />
+            <StandingProvider>
+              <ThemedApp />
+            </StandingProvider>
           </ProfileProvider>
         </AuthProvider>
       </ThemeProvider>
