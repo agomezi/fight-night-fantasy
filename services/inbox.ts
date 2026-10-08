@@ -22,9 +22,12 @@ const SCREENS = new Set(["history", "picks", "edit-profile"]);
 
 /** Where a notification's data points. Shared by push taps and the inbox. */
 export function notificationHref(data: unknown): Href | null {
-  const { screen, leagueId } = (data ?? {}) as { screen?: unknown; leagueId?: unknown };
+  const { screen, leagueId, caseId } = (data ?? {}) as { screen?: unknown; leagueId?: unknown; caseId?: unknown };
   if (screen === "league-standings" && typeof leagueId === "string" && leagueId) {
     return `/league-standings?id=${encodeURIComponent(leagueId)}`;
+  }
+  if (screen === "moderation-case" && typeof caseId === "number" && Number.isInteger(caseId)) {
+    return `/moderation-case?id=${caseId}`;
   }
   return typeof screen === "string" && SCREENS.has(screen) ? (`/${screen}` as Href) : null;
 }

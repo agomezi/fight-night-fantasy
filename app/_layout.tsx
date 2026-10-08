@@ -77,6 +77,8 @@ function ThemedApp() {
           <Stack.Screen name="edit-profile" />
           <Stack.Screen name="event/[id]" />
           <Stack.Screen name="leaderboard" />
+          <Stack.Screen name="moderation" />
+          <Stack.Screen name="moderation-case" />
         </Stack.Protected>
       </Stack>
       <StatusBar style={c.statusBar} />
