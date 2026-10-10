@@ -13,21 +13,9 @@ export type EventFighter = {
   dob: string | null;
   heightIn: number | null;
   reachIn: number | null;
-  /** Their UFC history, or null when it isn't loaded or their name didn't match. */
-  ufc: UfcStats | null;
 };
 
-export type UfcStats = {
-  wins: number;
-  losses: number;
-  koWins: number;
-  subWins: number;
-  decWins: number;
-  winStreak: number;
-};
-
-type FighterRow = Omit<EventFighter, "record" | "ufc"> & {
-  ufcStats?: UfcStats | null;
+type FighterRow = Omit<EventFighter, "record"> & {
   wins: number | null;
   losses: number | null;
   draws: number | null;
@@ -48,14 +36,8 @@ export function divisionLabel(weightClass: string | null): string {
     .toUpperCase();
 }
 
-function toFighter({ wins, losses, draws, noContests, ufcStats, ...f }: FighterRow): EventFighter {
-  return { ...f, record: fighterRecord({ wins, losses, draws, noContests }), ufc: ufcStats ?? null };
-}
-
-/** The share of their UFC wins that ended inside the distance, 0-100. */
-export function finishRate(ufc: UfcStats | null): number | null {
-  if (!ufc || ufc.wins === 0) return null;
-  return Math.round((100 * (ufc.koWins + ufc.subWins)) / ufc.wins);
+function toFighter({ wins, losses, draws, noContests, ...f }: FighterRow): EventFighter {
+  return { ...f, record: fighterRecord({ wins, losses, draws, noContests }) };
 }
 export type EventBout = {
   id: string;
@@ -88,8 +70,7 @@ export type NextEvent = {
 const STILL_RUNNING_MS = 12 * 60 * 60 * 1000;
 
 const FIGHTER_COLUMNS =
-  "id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests, dob, heightIn:height_in, reachIn:reach_in, " +
-  "ufcStats:ufc_stats ( wins, losses, koWins:ko_wins, subWins:sub_wins, decWins:dec_wins, winStreak:win_streak )";
+  "id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests, dob, heightIn:height_in, reachIn:reach_in";
 
 export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status, spotlight_fighter_id,
