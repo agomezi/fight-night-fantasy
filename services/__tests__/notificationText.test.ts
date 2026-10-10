@@ -95,6 +95,15 @@ describe("notificationText", () => {
       expect(m.body).toMatch(/^Until Oct 15, you can look around but can't make picks, join leagues or report players\. Reason: Spam\./);
     });
 
+    it("tells a player their name is hidden while it's reviewed", () => {
+      const m = notificationText("moderation", { action: "under_review" });
+      expect(m.title).toBe("Your display name is under review");
+      expect(m.body).toBe(
+        'Several players reported it, so others see you as "Player" until a moderator checks it. You can keep playing as normal.'
+      );
+      expect(m.body).not.toContain(SUPPORT_EMAIL);
+    });
+
     it("welcomes a player back after a lift", () => {
       expect(notificationText("moderation", { action: "lift" })).toEqual({
         title: "Your account is back in good standing",

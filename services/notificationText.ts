@@ -22,8 +22,15 @@ export type ScoredPayload = {
 };
 export type FinalPayload = { event: string; points: number; hit: number; total: number };
 export type LeagueJoinPayload = { league: string; leagueId: string; member: string };
-/** A moderator's decision. `until` is when a suspension ends. */
-export type ModerationPayload = { action: "warn" | "reset_name" | "suspend" | "lift"; reason?: string; until?: string };
+/**
+ * A moderator's decision, or `under_review` when enough reports hide the
+ * player's name until a moderator looks. `until` is when a suspension ends.
+ */
+export type ModerationPayload = {
+  action: "warn" | "reset_name" | "suspend" | "lift" | "under_review";
+  reason?: string;
+  until?: string;
+};
 
 /** Where players write to appeal a decision. */
 export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
@@ -97,6 +104,13 @@ function leagueJoin(p: LeagueJoinPayload): Message {
 function moderation(p: ModerationPayload): Message {
   const why = p.reason ? ` Reason: ${p.reason.replace(/\.+$/, "")}.` : "";
   const appeal = ` Think this is a mistake? Email ${SUPPORT_EMAIL}.`;
+  if (p.action === "under_review") {
+    return {
+      title: "Your display name is under review",
+      body: 'Several players reported it, so others see you as "Player" until a moderator checks it. You can keep playing as normal.',
+      data: { screen: "moderation" },
+    };
+  }
   if (p.action === "warn") {
     return {
       title: "Please change your display name",
