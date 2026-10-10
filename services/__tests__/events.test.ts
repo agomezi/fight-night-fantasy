@@ -1,4 +1,4 @@
-import { boutLocked, countdown, divisionLabel, fighterAge, fighterRecord, heightLabel, initials, lastName, lockLabel, nextLock, reachLabel, splitEventName, spotlightFighters, startLabel, toNextEvent } from "../events";
+import { boutLocked, countdown, divisionLabel, fighterAge, fighterRecord, finishRate, heightLabel, initials, lastName, lockLabel, nextLock, reachLabel, splitEventName, spotlightFighters, startLabel, toNextEvent } from "../events";
 
 const fighter = (id: string, name: string) => ({
   id, name, nickname: null, photoUrl: null, wins: null, losses: null, draws: null, noContests: null,
@@ -173,6 +173,13 @@ describe("measurements", () => {
     expect(fighterAge("1987-07-07", new Date("2026-07-06T12:00:00Z"))).toBe(38);
     expect(fighterAge("1987-07-07", new Date("2026-07-07T12:00:00Z"))).toBe(39);
     expect(fighterAge(null, new Date())).toBeNull();
+  });
+
+  test("finish rate is KOs and submissions over UFC wins", () => {
+    const ufc = { wins: 10, losses: 3, koWins: 8, subWins: 1, decWins: 1, winStreak: 0 };
+    expect(finishRate(ufc)).toBe(90);
+    expect(finishRate({ ...ufc, wins: 0, koWins: 0, subWins: 0, decWins: 0 })).toBeNull();
+    expect(finishRate(null)).toBeNull();
   });
 
   test("height in feet and inches, reach in inches", () => {

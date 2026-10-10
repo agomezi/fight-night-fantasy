@@ -42,6 +42,7 @@ const event = toNextEvent({
       red: fighter("p", "Alex Pereira", {
         nickname: "Poatan", wins: 12, losses: 3, draws: 0, noContests: 0,
         dob: "1987-07-07", heightIn: 76, reachIn: 79,
+        ufcStats: { wins: 10, losses: 3, koWins: 8, subWins: 0, decWins: 2, winStreak: 1 },
       }),
       blue: fighter("k", "Magomed Ankalaev", { wins: 21, losses: 1, draws: 1, noContests: 1 }),
     },
@@ -49,14 +50,15 @@ const event = toNextEvent({
 });
 const now = new Date("2026-10-01T12:00:00Z");
 
-test("shows the main event's red corner with record and measurements", () => {
+test("shows the main event's red corner with record, finishes and streak", () => {
   render(<FighterSpotlight fighters={spotlightFighters(event)} now={now} />);
   expect(screen.getByText("ALEX PEREIRA")).toBeTruthy();
   expect(screen.getByText("“Poatan”")).toBeTruthy();
-  expect(screen.getByText("LIGHT HEAVYWEIGHT · 12-3-0")).toBeTruthy();
-  expect(screen.getByText("39")).toBeTruthy();
-  expect(screen.getByText(`6'4"`)).toBeTruthy();
+  expect(screen.getByText(`LIGHT HEAVYWEIGHT · 12-3-0 · 39 YRS · 6'4"`)).toBeTruthy();
+  expect(screen.getByText("80%")).toBeTruthy();
+  expect(screen.getByText("1")).toBeTruthy();
   expect(screen.getByText(`79"`)).toBeTruthy();
+  expect(screen.getByText(/Finishes 80% of UFC wins: 8 by KO\./)).toBeTruthy();
   expect(screen.getByText(/Headlines against Magomed Ankalaev/)).toBeTruthy();
   expect(screen.queryByText("DOG")).toBeNull();
 });
@@ -65,6 +67,7 @@ test("switches to the opponent, tagged as the underdog, with dashes for what's m
   render(<FighterSpotlight fighters={spotlightFighters(event)} now={now} />);
   fireEvent.press(screen.getByText("ANKALAEV"));
   expect(screen.getByText("MAGOMED ANKALAEV")).toBeTruthy();
+  expect(screen.queryByText(/Finishes/)).toBeNull();
   expect(screen.getByText("LIGHT HEAVYWEIGHT · 21-1-1 (1 NC)")).toBeTruthy();
   expect(screen.getByText("DOG")).toBeTruthy();
   expect(screen.getAllByText("—")).toHaveLength(3);
