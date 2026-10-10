@@ -9,6 +9,10 @@ export type EventFighter = {
   photoUrl: string | null;
   /** "27-7-0", or null until card sync has their record. */
   record: string | null;
+  /** Measurements from the card feed; null when it hasn't sent them. */
+  dob: string | null;
+  heightIn: number | null;
+  reachIn: number | null;
 };
 
 type FighterRow = Omit<EventFighter, "record"> & {
@@ -58,18 +62,23 @@ export type NextEvent = {
   status: "scheduled" | "live";
   /** Scheduled bouts only, main event first. */
   bouts: EventBout[];
+  /** A fighter set by hand to lead the Fighter Spotlight. */
+  spotlightFighterId: string | null;
 };
 
 /** Wide enough to keep a card that is still being fought on screen. */
 const STILL_RUNNING_MS = 12 * 60 * 60 * 1000;
 
+const FIGHTER_COLUMNS =
+  "id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests, dob, heightIn:height_in, reachIn:reach_in";
+
 export const NEXT_EVENT_QUERY = `
-  id, name, starts_at, locks_at, status,
+  id, name, starts_at, locks_at, status, spotlight_fighter_id,
   bouts!bouts_event_id_fkey (
     id, fight_order, card_segment, scheduled_rounds, weight_class, version, status, locks_at,
     underdog_corner,
-    red:fighters!bouts_red_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests ),
-    blue:fighters!bouts_blue_fighter_id_fkey ( id, name, nickname, photoUrl:photo_url, wins, losses, draws, noContests:no_contests )
+    red:fighters!bouts_red_fighter_id_fkey ( ${FIGHTER_COLUMNS} ),
+    blue:fighters!bouts_blue_fighter_id_fkey ( ${FIGHTER_COLUMNS} )
   )`;
 
 type Row = {
@@ -78,6 +87,7 @@ type Row = {
   starts_at: string;
   locks_at: string;
   status: "scheduled" | "live";
+  spotlight_fighter_id?: string | null;
   bouts: {
     id: string;
     fight_order: number;
@@ -116,7 +126,58 @@ export function toNextEvent(row: Row): NextEvent {
         blue: toFighter(b.blue),
         underdog: b.underdog_corner,
       })),
+    spotlightFighterId: row.spotlight_fighter_id ?? null,
   };
+}
+
+export type SpotlightFighter = {
+  fighter: EventFighter;
+  opponent: EventFighter;
+  bout: EventBout;
+  /** The books make them the underdog, on the main card where DOG counts. */
+  dog: boolean;
+};
+
+/**
+ * Who the Fighter Spotlight shows, in order: the fighter set by hand and their
+ * opponent, or else the main event, red corner first. A hand-set fighter who
+ * is no longer on the card is ignored.
+ */
+export function spotlightFighters(event: NextEvent): SpotlightFighter[] {
+  const chosen = event.spotlightFighterId;
+  const pick = chosen ? event.bouts.find((b) => b.red.id === chosen || b.blue.id === chosen) : undefined;
+  const bout = pick ?? event.bouts[0];
+  if (!bout) return [];
+  const corners: ("red" | "blue")[] = pick && bout.blue.id === chosen ? ["blue", "red"] : ["red", "blue"];
+  return corners.map((corner) => ({
+    fighter: bout[corner],
+    opponent: bout[corner === "red" ? "blue" : "red"],
+    bout,
+    // The underdog bonus is main card only, so the tag is too.
+    dog: bout.segment === "main" && bout.underdog === corner,
+  }));
+}
+
+/** Age in whole years on `now`, from a "YYYY-MM-DD" date of birth. */
+export function fighterAge(dob: string | null, now: Date): number | null {
+  if (!dob) return null;
+  const [y, m, d] = dob.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const birthdayPassed = now.getUTCMonth() + 1 > m || (now.getUTCMonth() + 1 === m && now.getUTCDate() >= d);
+  return now.getUTCFullYear() - y - (birthdayPassed ? 0 : 1);
+}
+
+/** 76 -> "6'4\"". */
+export function heightLabel(inches: number | null): string | null {
+  if (inches == null) return null;
+  const whole = Math.round(inches);
+  return `${Math.floor(whole / 12)}'${whole % 12}"`;
+}
+
+/** 79 -> "79\"", 74.5 -> "74.5\"". */
+export function reachLabel(inches: number | null): string | null {
+  if (inches == null) return null;
+  return `${Number.isInteger(inches) ? inches : inches.toFixed(1)}"`;
 }
 
 export async function fetchNextEvent(now: Date = new Date()): Promise<NextEvent | null> {

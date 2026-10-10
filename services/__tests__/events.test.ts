@@ -1,7 +1,8 @@
-import { boutLocked, countdown, divisionLabel, fighterRecord, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, toNextEvent } from "../events";
+import { boutLocked, countdown, divisionLabel, fighterAge, fighterRecord, heightLabel, initials, lastName, lockLabel, nextLock, reachLabel, splitEventName, spotlightFighters, startLabel, toNextEvent } from "../events";
 
 const fighter = (id: string, name: string) => ({
   id, name, nickname: null, photoUrl: null, wins: null, losses: null, draws: null, noContests: null,
+  dob: null, heightIn: null, reachIn: null,
 });
 const bout = (id: string, order: number, status: "scheduled" | "cancelled" = "scheduled", locks_at: string | null = null) => ({
   id,
@@ -129,5 +130,56 @@ describe("divisionLabel", () => {
     expect(divisionLabel("Women’s Flyweight")).toBe("W. FLYWEIGHT");
     expect(divisionLabel("Light Heavyweight")).toBe("LIGHT HEAVYWEIGHT");
     expect(divisionLabel(null)).toBe("");
+  });
+});
+
+describe("spotlightFighters", () => {
+  const card = (extra: Partial<Parameters<typeof toNextEvent>[0]> = {}, underdog: "red" | "blue" | null = null) =>
+    toNextEvent({
+      id: "e",
+      name: "UFC 332: Silva vs. Wang",
+      starts_at: "2026-10-03T20:00:00+00:00",
+      locks_at: "2026-10-03T20:00:00+00:00",
+      status: "scheduled",
+      bouts: [{ ...bout("a", 1), underdog_corner: underdog }, bout("b", 2)],
+      ...extra,
+    });
+
+  test("the main event, red corner first", () => {
+    const shown = spotlightFighters(card());
+    expect(shown.map((s) => s.fighter.id)).toEqual(["ar", "ab"]);
+    expect(shown.map((s) => s.opponent.id)).toEqual(["ab", "ar"]);
+  });
+
+  test("a fighter set by hand leads, with their opponent second", () => {
+    expect(spotlightFighters(card({ spotlight_fighter_id: "bb" })).map((s) => s.fighter.id)).toEqual(["bb", "br"]);
+  });
+
+  test("a hand-set fighter no longer on the card is ignored", () => {
+    expect(spotlightFighters(card({ spotlight_fighter_id: "gone" })).map((s) => s.fighter.id)).toEqual(["ar", "ab"]);
+  });
+
+  test("tags the main-card underdog", () => {
+    expect(spotlightFighters(card({}, "blue")).map((s) => s.dog)).toEqual([false, true]);
+  });
+
+  test("nothing when the card has no bouts", () => {
+    expect(spotlightFighters(card({ bouts: [] }))).toEqual([]);
+  });
+});
+
+describe("measurements", () => {
+  test("age counts the birthday only once it has passed", () => {
+    expect(fighterAge("1987-07-07", new Date("2026-07-06T12:00:00Z"))).toBe(38);
+    expect(fighterAge("1987-07-07", new Date("2026-07-07T12:00:00Z"))).toBe(39);
+    expect(fighterAge(null, new Date())).toBeNull();
+  });
+
+  test("height in feet and inches, reach in inches", () => {
+    expect(heightLabel(76)).toBe(`6'4"`);
+    expect(heightLabel(71.5)).toBe(`6'0"`);
+    expect(heightLabel(null)).toBeNull();
+    expect(reachLabel(79)).toBe(`79"`);
+    expect(reachLabel(74.5)).toBe(`74.5"`);
   });
 });
