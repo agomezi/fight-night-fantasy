@@ -155,12 +155,13 @@ function octagonPoints(cx: number, cy: number, r: number): string {
   }).join(" ");
 }
 
-/** A thick crimson cage wall, mostly off the right edge, and a faint floor
- * inside it. Kept soft so whatever sits over it stays readable. */
+/** A crimson cage tucked into the right edge, with a faint floor inside it.
+ * Small and soft, so it stays an accent beside whatever is centred over it
+ * rather than a wall behind it: about the right fifth of the card. */
 function Octagon({ w, h, red }: Box & { red: string }) {
-  const r = h * 0.62;
-  const cx = w + r * 0.28;
-  const cy = h * 0.52;
+  const r = h * 0.46;
+  const cx = w + r * 0.42;
+  const cy = h * 0.5;
   return (
     <G>
       <Polygon points={octagonPoints(cx, cy, r)} fill={red} fillOpacity={0.22} />
