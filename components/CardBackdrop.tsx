@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { useState } from "react";
 import { View } from "react-native";
-import Svg, { Defs, G, Line, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, G, Line, LinearGradient, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
 import { CARD_ART } from "../constants/cardArt";
 import { useTheme } from "../context/ThemeContext";
 
@@ -9,18 +9,19 @@ import { useTheme } from "../context/ThemeContext";
  * Art that fills a whole card behind its content. It goes in FightCard's
  * `mark` slot, which is already clipped to the card's rounded corners.
  *
- * Four looks:
+ * Five looks:
  * - hero: the cage-grab illustration, anchored right, fading into the card
  *   on the left so the title and countdown sit on plain card colour.
  * - spotlight: a soft pool of light from the top edge.
  * - fence: a chain-link diamond grid in the top-right corner, fading out.
  * - line: a single crimson diagonal across the top-right corner.
+ * - octagon: a crimson cage wall down the right edge.
  *
  * The three drawn ones are SVG, so they stay crisp at any card size and
  * follow the theme. The hero is a painting, so it has a version per theme.
  * Each family is switched in constants/cardArt.ts.
  */
-export type BackdropVariant = "hero" | "spotlight" | "fence" | "line";
+export type BackdropVariant = "hero" | "spotlight" | "fence" | "line" | "octagon";
 
 // The light version is the same painting with its greys inverted onto a
 // white ground and the crimson band left alone.
@@ -57,6 +58,7 @@ export default function CardBackdrop({ variant }: { variant: BackdropVariant }) 
           {variant === "spotlight" && <Spotlight w={size.w} h={size.h} tone={c.text} />}
           {variant === "fence" && <Fence w={size.w} h={size.h} tone={c.text} />}
           {variant === "line" && <CrimsonLine w={size.w} h={size.h} red={c.red} />}
+          {variant === "octagon" && <Octagon w={size.w} h={size.h} red={c.red} card={c.card} />}
         </Svg>
       )}
     </View>
@@ -142,5 +144,33 @@ function CrimsonLine({ w, red }: Box & { red: string }) {
       strokeWidth={2}
       strokeOpacity={0.9}
     />
+  );
+}
+
+/** The points of a regular octagon with flat sides top and bottom. */
+function octagonPoints(cx: number, cy: number, r: number): string {
+  return Array.from({ length: 8 }, (_, i) => {
+    const a = Math.PI / 8 + (i * Math.PI) / 4;
+    return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+  }).join(" ");
+}
+
+/** A crimson cage wall down the right edge, taller than the card so it runs
+ * off the top and bottom, with a dark floor inside it. It starts about four
+ * fifths of the way across, so a matchup centred over the card stays clear. */
+function Octagon({ w, h, red, card }: Box & { red: string; card: string }) {
+  // The distance from the centre to each flat side.
+  const apothem = h * 0.62;
+  const r = apothem / Math.cos(Math.PI / 8);
+  const wall = Math.max(10, h * 0.065);
+  const cx = w * 0.82 + apothem;
+  const cy = h / 2;
+  const inner = (apothem - wall) / Math.cos(Math.PI / 8);
+  return (
+    <G>
+      <Polygon points={octagonPoints(cx, cy, r)} fill={red} fillOpacity={0.6} />
+      <Polygon points={octagonPoints(cx, cy, inner)} fill={card} />
+      <Polygon points={octagonPoints(cx, cy, inner)} fill={red} fillOpacity={0.14} />
+    </G>
   );
 }
