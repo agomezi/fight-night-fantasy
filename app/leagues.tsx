@@ -10,6 +10,7 @@ import HeaderBar from "../components/HeaderBar";
 import LeaderboardRow from "../components/LeaderboardRow";
 import LeagueStandingRow from "../components/LeagueStandingRow";
 import MemberProfileSheet from "../components/MemberProfileSheet";
+import CardBackdrop from "../components/CardBackdrop";
 import MatchupCard from "../components/MatchupCard";
 import PressableScale from "../components/PressableScale";
 import ProgressRing from "../components/ProgressRing";
@@ -258,10 +259,15 @@ export default function Leagues() {
                 {
                   tag: week.state === "live" ? "LIVE NOW" : week.state === "final" ? `WEEK ${week.week} RESULT` : "THIS WEEK",
                   tagColor: c.red,
-                  serial: week.eventName ?? undefined,
+                  mark: <CardBackdrop variant="octagon" />,
                   content: (
                     <View style={{ gap: 12 }}>
-                      <MatchupCard matchup={myMatchup} onPressPlayer={setViewing} />
+                      {week.eventName ? (
+                        <Text style={{ color: c.text, fontSize: 15, fontWeight: "600" }} numberOfLines={1}>
+                          {week.eventName}
+                        </Text>
+                      ) : null}
+                      <MatchupCard matchup={myMatchup} onPressPlayer={setViewing} bare />
                       {mine.length > 1 && (
                         <Text style={{ color: c.text2, fontSize: 12, textAlign: "center" }}>
                           Doubleheader week — you also play {mine[1].b.name}
@@ -269,11 +275,19 @@ export default function Leagues() {
                       )}
                       <PressableScale
                         onPress={() => router.push(`/matchup?id=${league.id}`)}
-                        style={{ backgroundColor: c.red, borderRadius: 10, paddingVertical: 11, alignItems: "center" }}
+                        style={{
+                          borderTopWidth: 1,
+                          borderTopColor: c.border,
+                          paddingTop: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
                       >
-                        <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>
+                        <Text style={{ color: c.text, fontSize: 12, fontWeight: "800", letterSpacing: 1.5 }}>
                           VIEW ALL MATCHUPS
                         </Text>
+                        <Ionicons name="arrow-forward" size={15} color={c.text} />
                       </PressableScale>
                     </View>
                   ),

@@ -17,13 +17,16 @@ const OUTCOME_TEXT = {
 } as const;
 
 /** A head-to-head on one card: both names and their points at the league's
- * tier. Your side is on the left. Tapping a side opens that player. */
+ * tier. Your side is on the left. Tapping a side opens that player. `bare`
+ * drops the box around it, for when the card around it is the box. */
 export default function MatchupCard({
   matchup,
   onPressPlayer,
+  bare,
 }: {
   matchup: Matchup;
   onPressPlayer?: (userId: string) => void;
+  bare?: boolean;
 }) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
@@ -58,7 +61,13 @@ export default function MatchupCard({
 
   return (
     <View>
-      <View style={styles.versusCard}>
+      <View
+        style={
+          bare
+            ? { flexDirection: "row", alignItems: "center", paddingVertical: 6 }
+            : styles.versusCard
+        }
+      >
         {side(a, aLead, matchup.isMine)}
         <View style={{ alignItems: "center", gap: 6 }}>
           {state === "live" && <LiveDot />}
