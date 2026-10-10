@@ -13,7 +13,7 @@ const OUTCOME_TEXT = {
   drew: "DRAW",
   leading: "YOU LEAD",
   trailing: "YOU TRAIL",
-  level: "LEVEL",
+  level: "TIED",
 } as const;
 
 /** A head-to-head on one card: both names and their points at the league's
@@ -75,7 +75,7 @@ export default function MatchupCard({
         </View>
         {side(b, bLead, false)}
       </View>
-      {state !== "upcoming" && (
+      {state !== "upcoming" && ((a.points ?? 0) !== 0 || (b.points ?? 0) !== 0 || state === "final") && (
         <View style={{ marginTop: 12 }}>
           <AnimatedBar percent={share} />
           {outcome && (

@@ -18,6 +18,7 @@ import EmptyState from "../components/EmptyState";
 import FighterPhoto from "../components/FighterPhoto";
 import FighterSpotlight from "../components/FighterSpotlight";
 import HeaderBar from "../components/HeaderBar";
+import LiveDot from "../components/LiveDot";
 import InfoCards from "../components/InfoCards";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
@@ -328,16 +329,29 @@ export default function Home() {
   const history = useHistory();
   const lastPlayed = history.status === "ready" ? history.history.events[0] ?? null : null;
   const lastScored = lastPlayed && (lastPlayed.total > 0 || lastPlayed.live) ? lastPlayed : null;
+  // Your picks on the card being fought right now.
+  const liveEvent = eventIsLive && history.status === "ready"
+    ? history.history.events.find((e) => e.id === event?.id) ?? null
+    : null;
+  const liveScore = eventIsLive
+    ? {
+        hit: liveEvent?.hit ?? 0,
+        total: liveEvent?.total ?? 0,
+        points: liveEvent?.points ?? 0,
+        picked: liveEvent?.picked ?? 0,
+        pending: liveEvent?.bouts.filter((b) => b.verdict === "pending").length ?? 0,
+      }
+    : null;
   // The player directly above and directly below you in the table.
   const myIndex = myStanding ? ranked.findIndex((s) => s.isMe) : -1;
   const neighbours = myIndex < 0 ? [] : [ranked[myIndex - 1], ranked[myIndex + 1]].filter((s) => s != null);
 
   const carouselCards: CarouselCard[] = [
     {
-      tag: "NEXT EVENT",
+      tag: eventIsLive ? "LIVE NOW" : "NEXT EVENT",
       mark: <CardBackdrop variant="hero" />,
       tagColor: c.red,
-      serial: event ? startLabel(event.startsAt) : undefined,
+      serial: eventIsLive ? "TAP TO FOLLOW" : event ? startLabel(event.startsAt) : undefined,
       // Content sits low in the card rather than crowding the header rule —
       // the event name is what you should land on, not the label above it.
       content: next.status === "loading" ? (
@@ -365,7 +379,14 @@ export default function Home() {
             {eventName?.headline?.toUpperCase() ??
               (next.status === "ready" && !event ? "The next card appears here once it's announced" : " ")}
           </Text>
-          {toStart && (
+          {eventIsLive ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4 }}>
+              <LiveDot />
+              <Text style={{ color: c.text, fontSize: 13, fontWeight: "800", letterSpacing: 1.5 }}>
+                LIVE · FOLLOW IT FIGHT BY FIGHT
+              </Text>
+            </View>
+          ) : toStart && (
             <StatBoxRow inline>
               <StatBox value={pad(toStart.days)} label="DAYS" />
               <StatBox value={pad(toStart.hours)} label="HOURS" />
@@ -555,7 +576,14 @@ export default function Home() {
       mark: <CardBackdrop variant="line" />,
       content: (
         <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
-          <ProgressRing value={4} total={7} center="4" caption="of 7" size={116} color={c.green} />
+          <ProgressRing
+            value={liveScore?.hit ?? 0}
+            total={Math.max(liveScore?.total ?? 0, 1)}
+            center={liveScore && liveScore.total > 0 ? `${liveScore.hit}` : "—"}
+            caption={liveScore && liveScore.total > 0 ? `of ${liveScore.total}` : "no results"}
+            size={116}
+            color={c.green}
+          />
           <View style={{ flex: 1 }}>
             <Text style={{ color: c.text, fontSize: 18, fontWeight: "800" }}>
               Running accuracy
@@ -563,12 +591,24 @@ export default function Home() {
             <Text
               style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}
             >
-              4 of 7 scored bouts called · 5 to go
+              {!liveScore || liveScore.picked === 0
+                ? "You didn't pick this card."
+                : liveScore.total === 0
+                  ? `No results yet · ${liveScore.pending} of your picks to go`
+                  : `${liveScore.hit} of ${liveScore.total} called · ${liveScore.pending} to go · ${liveScore.points} pts`}
             </Text>
           </View>
         </View>
       ),
     });
+  }
+
+  // While a card is live: the event first (tap to follow it), then how your
+  // picks are going, your league, and your card.
+  if (eventIsLive) {
+    const rank = (tag: string) =>
+      tag === "LIVE NOW" ? 0 : tag === "LIVE" ? 1 : tag === "YOUR LEAGUE" || tag === "LEAGUES" ? 2 : 3;
+    carouselCards.sort((a, b) => rank(a.tag) - rank(b.tag));
   }
 
   const fullCardFights = (event?.bouts ?? []).slice(0, 3).map((bout) => ({
