@@ -263,11 +263,18 @@ export default function Leagues() {
                   content: (
                     <View style={{ gap: 12 }}>
                       {week.eventName ? (
-                        <Text style={{ color: c.text, fontSize: 15, fontWeight: "600" }} numberOfLines={1}>
+                        <Text
+                          style={{ color: c.text, fontSize: 15, fontWeight: "600", textAlign: "center", paddingHorizontal: "12%" }}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                        >
                           {week.eventName}
                         </Text>
                       ) : null}
-                      <MatchupCard matchup={myMatchup} onPressPlayer={setViewing} bare />
+                      {/* Narrower than the card, so the octagon on the right has room. */}
+                      <View style={{ width: "74%", alignSelf: "center" }}>
+                        <MatchupCard matchup={myMatchup} onPressPlayer={setViewing} bare />
+                      </View>
                       {mine.length > 1 && (
                         <Text style={{ color: c.text2, fontSize: 12, textAlign: "center" }}>
                           Doubleheader week — you also play {mine[1].b.name}
@@ -281,6 +288,7 @@ export default function Leagues() {
                           paddingTop: 12,
                           flexDirection: "row",
                           alignItems: "center",
+                          justifyContent: "center",
                           gap: 8,
                         }}
                       >
