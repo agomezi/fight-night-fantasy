@@ -221,39 +221,7 @@ export default function Leagues() {
       <SwipeableCards
         minHeight={252}
         cards={[
-          {
-            tag: `${TIER_LABEL[league.tier].toUpperCase()} LEAGUE`,
-            tagColor: "#E8A020",
-            serial: standings?.season,
-            content: (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
-                <ProgressRing
-                  value={me?.rank != null ? ranked - me.rank + 1 : 0}
-                  total={Math.max(ranked, 1)}
-                  center={me?.rank != null ? (me.tied ? rankLabel(me.rank, true) : ordinal(me.rank)) : "—"}
-                  caption={me?.rank != null ? `of ${ranked}` : "unranked"}
-                  size={116}
-                  color="#E8A020"
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: c.text, fontSize: 21, fontWeight: "800" }}>{league.name}</Text>
-                  <Text style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>
-                    {[me?.rank != null ? me.record : null, `${(me?.points ?? 0).toLocaleString()} pts`, `${league.members} members`]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </Text>
-                  {waiting && (
-                    <Text style={{ color: c.text2, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{waiting}</Text>
-                  )}
-                  {isPreseason(standings) && (
-                    <Text style={{ color: c.textFaint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>
-                      Pre-season results are practice — everything starts clean at Season 1.
-                    </Text>
-                  )}
-                </View>
-              </View>
-            ),
-          },
+          // Your matchup always leads.
           ...(week && myMatchup
             ? [
                 {
@@ -302,6 +270,39 @@ export default function Leagues() {
                 },
               ]
             : []),
+          {
+            tag: `${TIER_LABEL[league.tier].toUpperCase()} LEAGUE`,
+            tagColor: "#E8A020",
+            serial: standings?.season,
+            content: (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+                <ProgressRing
+                  value={me?.rank != null ? ranked - me.rank + 1 : 0}
+                  total={Math.max(ranked, 1)}
+                  center={me?.rank != null ? (me.tied ? rankLabel(me.rank, true) : ordinal(me.rank)) : "—"}
+                  caption={me?.rank != null ? `of ${ranked}` : "unranked"}
+                  size={116}
+                  color="#E8A020"
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontSize: 21, fontWeight: "800" }}>{league.name}</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>
+                    {[me?.rank != null ? me.record : null, `${(me?.points ?? 0).toLocaleString()} pts`, `${league.members} members`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                  {waiting && (
+                    <Text style={{ color: c.text2, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{waiting}</Text>
+                  )}
+                  {isPreseason(standings) && (
+                    <Text style={{ color: c.textFaint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>
+                      Pre-season results are practice — everything starts clean at Season 1.
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ),
+          },
         ]}
       />
 

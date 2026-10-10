@@ -15,7 +15,7 @@ import { useTheme } from "../context/ThemeContext";
  * - spotlight: a soft pool of light from the top edge.
  * - fence: a chain-link diamond grid in the top-right corner, fading out.
  * - line: a single crimson diagonal across the top-right corner.
- * - octagon: a crimson cage wall down the right edge.
+ * - octagon: a crimson cage cut off by the right edge.
  *
  * The three drawn ones are SVG, so they stay crisp at any card size and
  * follow the theme. The hero is a painting, so it has a version per theme.
@@ -155,16 +155,17 @@ function octagonPoints(cx: number, cy: number, r: number): string {
   }).join(" ");
 }
 
-/** A crimson cage wall down the right edge, taller than the card so it runs
- * off the top and bottom, with a dark floor inside it. It starts about four
- * fifths of the way across, so a matchup centred over the card stays clear. */
+/** A crimson cage cut off by the right edge, with a dark floor inside it.
+ * It sits inside the card top to bottom, a little above centre, and starts
+ * about five sixths of the way across, so a matchup centred over the card
+ * stays clear of it. */
 function Octagon({ w, h, red, card }: Box & { red: string; card: string }) {
   // The distance from the centre to each flat side.
-  const apothem = h * 0.62;
+  const apothem = h * 0.33;
   const r = apothem / Math.cos(Math.PI / 8);
-  const wall = Math.max(10, h * 0.065);
-  const cx = w * 0.82 + apothem;
-  const cy = h / 2;
+  const wall = Math.max(8, h * 0.06);
+  const cx = w * 0.84 + apothem;
+  const cy = h * 0.47;
   const inner = (apothem - wall) / Math.cos(Math.PI / 8);
   return (
     <G>
