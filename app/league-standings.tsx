@@ -92,7 +92,7 @@ export default function LeagueStandings() {
               </>
             )}
 
-            {unranked.length > 0 && standings?.ranked && (
+            {unranked.some((r) => r.status === "queued") && standings?.ranked && (
               <Text style={{ color: c.textFaint, fontSize: 12, lineHeight: 18, marginTop: 12 }}>
                 Players marked NEXT SEASON joined mid-season. Their points count globally now and they join the
                 rotation when the next season starts.

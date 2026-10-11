@@ -7,6 +7,8 @@ export type ReminderPayload = { event: string; minutes: number; hasMainPick: boo
 export type ScoredPayload = {
   event: string;
   points: number;
+  /** What the underdog multiplier added; 0 or missing when it didn't apply. */
+  dogBonus?: number;
   correct: boolean;
   counts: boolean;
   provisional: boolean;
@@ -80,7 +82,7 @@ function scored(p: ScoredPayload): Message {
   const verdict = p.correct ? "✓" : "✗";
   return {
     title: `${prefix}${p.winner} def. ${p.loser}`,
-    body: `${how}${when} — ${verdict} ${signed(p.points)} pts${p.provisional ? " (provisional)" : ""}`,
+    body: `${how}${when} — ${verdict} ${signed(p.points)} pts${p.dogBonus ? ` (+${p.dogBonus} DOG)` : ""}${p.provisional ? " (provisional)" : ""}`,
     data: { screen: "history" },
   };
 }

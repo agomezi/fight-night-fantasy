@@ -72,6 +72,15 @@ describe("notificationText", () => {
     });
   });
 
+  test("a result says how much the underdog bonus added", () => {
+    const m = notificationText("scored", {
+      event: "UFC Fight Night: Allen vs. Duncan", points: 30, dogBonus: 10, correct: true, counts: true,
+      provisional: false, winner: "Jai Herbert", loser: "Matheus Camilo", red: "Matheus Camilo", blue: "Jai Herbert",
+      method: "DEC", round: null, time: null, void: null, correction: false,
+    });
+    expect(m.body).toContain("+30 pts (+10 DOG)");
+  });
+
   describe("moderation", () => {
     it("asks a warned player to rename, with the reason and where to appeal", () => {
       const m = notificationText("moderation", { action: "warn", reason: "Offensive name." });

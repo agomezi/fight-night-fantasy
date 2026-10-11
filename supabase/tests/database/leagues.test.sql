@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(56);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -45,9 +45,19 @@ $$;
 create function pg_temp.bid(fight text) returns uuid language sql as $$
   select id from public.bouts where ufc_fight_id = fight
 $$;
+-- Whoever scores on a card picked all of it, so they meet every tier's
+-- required picks. Run as the owner, so the pick lock lets it through.
+create function pg_temp.pick_card(n int, fight text) returns void language sql as $$
+  insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
+  select pg_temp.u(n), b.id, b.version, b.red_fighter_id, 'DEC'
+  from public.bouts b
+  where b.event_id = (select x.event_id from public.bouts x where x.ufc_fight_id = fight)
+  on conflict (user_id, bout_id) do nothing
+$$;
 -- `casual` is what a Casual league plays; the full points are doubled so a
 -- test that reads them by mistake fails.
 create function pg_temp.score(n int, fight text, casual int, pro int default null) returns void language sql as $$
+  select pg_temp.pick_card(n, fight);
   insert into public.scores (user_id, bout_id, season_id, points, casual_points, breakdown, correct, counts_for_accuracy)
   select pg_temp.u(n), b.id, e.season_id, coalesce(pro, casual * 2), casual,
          case when coalesce(pro, casual) < 0
@@ -357,6 +367,30 @@ select results_eq(
            (3::bigint, 'Bravo', 0, 0, 2, 150), (4::bigint, 'Alpha', 0, 1, 1, 120)$$,
   'a win is worth 3, a draw 1'
 );
+
+-- Nothing scored this season: not ranked yet, however the table falls, and
+-- listed after the players who are.
+reset role;
+delete from public.scores where user_id = pg_temp.u(3);
+delete from public.picks where user_id = pg_temp.u(3);
+set local role authenticated;
+select pg_temp.act(1);
+select ok((select rank is null from public.league_standings(pg_temp.id('L')) where display_name = 'Charlie'),
+  'a player with no scored pick is not ranked');
+select is((select display_name from public.league_standings(pg_temp.id('L')) offset 3 limit 1), 'Charlie',
+  'and is listed after the ranked players');
+
+-- Sitting out loses the matchup, even to a negative score: Bravo's week 1
+-- goes to -40 against Charlie's 0 with no picks, and Bravo still wins.
+reset role;
+update public.scores set casual_points = -40 where user_id = pg_temp.u(2) and bout_id = pg_temp.bid('lg11');
+set local role authenticated;
+select pg_temp.act(1);
+select results_eq(
+  $$select week, winner from public.league_matchups(pg_temp.id('L'))
+    where state = 'final' and pg_temp.u(3) in (user_a, user_b) order by week$$,
+  $$values (1, '00000000-0000-0000-0000-000000000002'::uuid), (2, '00000000-0000-0000-0000-000000000004'::uuid)$$,
+  'a player with no picks on a card loses that matchup, even to a negative score');
 
 -------------------------------------------------------------------------------
 -- Leaving

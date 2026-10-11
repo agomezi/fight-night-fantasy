@@ -1,6 +1,7 @@
 import {
   currentWeek,
   matchupOutcome,
+  outcomeText,
   rankLabel,
   recordOf,
   toMemberProfile,
@@ -55,7 +56,7 @@ describe("recordOf and rankLabel", () => {
   test("a shared rank reads T-n and no rank reads as a dash", () => {
     expect(rankLabel(2)).toBe("2");
     expect(rankLabel(2, true)).toBe("T-2");
-    expect(rankLabel(null)).toBe("—");
+    expect(rankLabel(null)).toBe("NR");
   });
 });
 
@@ -178,5 +179,14 @@ describe("toMemberProfile", () => {
         { display_name: "Ben", accuracy: 60, favorite_division: "Lightweight", is_me: false, can_report: true, reported: false, blocked: true },
       ])
     ).toEqual({ name: "Ben", accuracy: 60, favoriteDivision: "Lightweight", isMe: false, canReport: true, reported: false, blocked: true });
+  });
+});
+
+describe("sitting out", () => {
+  test("a loss you outscored means you didn't pick, and the other way round", () => {
+    expect(outcomeText("lost", 0, -94)).toBe("NO PICKS · YOU LOST");
+    expect(outcomeText("won", -94, 0)).toBe("THEY SAT OUT · YOU WON");
+    expect(outcomeText("lost", -10, 20)).toBe("YOU LOST");
+    expect(outcomeText("won", 30, 20)).toBe("YOU WON");
   });
 });

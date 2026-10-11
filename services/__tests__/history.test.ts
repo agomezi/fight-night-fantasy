@@ -145,3 +145,12 @@ describe("buildHistory", () => {
     expect(h.events).toHaveLength(2);
   });
 });
+
+describe("boutPoints", () => {
+  test("shows what the underdog bonus added", () => {
+    const { boutPoints } = jest.requireActual("../history");
+    expect(boutPoints(30, { underdogBonus: 10 })).toBe("+30 · +10 DOG");
+    expect(boutPoints(50, { underdogBonus: 0 })).toBe("+50");
+    expect(boutPoints(-45, null)).toBe("−45");
+  });
+});

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import CardBackdrop from "../components/CardBackdrop";
 import EmptyState from "../components/EmptyState";
 import LiveDot from "../components/LiveDot";
 import MatchupCard from "../components/MatchupCard";
@@ -144,7 +145,9 @@ export default function MatchupScreen() {
             </ScrollView>
 
             <View style={[styles.cardHeader, { marginTop: 18 }]}>
-              <Text style={styles.cardMeta} numberOfLines={1}>{week.eventName?.toUpperCase() ?? "NEXT CARD"}</Text>
+              <Text style={[styles.cardMeta, { flex: 1, marginRight: 10 }]} numberOfLines={1}>
+                {week.eventName?.toUpperCase() ?? "NEXT CARD"}
+              </Text>
               <StatusPill state={week.state} />
             </View>
 
@@ -156,8 +159,23 @@ export default function MatchupScreen() {
             )}
             {mine.length > 0 ? (
               mine.map((m) => (
-                <View key={m.b.userId} style={{ marginBottom: 14 }}>
-                  <MatchupCard matchup={m} onPressPlayer={setViewing} />
+                // The same octagon card as the matchup on the Leagues tab.
+                <View
+                  key={m.b.userId}
+                  style={{
+                    marginBottom: 14,
+                    backgroundColor: c.card,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: c.border,
+                    overflow: "hidden",
+                    paddingVertical: 18,
+                  }}
+                >
+                  <CardBackdrop variant="octagon" />
+                  <View style={{ width: "74%", alignSelf: "center" }}>
+                    <MatchupCard matchup={m} onPressPlayer={setViewing} bare />
+                  </View>
                 </View>
               ))
             ) : (

@@ -33,10 +33,12 @@ import EmptyState from "../components/EmptyState";
 import FighterPhoto from "../components/FighterPhoto";
 import { LEAGUE } from "../constants/league";
 import { useAuth } from "../context/AuthContext";
+import { useLeague } from "../hooks/useLeague";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { clearDraft, loadDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
 import { AccountRestrictedError, loadPicks, PicksLockedError, savePicks } from "../services/picks";
+import { lockInNeeds } from "../services/tierPicks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -363,9 +365,23 @@ export default function Picks() {
 
   const totalFights = allFights.length;
   const madePicks = Object.keys(picks).length;
-  // Outside a league only the main event is required; the rest of the card is
-  // optional. League tiers will set their own minimum here.
-  const canLockIn = !!MAIN_EVENT && !!picks[MAIN_EVENT.id];
+  // The main event is always required. Each league's tier can ask for more:
+  // Casual the whole main card, Amateur that plus the last 3 prelims. Bouts
+  // that already locked can't be asked for. Missing a league's picks loses
+  // that week's matchup, so the button holds out for them.
+  const leagueState = useLeague();
+  const myLeagues = leagueState.status === "ready" ? leagueState.leagues : [];
+  const need = lockInNeeds(
+    myLeagues.map((l) => ({ name: l.name, tier: l.tier })),
+    allFights,
+    (id) => !!picks[id],
+    (f) => !isLocked(f)
+  );
+  const mainPicked = !!MAIN_EVENT && !!picks[MAIN_EVENT.id];
+  const canLockIn = mainPicked && need.missing.length === 0;
+  const lockHint = mainPicked
+    ? `PICK ${need.missing.length} MORE${need.league ? ` · ${need.league.toUpperCase()}` : ""}`
+    : "PICK THE MAIN EVENT";
 
   const summary = useMemo(
     () =>
@@ -686,8 +702,9 @@ export default function Picks() {
                   style={{ marginBottom: 10 }}
                 />
               )}
-              {/* Stays grey and locked until the main event is picked, the one
-                  pick a card needs; then it unlocks. Tapping it early shakes. */}
+              {/* Stays grey and locked until the main event, and whatever your
+                  leagues' tiers require, is picked; then it unlocks. Tapping it
+                  early shakes. */}
               <PressableScale
                 style={[styles.lockBtn, !canLockIn && styles.lockBtnIdle, saving && styles.lockBtnDisabled]}
                 onPress={lockIn}
@@ -698,7 +715,7 @@ export default function Picks() {
                   color={canLockIn ? "#FFFFFF" : c.textFaint}
                 />
                 <Text style={[styles.lockText, !canLockIn && { color: c.textFaint }]}>
-                  {saving ? "SAVING…" : canLockIn ? "LOCK IN PICKS" : "PICK THE MAIN EVENT"}
+                  {saving ? "SAVING…" : canLockIn ? "LOCK IN PICKS" : lockHint}
                 </Text>
                 <Text style={[styles.lockCount, !canLockIn && { color: c.textFaint }]}>
                   {madePicks}/{totalFights}
