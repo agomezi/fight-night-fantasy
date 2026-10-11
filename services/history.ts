@@ -37,6 +37,8 @@ export type HistoryPickRow = {
 export type HistoryScoreRow = {
   bout_id: string;
   points: number;
+  /** What the scoring added up; only the underdog bonus is read here. */
+  breakdown?: { underdogBonus?: number } | null;
   correct: boolean;
   counts_for_accuracy: boolean;
   provisional: boolean;
@@ -105,6 +107,13 @@ function signed(points: number): string {
   return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : "0";
 }
 
+/** "+30 · +10 DOG": a bout's points, and how much of them the underdog
+ * multiplier added, so a smaller-looking upset still shows its bonus. */
+export function boutPoints(points: number, breakdown?: { underdogBonus?: number } | null): string {
+  const dog = breakdown?.underdogBonus ?? 0;
+  return dog > 0 ? `${signed(points)} · +${dog} DOG` : signed(points);
+}
+
 function side(fighter: Fighter, method?: string): HistorySide {
   return { initials: initials(fighter.name), name: fighter.name, ...(method ? { method } : {}) };
 }
@@ -125,7 +134,7 @@ function boutFor(row: HistoryPickRow, score: HistoryScoreRow | undefined): Histo
   const result = Array.isArray(bout.result) ? (bout.result[0] ?? null) : bout.result;
   const picked = row.picked_fighter_id === bout.red.id ? bout.red : bout.blue;
   const pick = pickLabel(row, picked.name);
-  const base = { id: bout.id, pick, ...(score ? { points: signed(score.points) } : {}) };
+  const base = { id: bout.id, pick, ...(score ? { points: boutPoints(score.points, score.breakdown) } : {}) };
 
   if (bout.status === "cancelled" && !result) {
     return { ...base, red: side(bout.red), blue: side(bout.blue), settled: false, meta: "Cancelled", verdict: "void", voidNote: VOID_NOTE.CANCELLED };
@@ -247,7 +256,7 @@ export async function loadHistory(userId: string, now: Date = new Date()): Promi
   const { supabase } = await import("./supabase");
   const [picks, scores, season] = await Promise.all([
     supabase.from("picks").select(HISTORY_PICKS_QUERY).eq("user_id", userId),
-    supabase.from("scores").select("bout_id, points, correct, counts_for_accuracy, provisional").eq("user_id", userId),
+    supabase.from("scores").select("bout_id, points, breakdown, correct, counts_for_accuracy, provisional").eq("user_id", userId),
     supabase.from("seasons").select("id, number").order("number", { ascending: false }).limit(1).maybeSingle(),
   ]);
   for (const r of [picks, scores, season]) if (r.error) throw new Error(r.error.message);
