@@ -16,6 +16,7 @@ import {
 } from "../services/leagues";
 import PressableScale from "./PressableScale";
 import { StatBox, StatBoxRow } from "./StatBox";
+import ScreenSkeleton from "./ScreenSkeleton";
 
 type Step = "profile" | "report" | "sent" | "already" | "block" | "blocked";
 
@@ -115,7 +116,7 @@ export default function MemberProfileSheet({
     if (failed || profile === null) {
       return <Text style={[muted, { textAlign: "center", paddingVertical: 24 }]}>Couldn&apos;t load this profile.</Text>;
     }
-    if (!profile) return <ActivityIndicator color={c.red} style={{ paddingVertical: 32 }} />;
+    if (!profile) return <ScreenSkeleton variant="sheet" />;
 
     if (step === "sent" || step === "already") {
       return (

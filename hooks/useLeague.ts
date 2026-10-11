@@ -12,18 +12,18 @@ import {
   type MyLeague,
   type Week,
 } from "../services/leagues";
+import { readCache, writeCache } from "../services/screenCache";
 
-type State =
-  | { status: "loading" }
-  | { status: "error"; message: string }
-  | {
-      status: "ready";
-      leagues: MyLeague[];
-      /** Null when you are in no league. */
-      league: MyLeague | null;
-      standings: LeagueStandings | null;
-      weeks: Week[];
-    };
+type Ready = {
+  status: "ready";
+  leagues: MyLeague[];
+  /** Null when you are in no league. */
+  league: MyLeague | null;
+  standings: LeagueStandings | null;
+  weeks: Week[];
+};
+
+type State = { status: "loading" } | { status: "error"; message: string } | Ready;
 
 /** While a card is being fought, scores move every few minutes. */
 const LIVE_REFRESH_MS = 60_000;
@@ -37,7 +37,9 @@ const LIVE_REFRESH_MS = 60_000;
 export function useLeague(leagueId?: string) {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
-  const [state, setState] = useState<State>({ status: "loading" });
+  // The Leagues tab (no id) shows whichever league you last chose.
+  const cacheKey = userId ? `league:${userId}:${leagueId ?? "tab"}` : null;
+  const [state, setState] = useState<State>(() => readCache<Ready>(cacheKey) ?? { status: "loading" });
 
   const reload = useCallback(async () => {
     if (!userId) return;
@@ -55,12 +57,12 @@ export function useLeague(leagueId?: string) {
       const [standings, weeks] = league
         ? await Promise.all([loadStandings(league.id), loadWeeks(league.id, userId)])
         : [null, []];
-      setState({ status: "ready", leagues, league, standings, weeks });
+      setState(writeCache<Ready>(cacheKey, { status: "ready", leagues, league, standings, weeks }));
     } catch (e) {
       // Keep what is on screen if a refresh fails.
       setState((prev) => (prev.status === "ready" ? prev : { status: "error", message: (e as Error).message }));
     }
-  }, [userId, leagueId]);
+  }, [userId, leagueId, cacheKey]);
 
   /** Shows `id` here and on the Leagues tab from now on. */
   const select = useCallback(

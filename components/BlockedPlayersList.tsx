@@ -5,6 +5,7 @@ import { getInitials } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { loadBlocked, unblockPlayer, type BlockedPlayer } from "../services/blocks";
 import { makeSettingsStyles } from "../styles/settings";
+import ScreenSkeleton from "./ScreenSkeleton";
 
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; items: BlockedPlayer[] };
 
@@ -41,7 +42,7 @@ export default function BlockedPlayersList() {
   };
 
   const muted = { color: c.textMuted, fontSize: 13.5, textAlign: "center" as const, paddingVertical: 24 };
-  if (state.status === "loading") return <ActivityIndicator color={c.red} style={{ paddingVertical: 32 }} />;
+  if (state.status === "loading") return <ScreenSkeleton variant="list" rows={3} />;
   if (state.status === "error") return <Text style={muted}>{state.message}</Text>;
   if (!state.items.length) {
     return <Text style={muted}>You haven&apos;t blocked anyone. Block a player from their profile in a league.</Text>;

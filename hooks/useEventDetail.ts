@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { loadEventDetail, type EventDetail } from "../services/eventDetail";
+import { readCache, writeCache } from "../services/screenCache";
 
 type State =
   | { status: "loading" }
@@ -17,15 +18,19 @@ const LIVE_REFRESH_MS = 30_000;
 export function useEventDetail(eventId: string | undefined): State & { reload: () => void } {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
-  const [state, setState] = useState<State>({ status: "loading" });
+  const cacheKey = userId && eventId ? `event:${userId}:${eventId}` : null;
+  const [state, setState] = useState<State>(() => {
+    const cached = readCache<EventDetail | null>(cacheKey);
+    return cached === undefined ? { status: "loading" } : { status: "ready", detail: cached };
+  });
 
   const reload = useCallback(() => {
     if (!userId || !eventId) return;
     loadEventDetail(eventId, userId)
-      .then((detail) => setState({ status: "ready", detail }))
+      .then((detail) => setState({ status: "ready", detail: writeCache(cacheKey, detail) }))
       // Keep what is on screen if a refresh fails.
       .catch((e: Error) => setState((prev) => (prev.status === "ready" ? prev : { status: "error", message: e.message })));
-  }, [eventId, userId]);
+  }, [eventId, userId, cacheKey]);
 
   useEffect(() => {
     reload();

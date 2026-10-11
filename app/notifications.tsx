@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import EmptyState from "../components/EmptyState";
@@ -11,6 +11,7 @@ import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { loadInbox, markAllRead, timeAgo, type InboxItem } from "../services/inbox";
 import type { NotificationKind } from "../services/notificationText";
 import { makeCommonStyles } from "../styles/common";
+import ScreenSkeleton from "../components/ScreenSkeleton";
 
 /** Each kind gets its own glyph and accent, so the list is scannable by shape. */
 const KIND: Record<NotificationKind, { icon: keyof typeof Ionicons.glyphMap; tint: (c: any) => string }> = {
@@ -81,7 +82,7 @@ export default function Notifications() {
         </View>
         <View style={commonStyles.divider} />
 
-        {state.status === "loading" && <ActivityIndicator color={c.red} style={{ marginTop: 40 }} />}
+        {state.status === "loading" && <ScreenSkeleton variant="list" rows={7} />}
         {state.status === "error" && (
           <EmptyState
             icon="cloud-offline-outline"

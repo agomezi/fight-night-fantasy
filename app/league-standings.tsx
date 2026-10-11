@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, Share, Text, View } from "react-native";
+import { ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import LeagueStandingRow from "../components/LeagueStandingRow";
@@ -13,6 +13,7 @@ import { useLeague } from "../hooks/useLeague";
 import { inviteMessage, TIER_LABEL } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
+import ScreenSkeleton from "../components/ScreenSkeleton";
 
 export default function LeagueStandings() {
   const insets = useSafeAreaInsets();
@@ -63,7 +64,7 @@ export default function LeagueStandings() {
           Ranked on W-L record, then points, then accuracy, then head-to-head.
         </Text>
 
-        {state.status === "loading" && <ActivityIndicator color={c.red} style={{ marginTop: 40 }} />}
+        {state.status === "loading" && <ScreenSkeleton variant="list" rows={8} />}
         {state.status === "error" && (
           <EmptyState icon="cloud-offline-outline" title="Couldn't load the standings" message={state.message}
             actionLabel="TRY AGAIN" onAction={state.reload} />

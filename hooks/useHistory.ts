@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { loadHistory, type History } from "../services/history";
+import { readCache, writeCache } from "../services/screenCache";
 
 type State =
   | { status: "loading" }
@@ -17,15 +18,19 @@ const LIVE_REFRESH_MS = 60_000;
 export function useHistory(): State & { reload: () => void } {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
-  const [state, setState] = useState<State>({ status: "loading" });
+  const cacheKey = userId ? `history:${userId}` : null;
+  const [state, setState] = useState<State>(() => {
+    const cached = readCache<History>(cacheKey);
+    return cached ? { status: "ready", history: cached } : { status: "loading" };
+  });
 
   const reload = useCallback(() => {
     if (!userId) return;
     loadHistory(userId)
-      .then((history) => setState({ status: "ready", history }))
+      .then((history) => setState({ status: "ready", history: writeCache(cacheKey, history) }))
       // Keep what is on screen if a refresh fails.
       .catch((e: Error) => setState((prev) => (prev.status === "ready" ? prev : { status: "error", message: e.message })));
-  }, [userId]);
+  }, [userId, cacheKey]);
 
   useEffect(() => {
     reload();

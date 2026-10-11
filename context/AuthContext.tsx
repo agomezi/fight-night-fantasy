@@ -11,6 +11,7 @@ import * as Crypto from "expo-crypto";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { profileStorageKey } from "../constants/storage";
 import { disablePush } from "../services/push";
+import { clearCache } from "../services/screenCache";
 import { supabase } from "../services/supabase";
 
 GoogleSignin.configure({
@@ -124,7 +125,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(({ data }) => setSession(data.session))
       .finally(() => setReady(true));
 
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+      // Signed out: forget what that player loaded.
+      if (!next) clearCache();
+      setSession(next);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
