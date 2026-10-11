@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(55);
+select plan(56);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -368,6 +368,18 @@ select ok((select rank is null from public.league_standings(pg_temp.id('L')) whe
   'a player with no scored pick is not ranked');
 select is((select display_name from public.league_standings(pg_temp.id('L')) offset 3 limit 1), 'Charlie',
   'and is listed after the ranked players');
+
+-- Sitting out loses the matchup, even to a negative score: Bravo's week 1
+-- goes to -40 against Charlie's 0 with no picks, and Bravo still wins.
+reset role;
+update public.scores set casual_points = -40 where user_id = pg_temp.u(2) and bout_id = pg_temp.bid('lg11');
+set local role authenticated;
+select pg_temp.act(1);
+select results_eq(
+  $$select week, winner from public.league_matchups(pg_temp.id('L'))
+    where state = 'final' and pg_temp.u(3) in (user_a, user_b) order by week$$,
+  $$values (1, '00000000-0000-0000-0000-000000000002'::uuid), (2, '00000000-0000-0000-0000-000000000004'::uuid)$$,
+  'a player with no picks on a card loses that matchup, even to a negative score');
 
 -------------------------------------------------------------------------------
 -- Leaving

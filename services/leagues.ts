@@ -233,6 +233,29 @@ export function currentWeek(weeks: Week[]): Week | null {
 }
 
 /** How a finished or running matchup reads from your side. */
+const OUTCOME_TEXT = {
+  won: "YOU WON",
+  lost: "YOU LOST",
+  drew: "DRAW",
+  leading: "YOU LEAD",
+  trailing: "YOU TRAIL",
+  level: "TIED",
+} as const;
+
+/** The result line under a matchup. A win or loss against the points means
+ * someone sat the card out: no picks loses the matchup whatever the score. */
+export function outcomeText(
+  outcome: keyof typeof OUTCOME_TEXT,
+  mine: number | null,
+  theirs: number | null
+): string {
+  const a = mine ?? 0;
+  const b = theirs ?? 0;
+  if (outcome === "lost" && a >= b) return "NO PICKS · YOU LOST";
+  if (outcome === "won" && a <= b) return "THEY SAT OUT · YOU WON";
+  return OUTCOME_TEXT[outcome];
+}
+
 export function matchupOutcome(m: Matchup): "won" | "lost" | "drew" | "leading" | "trailing" | "level" | null {
   if (m.a.points == null || m.b.points == null) return null;
   if (m.state === "final") {
