@@ -3,7 +3,7 @@
 // pure so it can be tested without a database; loadEventDetail only fetches.
 
 import { initials, splitEventName } from "./events";
-import { pickLabel } from "./history";
+import { boutPoints, pickLabel } from "./history";
 
 type Segment = "main" | "prelims" | "early_prelims";
 type Fighter = { id: string; name: string; photoUrl: string | null };
@@ -47,7 +47,14 @@ export type MyPick = {
   finish_round: number | null;
   method: "KO" | "SUB" | null;
 };
-export type MyScore = { bout_id: string; points: number; correct: boolean; counts_for_accuracy: boolean; provisional: boolean };
+export type MyScore = {
+  bout_id: string;
+  points: number;
+  breakdown?: { underdogBonus?: number } | null;
+  correct: boolean;
+  counts_for_accuracy: boolean;
+  provisional: boolean;
+};
 
 export type Corner = { name: string; initials: string; photoUrl: string | null; won: boolean };
 
@@ -87,10 +94,6 @@ export type EventDetail = {
 const SEGMENT_LABEL: Record<Segment, string> = { main: "MAIN CARD", prelims: "PRELIMS", early_prelims: "EARLY PRELIMS" };
 const METHOD = { KO: "KO/TKO", SUB: "Submission", DEC: "Decision" } as const;
 const VOID = { NC: "No contest", DRAW: "Draw", CANCELLED: "Cancelled", FIGHTER_CHANGED: "Void" } as const;
-
-function signed(points: number): string {
-  return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : "0";
-}
 
 export function buildEventDetail(row: EventRow, picks: MyPick[], scores: MyScore[], now: Date): EventDetail {
   const pickByBout = new Map(picks.map((p) => [p.bout_id, p]));
@@ -159,7 +162,7 @@ export function buildEventDetail(row: EventRow, picks: MyPick[], scores: MyScore
         result: text,
         pick: pick && pickedFighter ? pickLabel(pick, pickedFighter.name) : null,
         verdict,
-        points: score ? signed(score.points) : null,
+        points: score ? boutPoints(score.points, score.breakdown) : null,
       };
       return { line, segment: bout.card_segment, locksAt };
     });
@@ -218,7 +221,7 @@ export async function loadEventDetail(eventId: string, userId: string, now: Date
       .in("bout_id", boutIds),
     supabase
       .from("scores")
-      .select("bout_id, points, correct, counts_for_accuracy, provisional")
+      .select("bout_id, points, breakdown, correct, counts_for_accuracy, provisional")
       .eq("user_id", userId)
       .in("bout_id", boutIds),
   ]);

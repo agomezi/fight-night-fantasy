@@ -1,20 +1,12 @@
 import { Text, View } from "react-native";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
-import { matchupOutcome, type Matchup } from "../services/leagues";
+import { matchupOutcome, outcomeText, type Matchup } from "../services/leagues";
 import { makeLeaguesStyles } from "../styles/leagues";
 import AnimatedBar from "./AnimatedBar";
 import LiveDot from "./LiveDot";
 import PressableScale from "./PressableScale";
 
-const OUTCOME_TEXT = {
-  won: "YOU WON",
-  lost: "YOU LOST",
-  drew: "DRAW",
-  leading: "YOU LEAD",
-  trailing: "YOU TRAIL",
-  level: "TIED",
-} as const;
 
 /** A head-to-head on one card: both names and their points at the league's
  * tier. Your side is on the left. Tapping a side opens that player. `bare`
@@ -89,7 +81,7 @@ export default function MatchupCard({
                 letterSpacing: 1.5,
               }}
             >
-              {OUTCOME_TEXT[outcome]}
+              {outcomeText(outcome, a.points, b.points)}
             </Text>
           )}
         </View>

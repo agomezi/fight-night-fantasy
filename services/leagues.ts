@@ -78,9 +78,10 @@ export const TIER_LABEL: Record<LeagueTier, string> = {
 
 /** What each tier changes, in a line. Hardcore is not open yet. */
 export const TIER_BLURB: Record<Exclude<LeagueTier, "hardcore">, string> = {
-  casual: "Half deductions, and your season total never drops below 0.",
-  amateur: "Full deductions with a floor at 0 — but an all-wrong pick at 0 leaves you owing 20.",
-  pro: "Full deductions, no floor. Every point counts both ways.",
+  casual: "The main card, every bout of it. Half deductions, and your season total never drops below 0.",
+  amateur:
+    "The main card and the last 3 prelims, every bout of them. Full deductions with a floor at 0 — but an all-wrong pick at 0 leaves you owing 20.",
+  pro: "The whole card, the main event required. Full deductions, no floor. Every point counts both ways.",
 };
 
 export function recordOf(wins: number, losses: number, draws: number): string {
@@ -89,7 +90,8 @@ export function recordOf(wins: number, losses: number, draws: number): string {
 
 /** "1", or "T-2" when the rank is shared. */
 export function rankLabel(rank: number | null, tied = false): string {
-  if (rank == null) return "—";
+  // Not ranked yet: no pick scored, or joined mid-season.
+  if (rank == null) return "NR";
   return tied ? `T-${rank}` : String(rank);
 }
 
@@ -232,6 +234,29 @@ export function currentWeek(weeks: Week[]): Week | null {
 }
 
 /** How a finished or running matchup reads from your side. */
+const OUTCOME_TEXT = {
+  won: "YOU WON",
+  lost: "YOU LOST",
+  drew: "DRAW",
+  leading: "YOU LEAD",
+  trailing: "YOU TRAIL",
+  level: "TIED",
+} as const;
+
+/** The result line under a matchup. A win or loss against the points means
+ * someone sat the card out: no picks loses the matchup whatever the score. */
+export function outcomeText(
+  outcome: keyof typeof OUTCOME_TEXT,
+  mine: number | null,
+  theirs: number | null
+): string {
+  const a = mine ?? 0;
+  const b = theirs ?? 0;
+  if (outcome === "lost" && a >= b) return "NO PICKS · YOU LOST";
+  if (outcome === "won" && a <= b) return "THEY SAT OUT · YOU WON";
+  return OUTCOME_TEXT[outcome];
+}
+
 export function matchupOutcome(m: Matchup): "won" | "lost" | "drew" | "leading" | "trailing" | "level" | null {
   if (m.a.points == null || m.b.points == null) return null;
   if (m.state === "final") {
