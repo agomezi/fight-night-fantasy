@@ -89,7 +89,8 @@ export function recordOf(wins: number, losses: number, draws: number): string {
 
 /** "1", or "T-2" when the rank is shared. */
 export function rankLabel(rank: number | null, tied = false): string {
-  if (rank == null) return "—";
+  // Not ranked yet: no pick scored, or joined mid-season.
+  if (rank == null) return "NR";
   return tied ? `T-${rank}` : String(rank);
 }
 

@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(55);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -357,6 +357,17 @@ select results_eq(
            (3::bigint, 'Bravo', 0, 0, 2, 150), (4::bigint, 'Alpha', 0, 1, 1, 120)$$,
   'a win is worth 3, a draw 1'
 );
+
+-- Nothing scored this season: not ranked yet, however the table falls, and
+-- listed after the players who are.
+reset role;
+delete from public.scores where user_id = pg_temp.u(3);
+set local role authenticated;
+select pg_temp.act(1);
+select ok((select rank is null from public.league_standings(pg_temp.id('L')) where display_name = 'Charlie'),
+  'a player with no scored pick is not ranked');
+select is((select display_name from public.league_standings(pg_temp.id('L')) offset 3 limit 1), 'Charlie',
+  'and is listed after the ranked players');
 
 -------------------------------------------------------------------------------
 -- Leaving

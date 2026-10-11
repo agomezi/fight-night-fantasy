@@ -55,7 +55,7 @@ describe("recordOf and rankLabel", () => {
   test("a shared rank reads T-n and no rank reads as a dash", () => {
     expect(rankLabel(2)).toBe("2");
     expect(rankLabel(2, true)).toBe("T-2");
-    expect(rankLabel(null)).toBe("—");
+    expect(rankLabel(null)).toBe("NR");
   });
 });
 
