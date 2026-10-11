@@ -78,9 +78,10 @@ export const TIER_LABEL: Record<LeagueTier, string> = {
 
 /** What each tier changes, in a line. Hardcore is not open yet. */
 export const TIER_BLURB: Record<Exclude<LeagueTier, "hardcore">, string> = {
-  casual: "Half deductions, and your season total never drops below 0.",
-  amateur: "Full deductions with a floor at 0 — but an all-wrong pick at 0 leaves you owing 20.",
-  pro: "Full deductions, no floor. Every point counts both ways.",
+  casual: "The main card, every bout of it. Half deductions, and your season total never drops below 0.",
+  amateur:
+    "The main card and the last 3 prelims, every bout of them. Full deductions with a floor at 0 — but an all-wrong pick at 0 leaves you owing 20.",
+  pro: "The whole card, the main event required. Full deductions, no floor. Every point counts both ways.",
 };
 
 export function recordOf(wins: number, losses: number, draws: number): string {
