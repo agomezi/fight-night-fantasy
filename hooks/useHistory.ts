@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { loadHistory, type History } from "../services/history";
+import { onLiveChange } from "../services/liveUpdates";
 import { readCache, writeCache } from "../services/screenCache";
 
 type State =
@@ -42,10 +43,16 @@ export function useHistory(): State & { reload: () => void } {
 
   const live = state.status === "ready" && state.history.events.some((e) => e.live || e.provisional);
   useEffect(() => {
-    if (!live) return;
+    if (!live || !userId) return;
+    // Realtime brings changes as they land; the timer is the fallback if it
+    // drops.
+    const stop = onLiveChange(userId, reload);
     const timer = setInterval(reload, LIVE_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [live, reload]);
+    return () => {
+      stop();
+      clearInterval(timer);
+    };
+  }, [live, reload, userId]);
 
   return { ...state, reload };
 }

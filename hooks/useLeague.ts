@@ -12,6 +12,7 @@ import {
   type MyLeague,
   type Week,
 } from "../services/leagues";
+import { onLiveChange } from "../services/liveUpdates";
 import { readCache, writeCache } from "../services/screenCache";
 
 type Ready = {
@@ -91,10 +92,16 @@ export function useLeague(leagueId?: string) {
 
   const live = state.status === "ready" && state.weeks.some((w) => w.state === "live");
   useEffect(() => {
-    if (!live) return;
+    if (!live || !userId) return;
+    // Realtime brings changes as they land; the timer is the fallback if it
+    // drops.
+    const stop = onLiveChange(userId, reload);
     const timer = setInterval(reload, LIVE_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [live, reload]);
+    return () => {
+      stop();
+      clearInterval(timer);
+    };
+  }, [live, reload, userId]);
 
   return { ...state, reload, select };
 }
