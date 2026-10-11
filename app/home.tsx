@@ -32,6 +32,7 @@ import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEv
 import { useAuth } from "../context/AuthContext";
 import { loadDraft, samePicks, withDraft } from "../services/pickDraft";
 import { loadPicks, pickSummary } from "../services/picks";
+import { readCache, writeCache } from "../services/screenCache";
 import type { LanePick } from "../services/pickTypes";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeCommonStyles } from "../styles/common";
@@ -260,7 +261,8 @@ export default function Home() {
   // place of the saved card, flagged as unsaved.
   const { session } = useAuth();
   const userId = session?.user.id;
-  const [serverPicks, setServerPicks] = useState<Record<string, LanePick>>({});
+  const picksKey = userId && event ? `picks:${userId}:${event.id}` : null;
+  const [serverPicks, setServerPicks] = useState<Record<string, LanePick>>(() => readCache(picksKey) ?? {});
   const [draft, setDraftPicks] = useState<Record<string, LanePick> | undefined>(undefined);
   useFocusEffect(
     useCallback(() => {
@@ -273,12 +275,12 @@ export default function Home() {
       if (userId) loadDraft(userId, event.id).then((d) => current && setDraftPicks(d));
       else setDraftPicks(undefined);
       loadPicks(event.bouts)
-        .then((picks) => current && setServerPicks(picks))
+        .then((picks) => current && setServerPicks(writeCache(picksKey, picks)))
         .catch(() => {});
       return () => {
         current = false;
       };
-    }, [event, userId])
+    }, [event, userId, picksKey])
   );
   const saved = useMemo(
     () =>

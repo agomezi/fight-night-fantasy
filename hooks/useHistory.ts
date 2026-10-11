@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { loadHistory, type History } from "../services/history";
+import { onLiveChange } from "../services/liveUpdates";
+import { readCache, writeCache } from "../services/screenCache";
 
 type State =
   | { status: "loading" }
@@ -17,15 +19,19 @@ const LIVE_REFRESH_MS = 60_000;
 export function useHistory(): State & { reload: () => void } {
   const { session } = useAuth();
   const userId = session?.user.id ?? null;
-  const [state, setState] = useState<State>({ status: "loading" });
+  const cacheKey = userId ? `history:${userId}` : null;
+  const [state, setState] = useState<State>(() => {
+    const cached = readCache<History>(cacheKey);
+    return cached ? { status: "ready", history: cached } : { status: "loading" };
+  });
 
   const reload = useCallback(() => {
     if (!userId) return;
     loadHistory(userId)
-      .then((history) => setState({ status: "ready", history }))
+      .then((history) => setState({ status: "ready", history: writeCache(cacheKey, history) }))
       // Keep what is on screen if a refresh fails.
       .catch((e: Error) => setState((prev) => (prev.status === "ready" ? prev : { status: "error", message: e.message })));
-  }, [userId]);
+  }, [userId, cacheKey]);
 
   useEffect(() => {
     reload();
@@ -37,10 +43,16 @@ export function useHistory(): State & { reload: () => void } {
 
   const live = state.status === "ready" && state.history.events.some((e) => e.live || e.provisional);
   useEffect(() => {
-    if (!live) return;
+    if (!live || !userId) return;
+    // Realtime brings changes as they land; the timer is the fallback if it
+    // drops.
+    const stop = onLiveChange(userId, reload);
     const timer = setInterval(reload, LIVE_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [live, reload]);
+    return () => {
+      stop();
+      clearInterval(timer);
+    };
+  }, [live, reload, userId]);
 
   return { ...state, reload };
 }

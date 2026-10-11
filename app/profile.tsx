@@ -20,6 +20,7 @@ import { useHistory } from "../hooks/useHistory";
 import { useLeague } from "../hooks/useLeague";
 import { achievementsFor, recentPicks } from "../services/achievements";
 import { loadLeaderboard, type LeaderboardRow } from "../services/leaderboard";
+import { readCache, writeCache } from "../services/screenCache";
 import { rankLabel } from "../services/leagues";
 
 export default function Profile() {
@@ -36,12 +37,12 @@ export default function Profile() {
   const history = historyState.status === "ready" ? historyState.history : null;
   const league = useLeague();
   const leagueMe = league.status === "ready" ? (league.standings?.me ?? null) : null;
-  const [globalMe, setGlobalMe] = useState<LeaderboardRow | null>(null);
+  const [globalMe, setGlobalMe] = useState<LeaderboardRow | null>(() => readCache<LeaderboardRow | null>("leaderboard:me") ?? null);
   useFocusEffect(
     useCallback(() => {
       let current = true;
       historyState.reload();
-      loadLeaderboard(1).then((b) => current && setGlobalMe(b.me)).catch(() => {});
+      loadLeaderboard(1).then((b) => current && setGlobalMe(writeCache("leaderboard:me", b.me))).catch(() => {});
       return () => {
         current = false;
       };

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, ActivityIndicator, ScrollView, Share, Text, View } from "react-native";
+import { Alert, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import EmptyState from "../components/EmptyState";
@@ -22,6 +22,7 @@ import {
   type LeagueStanding,
 } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
+import ScreenSkeleton from "../components/ScreenSkeleton";
 
 const MEMBER_NOTE: Partial<Record<LeagueStanding["status"], string>> = {
   queued: "Joins next season",
@@ -75,7 +76,7 @@ export default function LeagueSettings() {
         <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 20, paddingBottom: 32 }}>
           {header}
           {state.status === "loading" ? (
-            <ActivityIndicator color={c.red} style={{ marginTop: 40 }} />
+            <ScreenSkeleton variant="list" rows={5} />
           ) : (
             <EmptyState
               icon="settings-outline"

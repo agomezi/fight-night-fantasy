@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, Share, Text, View } from "react-native";
+import { ScrollView, Share, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomNav from "../components/BottomNav";
@@ -18,6 +18,7 @@ import SwipeableCards from "../components/SwipeableCards";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useLeague } from "../hooks/useLeague";
+import { readCache, writeCache } from "../services/screenCache";
 import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import {
   currentWeek,
@@ -29,6 +30,7 @@ import {
 } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
+import ScreenSkeleton from "../components/ScreenSkeleton";
 
 function ordinal(n: number) {
   const t = ["th", "st", "nd", "rd"];
@@ -47,11 +49,11 @@ export default function Leagues() {
   const [viewing, setViewing] = useState<string | null>(null);
 
   // The global table: the top five and, if you're further down, you.
-  const [board, setBoard] = useState<Leaderboard | null>(null);
+  const [board, setBoard] = useState<Leaderboard | null>(() => readCache<Leaderboard>("leaderboard:5") ?? null);
   useFocusEffect(
     useCallback(() => {
       let current = true;
-      loadLeaderboard(5).then((b) => current && setBoard(b)).catch(() => {});
+      loadLeaderboard(5).then((b) => current && setBoard(writeCache("leaderboard:5", b))).catch(() => {});
       return () => {
         current = false;
       };
@@ -90,7 +92,7 @@ export default function Leagues() {
   );
 
   if (state.status === "loading") {
-    return shell(<ActivityIndicator color={c.red} style={{ marginTop: 80 }} />);
+    return shell(<ScreenSkeleton variant="leagues" />);
   }
 
   if (state.status === "error") {

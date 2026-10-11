@@ -24,9 +24,10 @@ const MINUTE = 60 * SECOND;
 
 /** How long until this event is worth reading again. */
 function nextPollIn(card: LiveCard, hasProvisional: boolean): number {
-  // A fight is on, from walkout to result: this is where latency matters.
-  if (card.liveFightId || card.bouts.some(b => b.status === "live")) return 30 * SECOND;
-  if (card.status === "live") return MINUTE; // between fights
+  // While the card is live, every result is worth catching the moment the
+  // feed has it: during a fight, and between fights, when the last one's
+  // result may not be posted yet.
+  if (card.status === "live" || card.liveFightId || card.bouts.some(b => b.status === "live")) return 10 * SECOND;
   if (card.status === "scheduled") return 5 * MINUTE; // before the first bout
   // The card is over. Results read provisional until the feed marks them
   // final, which takes about ten minutes; after that, check a few times a

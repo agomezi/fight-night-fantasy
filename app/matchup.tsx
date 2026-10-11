@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
@@ -15,6 +15,7 @@ import { useLeague } from "../hooks/useLeague";
 import { currentWeek, type Matchup, type MatchupState } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
+import ScreenSkeleton from "../components/ScreenSkeleton";
 
 function StatusPill({ state }: { state: MatchupState }) {
   const { c } = useTheme();
@@ -97,7 +98,7 @@ export default function MatchupScreen() {
           <Text style={styles.screenSub}>{state.league.name}</Text>
         )}
 
-        {state.status === "loading" && <ActivityIndicator color={c.red} style={{ marginTop: 40 }} />}
+        {state.status === "loading" && <ScreenSkeleton variant="list" rows={5} />}
         {state.status === "error" && (
           <EmptyState icon="cloud-offline-outline" title="Couldn't load the matchups" message={state.message}
             actionLabel="TRY AGAIN" onAction={state.reload} />
