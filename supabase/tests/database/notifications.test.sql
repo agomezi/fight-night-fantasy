@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(21);
 
 create function pg_temp.f(id text) returns jsonb language sql as $$
   select jsonb_build_object('ufcFighterId', id, 'name', 'Fighter ' || id, 'nickname', null)
@@ -78,6 +78,8 @@ select results_eq(
   $$values ('scored', 50, 'Fighter nr1', 'Fighter nb1', 'KO', 2, false, true)$$,
   'a scored fight is claimed with its result and points'
 );
+select is((select (payload->>'bout')::uuid from first_claim), pg_temp.bid('n11'),
+  'it names its bout, so tapping it opens history there');
 select is((select count(*)::int from public.claim_event_notifications(pg_temp.ev())), 0, 'it is only sent once');
 
 -- The result turns final with the same points: nothing new to say.
