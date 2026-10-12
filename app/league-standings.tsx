@@ -87,7 +87,7 @@ export default function LeagueStandings() {
                   <Text style={styles.columnLabel}>PTS</Text>
                 </View>
                 {rows.map((row, i) => (
-                  <LeagueStandingRow key={row.userId} row={row} index={i} onPress={() => setViewing(row.userId)} />
+                  <LeagueStandingRow key={row.userId} row={row} index={i} move={state.moves[row.userId]} onPress={() => setViewing(row.userId)} />
                 ))}
               </>
             )}

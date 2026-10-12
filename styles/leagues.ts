@@ -107,7 +107,14 @@ export const makeLeaguesStyles = (c: Palette) =>
       borderColor: "rgba(232,0,61,0.35)",
     },
     rankCell: {
-      width: 42,
+      width: 64,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    // Wide enough for the belt, so ranks line up whatever mark sits beside them.
+    rankMark: {
+      width: 32,
       alignItems: "center",
     },
     rank: {
@@ -118,19 +125,6 @@ export const makeLeaguesStyles = (c: Palette) =>
     rankMuted: {
       color: c.textMuted,
     },
-    moveRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 1,
-      marginTop: 2,
-    },
-    moveText: {
-      fontSize: 10,
-      fontWeight: "700",
-    },
-    moveUp: { color: c.green },
-    moveDown: { color: c.red },
-    moveFlat: { color: c.textFaint },
     avatar: {
       width: 38,
       height: 38,
@@ -390,11 +384,6 @@ export const makeLeaguesStyles = (c: Palette) =>
     },
     toggleTextActive: {
       color: "#FFFFFF",
-    },
-    crown: {
-      position: "absolute",
-      top: -6,
-      left: -4,
     },
 
     // --- matchup screen ----------------------------------------------------
