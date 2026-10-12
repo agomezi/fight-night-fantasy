@@ -41,7 +41,7 @@ export default function HeaderBar({ title = "Fight Night Fantasy" }: { title?: s
     <>
       <View style={commonStyles.row}>
         <PressableScale
-          onPress={() => router.push("/profile")}
+          onPress={() => router.navigate("/profile")}
           hitSlop={8}
           scaleTo={0.92}
         >
@@ -53,7 +53,7 @@ export default function HeaderBar({ title = "Fight Night Fantasy" }: { title?: s
         </Text>
 
         <PressableScale
-          onPress={() => router.push("/notifications")}
+          onPress={() => router.navigate("/notifications")}
           hitSlop={8}
           scaleTo={0.92}
         >

@@ -12,6 +12,10 @@ import { useTheme } from "../context/ThemeContext";
  * A progress bar that fills from empty on mount and eases whenever the value
  * changes. A bar that's just *there* at 61% reads as a static image; watching
  * it travel is most of what makes a stat feel measured rather than printed.
+ *
+ * The fill is full width and slides in from the left rather than growing:
+ * animating width re-lays out the screen every frame, which made scrolling
+ * the profile stutter while its bars filled.
  */
 export default function AnimatedBar({
   percent,
@@ -31,6 +35,8 @@ export default function AnimatedBar({
 }) {
   const { c } = useTheme();
   const progress = useSharedValue(0);
+  // The track's width, measured once laid out; hidden until then.
+  const trackWidth = useSharedValue(0);
 
   const target = Math.max(0, Math.min(100, percent));
 
@@ -39,11 +45,15 @@ export default function AnimatedBar({
   }, [delay, progress, target]);
 
   const fillStyle = useAnimatedStyle(() => ({
-    width: `${progress.value}%`,
+    opacity: trackWidth.value > 0 ? 1 : 0,
+    transform: [{ translateX: (progress.value / 100 - 1) * trackWidth.value }],
   }));
 
   return (
     <View
+      onLayout={(e) => {
+        trackWidth.value = e.nativeEvent.layout.width;
+      }}
       style={[
         {
           height,
@@ -57,6 +67,7 @@ export default function AnimatedBar({
       <Animated.View
         style={[
           {
+            width: "100%",
             height: "100%",
             borderRadius: height / 2,
             backgroundColor: color ?? c.red,

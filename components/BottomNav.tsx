@@ -89,7 +89,12 @@ export default function BottomNav({ active }: { active: TabKey }) {
           isActive={tab.key === active}
           onPress={() => {
             if (tab.key === active) return;
-            router.navigate(tab.route as never);
+            // Home stays at the bottom and the other tabs swap places on top
+            // of it, going back to a copy already open rather than opening
+            // another. A plain navigate pushes a new copy every time, so a
+            // night of switching tabs piled up dozens of live screens.
+            if (active === "home") router.push(tab.route as never);
+            else router.dismissTo(tab.route as never);
           }}
         />
       ))}
