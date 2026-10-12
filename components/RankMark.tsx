@@ -71,8 +71,8 @@ export function TitleBelt({ height = 20 }: { height?: number }) {
   );
 }
 
-/** The league trophy, in the belt's gold and leather with its centre bar on
- * the cup: what the home card holds up from 4th down. */
+/** The league trophy, in the belt's flat gold: what the home card holds up
+ * from 4th down. */
 export function LeagueTrophy({ height = 60 }: { height?: number }) {
   return (
     <Svg width={(height * 60) / 68} height={height} viewBox="10 6 60 68" fill="none">
@@ -90,18 +90,12 @@ export function LeagueTrophy({ height = 60 }: { height?: number }) {
       />
       <Rect x={22} y={11} width={36} height={4.5} rx={1.2} fill="#C8901A" />
       <Rect x={22} y={11} width={36} height={1.6} rx={0.8} fill="#FFE38F" />
-      <Path fill="#C8901A" d="M34.5 24.5 36 23h8l1.5 1.5z M35.2 33.8h9.6l-1.5 1.5h-6.6z" />
-      <Path fill="#C8901A" d="M32 31.5h16v1.3H32z" />
-      <Path fill="#FFCA3A" d="M32 26h16v5.5H32z" />
-      <Path fill="#FFE38F" d="M32 26h16v.8H32z" />
-      <Path fill="#C8901A" d="M36.5 46.5h7l2 8h-11z" />
-      <Path fill="#FFE38F" d="M36.5 46.5h2.2l-1.2 8h-3z" />
-      <Rect x={30} y={54.5} width={20} height={3.2} rx={1} fill="#FFCA3A" />
-      <Rect x={30} y={54.5} width={20} height={1} rx={0.5} fill="#FFE38F" />
-      <Rect x={24} y={57.5} width={32} height={12} rx={1.6} fill="#1D1D1F" />
-      <Rect x={24} y={57.5} width={32} height={5} rx={1.6} fill="#353538" />
-      <Rect x={32} y={61.5} width={16} height={4.2} rx={0.8} fill="#C8901A" />
-      <Rect x={32.8} y={62.2} width={14.4} height={2.8} rx={0.5} fill="#FFCA3A" />
+      <Path fill="#C8901A" d="M36.5 46.5h7l2 9h-11z" />
+      <Path fill="#FFE38F" d="M36.5 46.5h2.2l-1.2 9h-3z" />
+      <Rect x={29} y={55} width={22} height={5} rx={1} fill="#FFCA3A" />
+      <Rect x={29} y={55} width={22} height={1.4} rx={0.7} fill="#FFE38F" />
+      <Rect x={25} y={60} width={30} height={7} rx={1.4} fill="#C8901A" />
+      <Rect x={25} y={60} width={30} height={2} rx={1} fill="#FFCA3A" />
     </Svg>
   );
 }
