@@ -3,7 +3,8 @@
 //
 //   {}                       every event that is due now
 //   { "eventId": "…" }       one stored event, due or not, for a manual re-run
-//   { "mode": "reminders" }  lock reminders for cards starting within the hour
+//   { "mode": "reminders" }  lock reminders: an hour before a card starts
+//                            locking, and 30 minutes before its main card
 //   { "mode": "activity" }   league activity (joins) and new reports, sent as
 //                            they happen
 //

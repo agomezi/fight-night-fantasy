@@ -32,6 +32,25 @@ describe("notificationText", () => {
     );
   });
 
+  test("main card reminder counts the fights left to pick", () => {
+    expect(
+      notificationText("reminder", { event: "UFC 333: A vs. B", minutes: 30, hasMainPick: false, section: "main", missing: 3 })
+    ).toEqual({
+      title: "Main card starts in 30 min",
+      body: "You have 3 main card fights left to pick. Lock in your picks before it starts.",
+      data: { screen: "picks" },
+    });
+    expect(
+      notificationText("reminder", { event: "UFC 333: A vs. B", minutes: 30, hasMainPick: true, section: "main", missing: 1 }).body
+    ).toBe("You have 1 main card fight left to pick. Lock in your picks before it starts.");
+  });
+
+  test("main card reminder for someone with every main card fight picked", () => {
+    expect(
+      notificationText("reminder", { event: "UFC 333: A vs. B", minutes: 25, hasMainPick: true, section: "main", missing: 0 }).body
+    ).toBe("Your main card picks are in. Last chance to change them before it locks.");
+  });
+
   test("a scored fight names the result and your points", () => {
     expect(notificationText("scored", fight)).toEqual({
       title: "Alexander Hernandez def. Rafael Dos Anjos",
