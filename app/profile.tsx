@@ -102,10 +102,11 @@ export default function Profile() {
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{getInitials(profile.username)}</Text>
           </View>
-          <Text style={styles.username}>{profile.username}</Text>
-          <View style={styles.levelPill}>
-            <Text style={styles.levelPillText}>LEVEL 1</Text>
+          <View>
+            <Text style={styles.username}>{profile.username}</Text>
+            <View style={styles.usernameBar} />
           </View>
+          <Text style={styles.levelText}>LEVEL 1</Text>
           <Text style={styles.memberLine}>New member · {profile.title}</Text>
         </Animated.View>
 

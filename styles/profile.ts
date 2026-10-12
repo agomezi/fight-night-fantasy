@@ -4,7 +4,7 @@ import { Palette } from "../constants/palette";
 export const makeProfileStyles = (c: Palette) =>
   StyleSheet.create({
     heroCard: {
-      backgroundColor: c.heroTint,
+      backgroundColor: c.card,
       borderRadius: 18,
       borderWidth: 1,
       borderColor: c.border,
@@ -13,47 +13,46 @@ export const makeProfileStyles = (c: Palette) =>
       overflow: "hidden",
     },
     avatar: {
-      width: 96,
-      height: 96,
-      borderRadius: 16,
-      backgroundColor: c.input,
-      borderWidth: 2,
-      borderColor: c.red,
+      width: 84,
+      height: 84,
+      borderRadius: 42,
+      backgroundColor: c.borderStrong,
       alignItems: "center",
       justifyContent: "center",
     },
     avatarText: {
+      fontFamily: "BebasNeue",
       color: c.text,
-      fontWeight: "700",
-      fontSize: 32,
+      fontSize: 38,
+      letterSpacing: 1,
     },
+    // The one red thing on the card is the short bar under the name.
     username: {
       fontFamily: "BebasNeue",
-      fontSize: 40,
+      fontSize: 42,
       color: c.text,
       letterSpacing: 2,
-      marginTop: 16,
+      marginTop: 14,
       textAlign: "center",
     },
-    levelPill: {
-      marginTop: 10,
-      backgroundColor: "rgba(232,0,61,0.15)",
-      borderWidth: 1,
-      borderColor: "rgba(232,0,61,0.5)",
-      borderRadius: 999,
-      paddingHorizontal: 14,
-      paddingVertical: 5,
+    usernameBar: {
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: c.red,
+      marginHorizontal: "16%",
+      marginTop: 4,
     },
-    levelPillText: {
-      color: c.red,
-      fontSize: 11,
-      fontWeight: "800",
+    levelText: {
+      color: c.text,
+      fontSize: 13,
+      fontWeight: "700",
       letterSpacing: 1.5,
+      marginTop: 12,
     },
     memberLine: {
       color: c.blue,
       fontSize: 13,
-      marginTop: 12,
+      marginTop: 8,
       textAlign: "center",
     },
 
