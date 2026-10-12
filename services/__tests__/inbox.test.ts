@@ -14,6 +14,10 @@ describe("notificationHref", () => {
     expect(notificationHref({ screen: "picks" })).toBe("/picks");
   });
 
+  it("opens history at the bout a result was about", () => {
+    expect(notificationHref({ screen: "history", bout: "b 1" })).toBe("/history?bout=b%201");
+  });
+
   it("ignores anything it doesn't know", () => {
     expect(notificationHref({ screen: "settings" })).toBeNull();
     expect(notificationHref(undefined)).toBeNull();
@@ -65,5 +69,22 @@ describe("timeAgo", () => {
 
   it("shows a date after a week", () => {
     expect(timeAgo(new Date("2026-09-20T12:00:00Z"), now)).not.toMatch(/^\d+[mhd]$/);
+  });
+});
+
+describe("toInbox results", () => {
+  const result = {
+    event: "UFC 332: Silva vs. Wang", points: 30, correct: true, counts: true, provisional: false,
+    winner: "A", loser: "B", red: "A", blue: "B", method: "KO", round: 1, time: "1:00", void: null, correction: false,
+  };
+
+  it("opens at the bout the payload names", () => {
+    const [item] = toInbox([{ kind: "scored", key: "b-1:30", payload: { ...result, bout: "b-1" }, sent_at: "2026-10-06T04:00:00Z", read: true }]);
+    expect(item.href).toBe("/history?bout=b-1");
+  });
+
+  it("finds the bout in the key for results sent before payloads named it", () => {
+    const [item] = toInbox([{ kind: "scored", key: "b-2:-40", payload: result, sent_at: "2026-10-06T04:00:00Z", read: true }]);
+    expect(item.href).toBe("/history?bout=b-2");
   });
 });

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
@@ -44,9 +44,33 @@ export default function History() {
   const past = history?.events ?? [];
   const season = history?.season;
 
-  // Most recent event opens by default — it's the one you came to check.
+  // Opened from a result notification: that bout's card opens, scrolled to
+  // the fight, which is lit up for a moment.
+  const { bout: focusBout } = useLocalSearchParams<{ bout?: string }>();
+  const focusEvent = focusBout ? past.find((e) => e.bouts.some((b) => b.id === focusBout))?.id : undefined;
+  const scrollRef = useRef<ScrollView>(null);
+  const focusRef = useRef<View>(null);
+  const scrolled = useRef(false);
+  const [lit, setLit] = useState(true);
+  useEffect(() => {
+    if (!focusEvent) return;
+    const t = setTimeout(() => setLit(false), 2500);
+    return () => clearTimeout(t);
+  }, [focusEvent]);
+  const scrollToFocus = () => {
+    const inner = scrollRef.current?.getInnerViewNode();
+    if (scrolled.current || !inner || !focusRef.current) return;
+    scrolled.current = true;
+    focusRef.current.measureLayout(
+      inner,
+      (_x, y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 140), animated: true }),
+      () => {}
+    );
+  };
+
+  // Otherwise the most recent event opens — it's the one you came to check.
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  const isOpen = (id: string) => open[id] ?? id === past[0]?.id;
+  const isOpen = (id: string) => open[id] ?? id === (focusEvent ?? past[0]?.id);
   const toggle = (id: string) => setOpen((p) => ({ ...p, [id]: !isOpen(id) }));
 
   const accuracy = season && season.total > 0 ? Math.round((season.hit / season.total) * 100) : null;
@@ -62,6 +86,7 @@ export default function History() {
       edges={["top", "left", "right"]}
     >
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 20, paddingBottom: 28 }}
@@ -267,21 +292,34 @@ export default function History() {
                         borderBottomColor: c.border,
                       }}
                     >
-                      {e.bouts.map((b, bi) => (
-                        <ResultRow
-                          key={b.id}
-                          index={bi}
-                          red={b.red}
-                          blue={b.blue}
-                          meta={b.meta}
-                          detail={b.detail}
-                          points={b.points}
-                          verdict={b.verdict}
-                          verdictNote={b.voidNote ? `${b.pick} · ${b.voidNote}` : b.pick}
-                          settled={b.settled}
-                          last={bi === e.bouts.length - 1}
-                        />
-                      ))}
+                      {e.bouts.map((b, bi) => {
+                        const focused = b.id === focusBout;
+                        return (
+                          <View
+                            key={b.id}
+                            ref={focused ? focusRef : undefined}
+                            onLayout={focused ? scrollToFocus : undefined}
+                            style={
+                              focused && lit
+                                ? { backgroundColor: c.redTint, borderRadius: 10, marginHorizontal: -8, paddingHorizontal: 8 }
+                                : undefined
+                            }
+                          >
+                            <ResultRow
+                              index={bi}
+                              red={b.red}
+                              blue={b.blue}
+                              meta={b.meta}
+                              detail={b.detail}
+                              points={b.points}
+                              verdict={b.verdict}
+                              verdictNote={b.voidNote ? `${b.pick} · ${b.voidNote}` : b.pick}
+                              settled={b.settled}
+                              last={bi === e.bouts.length - 1}
+                            />
+                          </View>
+                        );
+                      })}
                       <PressableScale
                         onPress={() => router.push({ pathname: "/event/[id]", params: { id: e.id } })}
                         style={{ paddingTop: 12, alignItems: "center" }}

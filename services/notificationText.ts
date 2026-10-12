@@ -6,6 +6,8 @@ export type NotificationKind = "reminder" | "scored" | "final" | "league_join" |
 export type ReminderPayload = { event: string; minutes: number; hasMainPick: boolean };
 export type ScoredPayload = {
   event: string;
+  /** The bout, so tapping opens history at it. Missing on older sends. */
+  bout?: string;
   points: number;
   /** What the underdog multiplier added; 0 or missing when it didn't apply. */
   dogBonus?: number;
@@ -37,8 +39,9 @@ export type ModerationPayload = {
 /** Where players write to appeal a decision. */
 export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
 
-/** `screen` is where tapping it goes; `leagueId` picks the league there. */
-export type Message = { title: string; body: string; data: { screen: string; leagueId?: string } };
+/** `screen` is where tapping it goes; `leagueId` picks the league there and
+ * `bout` the fight in history. */
+export type Message = { title: string; body: string; data: { screen: string; leagueId?: string; bout?: string } };
 
 const METHOD = { KO: "KO/TKO", SUB: "Submission", DEC: "Decision" } as const;
 const VOID = {
@@ -68,13 +71,17 @@ function reminder(p: ReminderPayload): Message {
   };
 }
 
+function atBout(bout: string | undefined): Message["data"] {
+  return bout ? { screen: "history", bout } : { screen: "history" };
+}
+
 function scored(p: ScoredPayload): Message {
   const prefix = p.correction ? "Correction: " : "";
   if (p.void || !p.winner) {
     return {
       title: `${prefix}${p.red} vs ${p.blue}`,
       body: `${VOID[p.void ?? ""] ?? "Void"}. No points either way.`,
-      data: { screen: "history" },
+      data: atBout(p.bout),
     };
   }
   const how = p.method ? METHOD[p.method] : "";
@@ -82,8 +89,9 @@ function scored(p: ScoredPayload): Message {
   const verdict = p.correct ? "✓" : "✗";
   return {
     title: `${prefix}${p.winner} def. ${p.loser}`,
-    body: `${how}${when} — ${verdict} ${signed(p.points)} pts${p.dogBonus ? ` (+${p.dogBonus} DOG)` : ""}${p.provisional ? " (provisional)" : ""}`,
-    data: { screen: "history" },
+    // Provisional results can still be corrected by the official feed.
+    body: `${how}${when} — ${verdict} ${signed(p.points)} pts${p.dogBonus ? ` (+${p.dogBonus} DOG)` : ""}${p.provisional ? " · may still change" : ""}`,
+    data: atBout(p.bout),
   };
 }
 

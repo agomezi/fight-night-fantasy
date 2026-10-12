@@ -11,5 +11,8 @@ export const selectedLeagueKey = (userId: string) => `fnf.league.selected.${user
 // Picks edited but not locked in yet, per account and event.
 export const pickDraftKey = (userId: string, eventId: string) => `fnf.picks.draft.${userId}.${eventId}`;
 
+// A league's table before the latest card, for the up/down arrows, per account.
+export const rankMovesKey = (userId: string, leagueId: string) => `fnf.league.moves.${userId}.${leagueId}`;
+
 // Set once the first launch's boot animation has played on this phone.
 export const BOOT_SEEN_KEY = "fnf.boot.seen";

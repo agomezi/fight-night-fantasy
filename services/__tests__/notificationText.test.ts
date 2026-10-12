@@ -42,7 +42,11 @@ describe("notificationText", () => {
 
   test("a miss on a provisional decision", () => {
     const msg = notificationText("scored", { ...fight, method: "DEC", round: null, time: null, correct: false, points: -80, provisional: true });
-    expect(msg.body).toBe("Decision — ✗ −80 pts (provisional)");
+    expect(msg.body).toBe("Decision — ✗ −80 pts · may still change");
+  });
+
+  test("a result names its bout, so tapping opens history at it", () => {
+    expect(notificationText("scored", { ...fight, bout: "b-9" }).data).toEqual({ screen: "history", bout: "b-9" });
   });
 
   test("a correction says so", () => {

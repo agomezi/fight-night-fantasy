@@ -1,12 +1,12 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
-import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { useThemedStyles } from "../context/ThemeContext";
 import { rankLabel, type LeagueStanding } from "../services/leagues";
 import { makeLeaguesStyles } from "../styles/leagues";
 import PressableScale from "./PressableScale";
+import RankMark from "./RankMark";
 
 const STATUS_NOTE: Partial<Record<LeagueStanding["status"], string>> = {
   queued: "NEXT SEASON",
@@ -14,17 +14,19 @@ const STATUS_NOTE: Partial<Record<LeagueStanding["status"], string>> = {
 };
 
 /** One member of a league table: rank, record and points. Unranked members
- * (queued for next season) show their points with no rank. */
+ * (queued for next season) show their points with no rank. `move` is places
+ * climbed since before the last card, for the arrow from 4th down. */
 export default function LeagueStandingRow({
   row,
   index = 0,
+  move,
   onPress,
 }: {
   row: LeagueStanding;
   index?: number;
+  move?: number;
   onPress?: () => void;
 }) {
-  const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
   const note = STATUS_NOTE[row.status];
   const accuracy = row.accuracy == null ? null : `${row.accuracy}%`;
@@ -38,11 +40,9 @@ export default function LeagueStandingRow({
         style={[styles.standingRow, row.isMe && styles.standingRowMe]}
       >
         <View style={styles.rankCell}>
-          {row.rank === 1 && (
-            <View style={styles.crown}>
-              <Ionicons name="trophy" size={12} color={c.red} />
-            </View>
-          )}
+          <View style={styles.rankMark}>
+            <RankMark rank={row.rank} move={move} size={18} />
+          </View>
           <Text style={[styles.rank, !row.isMe && (row.rank == null || row.rank > 3) && styles.rankMuted]}>
             {rankLabel(row.rank, row.tied)}
           </Text>

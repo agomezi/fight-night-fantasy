@@ -8,6 +8,7 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
+import RankMark, { LeagueTrophy } from "../components/RankMark";
 import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -671,7 +672,13 @@ export default function Home() {
               ...(myStanding && myLeague
                 ? {
                     serial: myLeague.name.toUpperCase(),
-                    mark: <CardMark name="trophy" color={c.gold} opacity={1} />,
+                    // The belt only when you hold 1st, medals for 2nd and 3rd,
+                    // and below that the league trophy you're chasing.
+                    mark: (
+                      <View pointerEvents="none" style={{ position: "absolute", right: 20, top: 52 }}>
+                        {myStanding.rank > 3 ? <LeagueTrophy height={66} /> : <RankMark rank={myStanding.rank} size={52} />}
+                      </View>
+                    ),
                     tag: "CURRENT LEAGUE RANK",
                     tagColor: c.textMuted,
                     title: myStanding.tied ? `T-${myStanding.rank}` : ordinal(myStanding.rank),
