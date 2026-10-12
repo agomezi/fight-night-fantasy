@@ -1,7 +1,7 @@
 import { COMBO_MS, nextGuard } from "../../components/bootCombo";
 
 describe("nextGuard", () => {
-  test("ends a quick start on the jab", () => {
+  test("ends right after the jab if ready early in the combo", () => {
     expect(nextGuard(0)).toBe(260);
     expect(nextGuard(260)).toBe(260);
   });

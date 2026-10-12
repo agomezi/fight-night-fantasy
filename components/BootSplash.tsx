@@ -2,13 +2,15 @@ import { Image } from "expo-image";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 import Animated, { FadeOut } from "react-native-reanimated";
-import { nextGuard } from "./bootCombo";
+import { nextGuard, STILL_MS } from "./bootCombo";
 
 /** The art's own background, so the edges of the GIF disappear into it. */
 const BACKGROUND = "#0A0A0A";
-const ART = require("../assets/images/boot-combo.gif");
+/** The fighter in his guard: the combo's first frame, held still. */
+const STILL = require("../assets/images/boot-guard.png");
+const COMBO = require("../assets/images/boot-combo.gif");
 const ART_WIDTH = 344;
 const ART_HEIGHT = 384;
 
@@ -17,33 +19,45 @@ const FALLBACK_MS = 500;
 
 /**
  * What a cold start shows while the session and profile are read: the
- * fighter working the bag. It takes over from the native splash once its
- * first frame is up, and calls `onDone` at the first guard after `ready`
- * (see bootCombo), so a quick start is just the jab and a slow one keeps
- * going. Fades out over the app, which has been mounting underneath.
+ * fighter standing in his guard by the bag. If that takes longer than
+ * STILL_MS he starts working it, and once ready finishes the strike in
+ * progress first (see bootCombo). It takes over from the native splash once
+ * the art is up and fades out over the app, which mounts underneath.
  */
 export default function BootSplash({ ready, onDone }: { ready: boolean; onDone: () => void }) {
   const { width } = useWindowDimensions();
   const artWidth = Math.min(ART_WIDTH, width * 0.8);
-  // When the first frame went up.
-  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const artStyle = { width: artWidth, height: (artWidth * ART_HEIGHT) / ART_WIDTH };
+  // When the still went up, and when the combo's first frame did.
+  const [stillAt, setStillAt] = useState<number | null>(null);
+  const [comboAt, setComboAt] = useState<number | null>(null);
+  const [slow, setSlow] = useState(false);
 
-  const start = useCallback(() => {
-    setStartedAt((t) => t ?? Date.now());
+  const showStill = useCallback(() => {
+    setStillAt((t) => t ?? Date.now());
     SplashScreen.hideAsync().catch(() => {});
   }, []);
+  const showCombo = useCallback(() => setComboAt((t) => t ?? Date.now()), []);
 
   useEffect(() => {
-    const t = setTimeout(start, FALLBACK_MS);
+    const t = setTimeout(showStill, FALLBACK_MS);
     return () => clearTimeout(t);
-  }, [start]);
+  }, [showStill]);
 
   useEffect(() => {
-    if (!ready || startedAt == null) return;
-    const elapsed = Date.now() - startedAt;
+    if (ready || stillAt == null) return;
+    const t = setTimeout(() => setSlow(true), STILL_MS);
+    return () => clearTimeout(t);
+  }, [ready, stillAt]);
+
+  useEffect(() => {
+    if (!ready || stillAt == null) return;
+    // Still in his guard: go now.
+    if (comboAt == null) return onDone();
+    const elapsed = Date.now() - comboAt;
     const t = setTimeout(onDone, nextGuard(elapsed) - elapsed);
     return () => clearTimeout(t);
-  }, [ready, startedAt, onDone]);
+  }, [ready, stillAt, comboAt, onDone]);
 
   return (
     <Animated.View
@@ -52,13 +66,12 @@ export default function BootSplash({ ready, onDone }: { ready: boolean; onDone: 
       accessible
       accessibilityLabel="Loading"
     >
-      <Image
-        source={ART}
-        style={{ width: artWidth, height: (artWidth * ART_HEIGHT) / ART_WIDTH }}
-        contentFit="contain"
-        onDisplay={start}
-        onError={start}
-      />
+      <View style={artStyle}>
+        <Image source={STILL} style={StyleSheet.absoluteFill} contentFit="contain" onDisplay={showStill} onError={showStill} />
+        {/* Starts on the same frame as the still, laid over it, so the switch
+            doesn't show. */}
+        {slow && <Image source={COMBO} style={StyleSheet.absoluteFill} contentFit="contain" onDisplay={showCombo} />}
+      </View>
       <StatusBar style="light" />
     </Animated.View>
   );
