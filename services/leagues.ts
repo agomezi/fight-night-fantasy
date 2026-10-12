@@ -312,6 +312,43 @@ export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
   { value: "other", label: "Something else" },
 ];
 
+/** Your record in one league: this season and every season together. */
+export type LeagueRecord = { leagueId: string; name: string; season: string; allTime: string };
+
+/** One season of a player's record in a league. */
+export type SeasonRecord = { season: number; label: string; record: string };
+
+type RawLeagueRecord = {
+  league_id: string;
+  name: string;
+  season_wins: number;
+  season_losses: number;
+  season_draws: number;
+  wins: number;
+  losses: number;
+  draws: number;
+};
+
+export function toLeagueRecords(raw: RawLeagueRecord[]): LeagueRecord[] {
+  return raw.map((r) => ({
+    leagueId: r.league_id,
+    name: r.name,
+    season: recordOf(Number(r.season_wins), Number(r.season_losses), Number(r.season_draws)),
+    allTime: recordOf(Number(r.wins), Number(r.losses), Number(r.draws)),
+  }));
+}
+
+type RawSeasonRecord = { season: number; wins: number; losses: number; draws: number };
+
+/** Newest season first; season 0 is the pre-season. */
+export function toSeasonRecords(raw: RawSeasonRecord[]): SeasonRecord[] {
+  return raw.map((r) => ({
+    season: Number(r.season),
+    label: Number(r.season) === 0 ? "Pre-season" : `Season ${r.season}`,
+    record: recordOf(Number(r.wins), Number(r.losses), Number(r.draws)),
+  }));
+}
+
 /* ------------------------------------------------------------------ *
  * Database
  * ------------------------------------------------------------------ */
@@ -359,6 +396,18 @@ export async function leaveLeague(leagueId: string): Promise<void> {
 export async function removeMember(leagueId: string, userId: string): Promise<void> {
   const { error } = await (await db()).rpc("remove_league_member", { league: leagueId, member: userId });
   if (error) throw new Error(error.message);
+}
+
+export async function loadMyLeagueRecords(): Promise<LeagueRecord[]> {
+  const { data, error } = await (await db()).rpc("my_league_records");
+  if (error) throw new Error(error.message);
+  return toLeagueRecords((data ?? []) as RawLeagueRecord[]);
+}
+
+export async function loadRecordHistory(leagueId: string, userId: string): Promise<SeasonRecord[]> {
+  const { data, error } = await (await db()).rpc("league_record_history", { league: leagueId, member: userId });
+  if (error) throw new Error(error.message);
+  return toSeasonRecords((data ?? []) as RawSeasonRecord[]);
 }
 
 export async function loadMemberProfile(leagueId: string, userId: string): Promise<MemberProfile | null> {

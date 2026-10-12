@@ -49,6 +49,37 @@ export const makeProfileStyles = (c: Palette) =>
       letterSpacing: 1.5,
       marginTop: 12,
     },
+    rankProgress: {
+      width: 140,
+      marginTop: 10,
+      alignItems: "center",
+      gap: 6,
+    },
+    rankProgressText: {
+      color: c.textFaint,
+      fontSize: 10,
+      fontWeight: "700",
+      letterSpacing: 1,
+    },
+    seasonList: {
+      paddingHorizontal: 16,
+      paddingBottom: 14,
+      paddingLeft: 50,
+      gap: 8,
+    },
+    seasonRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    seasonLabel: {
+      color: c.textMuted,
+      fontSize: 13,
+    },
+    seasonRecord: {
+      color: c.text,
+      fontSize: 13,
+      fontWeight: "700",
+    },
     memberLine: {
       color: c.blue,
       fontSize: 13,
