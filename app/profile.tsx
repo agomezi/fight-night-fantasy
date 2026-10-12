@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Alert, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
@@ -41,20 +41,18 @@ export default function Profile() {
   useFocusEffect(
     useCallback(() => {
       let current = true;
-      historyState.reload();
       loadLeaderboard(1).then((b) => current && setGlobalMe(writeCache("leaderboard:me", b.me))).catch(() => {});
       return () => {
         current = false;
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
 
   const season = history?.season ?? null;
   const points = season?.points ?? 0;
   const accuracy = season && season.total > 0 ? Math.round((season.hit / season.total) * 100) : null;
-  const recent = recentPicks(history);
-  const achievements = achievementsFor(history);
+  const recent = useMemo(() => recentPicks(history), [history]);
+  const achievements = useMemo(() => achievementsFor(history), [history]);
 
   // The route guard returns to the login screen once the session is gone.
   const handleSignOut = () => {

@@ -1,7 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { AppState } from "react-native";
+import { useCallback, useState } from "react";
 import { selectedLeagueKey } from "../constants/storage";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -12,8 +10,8 @@ import {
   type MyLeague,
   type Week,
 } from "../services/leagues";
-import { onLiveChange } from "../services/liveUpdates";
 import { readCache, writeCache } from "../services/screenCache";
+import { useLiveRefresh } from "./useLiveRefresh";
 
 type Ready = {
   status: "ready";
@@ -32,8 +30,8 @@ const LIVE_REFRESH_MS = 60_000;
 /**
  * Your leagues and the one on screen: `leagueId` when a screen was opened for
  * a particular league, otherwise the one you last looked at, otherwise your
- * first. Refreshed on focus, on returning to the app, and every minute while
- * a card is live.
+ * first. Refreshed while in view (see useLiveRefresh), every minute while a
+ * card is live.
  */
 export function useLeague(leagueId?: string) {
   const { session } = useAuth();
@@ -77,31 +75,8 @@ export function useLeague(leagueId?: string) {
     [userId, reload]
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      reload();
-    }, [reload])
-  );
-
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") reload();
-    });
-    return () => sub.remove();
-  }, [reload]);
-
   const live = state.status === "ready" && state.weeks.some((w) => w.state === "live");
-  useEffect(() => {
-    if (!live || !userId) return;
-    // Realtime brings changes as they land; the timer is the fallback if it
-    // drops.
-    const stop = onLiveChange(userId, reload);
-    const timer = setInterval(reload, LIVE_REFRESH_MS);
-    return () => {
-      stop();
-      clearInterval(timer);
-    };
-  }, [live, reload, userId]);
+  useLiveRefresh(reload, live, LIVE_REFRESH_MS);
 
   return { ...state, reload, select };
 }
