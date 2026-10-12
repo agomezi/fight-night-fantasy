@@ -99,6 +99,10 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   const { data: replaced, error: scoreError } = await db.rpc("replace_event_scores", { event_id: eventId, score_rows: scores });
   if (scoreError) throw new Error(scoreError.message);
 
+  // Pro records and league results, kept once the card is final. Never worth
+  // failing a sync over: the next run settles it again.
+  const { error: settleError } = await db.rpc("settle_event", { event: eventId });
+
   const { data: claimed, error: claimError } = await db.rpc("claim_event_notifications", { event_id: eventId });
   const notifications = claimError ? { error: claimError.message } : await notify(db, (claimed ?? []) as Claimed[]);
 
@@ -113,6 +117,7 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
     status: card.status,
     results: recorded,
     scores: { ...replaced, total: scores.length },
+    ...(settleError ? { settle: { error: settleError.message } } : {}),
     notifications,
     nextPoll: dueAt,
     ...(issues.length ? { issues } : {}),
