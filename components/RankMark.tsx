@@ -3,7 +3,8 @@ import Svg, { G, Path, Polygon, Rect, Text as SvgText } from "react-native-svg";
 /*
  * What sits beside a place in a league table: the title belt for 1st, silver
  * and bronze medals for 2nd and 3rd, and from 4th down an arrow for which way
- * the last card moved you (a dash when it didn't).
+ * the last card moved you (a dash when it didn't). The home league card holds
+ * up the league trophy from 4th down instead of an arrow.
  *
  * Drawn in the flat cage-grab style: two or three flat tones a shape, lit from
  * the upper left. Colours are fixed rather than themed, as metals read the
@@ -66,6 +67,41 @@ export function TitleBelt({ height = 20 }: { height?: number }) {
       <Path fill="#C8901A" d="M30 43h20v1.5H30z" />
       <Path fill="#FFCA3A" d="M30 37h20v6H30z" />
       <Path fill="#FFE38F" d="M30 37h20v.7H30z" />
+    </Svg>
+  );
+}
+
+/** The league trophy, in the belt's gold and leather with its centre bar on
+ * the cup: what the home card holds up from 4th down. */
+export function LeagueTrophy({ height = 60 }: { height?: number }) {
+  return (
+    <Svg width={(height * 60) / 68} height={height} viewBox="10 6 60 68" fill="none">
+      <Path d="M25 18 H18.5 Q16.5 18 16.8 20.5 C17.6 26.5 20.5 30.5 26 32.5" stroke="#C8901A" strokeWidth={4} strokeLinecap="round" />
+      <Path d="M55 18 H61.5 Q63.5 18 63.2 20.5 C62.4 26.5 59.5 30.5 54 32.5" stroke="#C8901A" strokeWidth={4} strokeLinecap="round" />
+      <Path fill="#C8901A" d="M24 14 H56 V29 C56 39.5 49 47 40 47 C31 47 24 39.5 24 29 Z" />
+      <Path
+        fill="#FFE38F"
+        d="M24 14 H56 L54.2 16.2 H27.5 C26.8 16.2 26.2 16.8 26.2 17.5 V29 C26.2 34 27.6 38.2 30.2 41.2 L28.8 42.8 C25.7 39.4 24 34.6 24 29 Z"
+      />
+      <Path
+        fill="#FFCA3A"
+        transform="translate(40 30) scale(.86) translate(-40 -30)"
+        d="M24 14 H56 V29 C56 39.5 49 47 40 47 C31 47 24 39.5 24 29 Z"
+      />
+      <Rect x={22} y={11} width={36} height={4.5} rx={1.2} fill="#C8901A" />
+      <Rect x={22} y={11} width={36} height={1.6} rx={0.8} fill="#FFE38F" />
+      <Path fill="#C8901A" d="M34.5 24.5 36 23h8l1.5 1.5z M35.2 33.8h9.6l-1.5 1.5h-6.6z" />
+      <Path fill="#C8901A" d="M32 31.5h16v1.3H32z" />
+      <Path fill="#FFCA3A" d="M32 26h16v5.5H32z" />
+      <Path fill="#FFE38F" d="M32 26h16v.8H32z" />
+      <Path fill="#C8901A" d="M36.5 46.5h7l2 8h-11z" />
+      <Path fill="#FFE38F" d="M36.5 46.5h2.2l-1.2 8h-3z" />
+      <Rect x={30} y={54.5} width={20} height={3.2} rx={1} fill="#FFCA3A" />
+      <Rect x={30} y={54.5} width={20} height={1} rx={0.5} fill="#FFE38F" />
+      <Rect x={24} y={57.5} width={32} height={12} rx={1.6} fill="#1D1D1F" />
+      <Rect x={24} y={57.5} width={32} height={5} rx={1.6} fill="#353538" />
+      <Rect x={32} y={61.5} width={16} height={4.2} rx={0.8} fill="#C8901A" />
+      <Rect x={32.8} y={62.2} width={14.4} height={2.8} rx={0.5} fill="#FFCA3A" />
     </Svg>
   );
 }

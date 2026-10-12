@@ -8,7 +8,7 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
-import RankMark from "../components/RankMark";
+import RankMark, { LeagueTrophy } from "../components/RankMark";
 import { appear, popIn } from "../constants/motion";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -322,7 +322,6 @@ export default function Home() {
   const ranked = standingRows.filter((s) => s.rank != null);
   const me = standingRows.find((s) => s.isMe);
   const myStanding = me && me.rank != null ? { ...me, rank: me.rank } : null;
-  const myMove = me && leagueState.status === "ready" ? leagueState.moves[me.userId] : undefined;
   // Nothing saved yet means the carousel shows the "start your card" prompt
   // instead of a progress ring.
   const picksStarted = Object.keys(saved).length;
@@ -673,10 +672,11 @@ export default function Home() {
               ...(myStanding && myLeague
                 ? {
                     serial: myLeague.name.toUpperCase(),
-                    // Your place's own mark: the belt only when you hold 1st.
+                    // The belt only when you hold 1st, medals for 2nd and 3rd,
+                    // and below that the league trophy you're chasing.
                     mark: (
-                      <View pointerEvents="none" style={{ position: "absolute", right: 20, top: 58 }}>
-                        <RankMark rank={myStanding.rank} move={myMove} size={52} />
+                      <View pointerEvents="none" style={{ position: "absolute", right: 20, top: 52 }}>
+                        {myStanding.rank > 3 ? <LeagueTrophy height={66} /> : <RankMark rank={myStanding.rank} size={52} />}
                       </View>
                     ),
                     tag: "CURRENT LEAGUE RANK",
