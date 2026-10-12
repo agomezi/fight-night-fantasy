@@ -26,11 +26,11 @@ export const makeProfileStyles = (c: Palette) =>
       fontSize: 38,
       letterSpacing: 1,
     },
-    // The one red thing on the card: the name, with a short bar under it.
+    // The one red thing on the card is the short bar under the name.
     username: {
       fontFamily: "BebasNeue",
       fontSize: 42,
-      color: c.red,
+      color: c.text,
       letterSpacing: 2,
       marginTop: 14,
       textAlign: "center",
