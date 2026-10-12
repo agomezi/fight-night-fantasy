@@ -130,10 +130,11 @@ export default function Profile() {
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{getInitials(profile.username)}</Text>
           </View>
-          <Text style={styles.username}>{profile.username}</Text>
-          <View style={styles.levelPill}>
-            <Text style={styles.levelPillText}>{career ? career.rank.toUpperCase() : "—"}</Text>
+          <View>
+            <Text style={styles.username}>{profile.username}</Text>
+            <View style={styles.usernameBar} />
           </View>
+          <Text style={styles.levelText}>{career ? career.rank.toUpperCase() : "—"}</Text>
           {career?.nextRank != null && career.toNext != null && (
             <View style={styles.rankProgress}>
               <AnimatedBar percent={career.progress * 100} height={3} style={{ alignSelf: "stretch" }} />
