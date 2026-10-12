@@ -313,7 +313,7 @@ export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
 ];
 
 /** Your record in one league: this season and every season together. */
-export type LeagueRecord = { leagueId: string; name: string; season: string; allTime: string; played: number };
+export type LeagueRecord = { leagueId: string; name: string; season: string; allTime: string };
 
 /** One season of a player's record in a league. */
 export type SeasonRecord = { season: number; label: string; record: string };
@@ -335,7 +335,6 @@ export function toLeagueRecords(raw: RawLeagueRecord[]): LeagueRecord[] {
     name: r.name,
     season: recordOf(Number(r.season_wins), Number(r.season_losses), Number(r.season_draws)),
     allTime: recordOf(Number(r.wins), Number(r.losses), Number(r.draws)),
-    played: Number(r.wins) + Number(r.losses) + Number(r.draws),
   }));
 }
 

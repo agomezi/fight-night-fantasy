@@ -59,7 +59,7 @@ describe("league records", () => {
       toLeagueRecords([
         { league_id: "l1", name: "Crew", season_wins: 3, season_losses: 1, season_draws: 0, wins: 8, losses: 8, draws: 1 },
       ])
-    ).toEqual([{ leagueId: "l1", name: "Crew", season: "3-1", allTime: "8-8-1", played: 17 }]);
+    ).toEqual([{ leagueId: "l1", name: "Crew", season: "3-1", allTime: "8-8-1" }]);
   });
 
   it("names season 0 the pre-season", () => {

@@ -71,8 +71,8 @@ export default function Profile() {
     const me = session?.user.id;
     if (opening && me) {
       loadRecordHistory(leagueId, me)
-        .then((v) => setSeasons((prev) => ({ ...prev, [leagueId]: v })))
-        .catch(() => {});
+        .catch(() => [] as SeasonRecord[])
+        .then((v) => setSeasons((prev) => ({ ...prev, [leagueId]: v })));
     }
   };
 
@@ -132,7 +132,7 @@ export default function Profile() {
           </View>
           <Text style={styles.username}>{profile.username}</Text>
           <View style={styles.levelPill}>
-            <Text style={styles.levelPillText}>{(career?.rank ?? "Prospect").toUpperCase()}</Text>
+            <Text style={styles.levelPillText}>{career ? career.rank.toUpperCase() : "—"}</Text>
           </View>
           {career?.nextRank != null && career.toNext != null && (
             <View style={styles.rankProgress}>
@@ -143,10 +143,10 @@ export default function Profile() {
             </View>
           )}
           <Text style={styles.memberLine}>
-            {career && career.cards > 0
-              ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}`
-              : "No fights yet"}{" "}
-            · {profile.title}
+            {/* Nothing about your record until it has loaded. */}
+            {career == null
+              ? profile.title
+              : `${career.cards > 0 ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}` : "No fights yet"} · ${profile.title}`}
           </Text>
         </Animated.View>
 
