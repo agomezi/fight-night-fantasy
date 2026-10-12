@@ -21,7 +21,8 @@ import { useLeague } from "../hooks/useLeague";
 import { achievementsFor, recentPicks } from "../services/achievements";
 import { loadLeaderboard, type LeaderboardRow } from "../services/leaderboard";
 import { readCache, writeCache } from "../services/screenCache";
-import { rankLabel } from "../services/leagues";
+import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, type SeasonRecord } from "../services/leagues";
+import { loadCareer, type Career } from "../services/career";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -30,7 +31,7 @@ export default function Profile() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeProfileStyles);
   const { profile } = useProfile();
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
 
   // Your season so far, your place on the global table and in your league.
   const historyState = useHistory();
@@ -47,6 +48,33 @@ export default function Profile() {
       };
     }, [])
   );
+
+  // Your career: rank, pro record, and your record in each league.
+  const [career, setCareer] = useState<Career | null>(() => readCache<Career>("career") ?? null);
+  const [records, setRecords] = useState<LeagueRecord[]>(() => readCache<LeagueRecord[]>("league-records") ?? []);
+  const [openLeague, setOpenLeague] = useState<string | null>(null);
+  const [seasons, setSeasons] = useState<Record<string, SeasonRecord[]>>({});
+  useFocusEffect(
+    useCallback(() => {
+      let current = true;
+      loadCareer().then((v) => current && setCareer(writeCache("career", v))).catch(() => {});
+      loadMyLeagueRecords().then((v) => current && setRecords(writeCache("league-records", v))).catch(() => {});
+      return () => {
+        current = false;
+      };
+    }, [])
+  );
+
+  const toggleLeague = (leagueId: string) => {
+    const opening = openLeague !== leagueId;
+    setOpenLeague(opening ? leagueId : null);
+    const me = session?.user.id;
+    if (opening && me) {
+      loadRecordHistory(leagueId, me)
+        .then((v) => setSeasons((prev) => ({ ...prev, [leagueId]: v })))
+        .catch(() => {});
+    }
+  };
 
   const season = history?.season ?? null;
   const points = season?.points ?? 0;
@@ -104,9 +132,22 @@ export default function Profile() {
           </View>
           <Text style={styles.username}>{profile.username}</Text>
           <View style={styles.levelPill}>
-            <Text style={styles.levelPillText}>LEVEL 1</Text>
+            <Text style={styles.levelPillText}>{(career?.rank ?? "Prospect").toUpperCase()}</Text>
           </View>
-          <Text style={styles.memberLine}>New member · {profile.title}</Text>
+          {career?.nextRank != null && career.toNext != null && (
+            <View style={styles.rankProgress}>
+              <AnimatedBar percent={career.progress * 100} height={3} style={{ alignSelf: "stretch" }} />
+              <Text style={styles.rankProgressText}>
+                {career.toNext} TO {career.nextRank.toUpperCase()}
+              </Text>
+            </View>
+          )}
+          <Text style={styles.memberLine}>
+            {career && career.cards > 0
+              ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}`
+              : "No fights yet"}{" "}
+            · {profile.title}
+          </Text>
         </Animated.View>
 
         <View style={styles.statGrid}>
@@ -183,6 +224,52 @@ export default function Profile() {
               last={i === recent.length - 1}
             />
           ))
+        )}
+
+        {records.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>LEAGUE RECORDS</Text>
+            </View>
+            <View style={styles.menuCard}>
+              {records.map((r, i) => (
+                <View key={r.leagueId} style={i > 0 && styles.menuRowBorder}>
+                  <PressableScale onPress={() => toggleLeague(r.leagueId)} style={styles.menuRow}>
+                    <Ionicons name="trophy-outline" size={20} color={c.text2} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.menuLabel} numberOfLines={1}>
+                        {r.name}
+                      </Text>
+                      <Text style={styles.achievementSub}>
+                        {r.season} this season · {r.allTime} all-time
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={openLeague === r.leagueId ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={c.textFaint}
+                    />
+                  </PressableScale>
+                  {openLeague === r.leagueId && (
+                    <View style={styles.seasonList}>
+                      {(seasons[r.leagueId] ?? []).length === 0 ? (
+                        <Text style={styles.achievementSub}>
+                          {seasons[r.leagueId] ? "No finished matchups yet." : "Loading…"}
+                        </Text>
+                      ) : (
+                        seasons[r.leagueId].map((s) => (
+                          <View key={s.season} style={styles.seasonRow}>
+                            <Text style={styles.seasonLabel}>{s.label}</Text>
+                            <Text style={styles.seasonRecord}>{s.record}</Text>
+                          </View>
+                        ))
+                      )}
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          </>
         )}
 
         <View style={styles.sectionHeader}>
