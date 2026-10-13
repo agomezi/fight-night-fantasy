@@ -36,6 +36,31 @@ begin
 end;
 $$;
 
+-- A bout first stored after it locked, on a card an earlier sync already
+-- stored, is a replacement nobody could pick: it counts as changed after the
+-- lock. A card seen for the first time is left alone.
+create function public.mark_late_bout()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (
+    select 1 from public.events e
+    where e.id = new.event_id and e.created_at < now() and coalesce(new.locks_at, e.locks_at) <= now()
+  ) then
+    new.version_changed_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.mark_late_bout() from public, anon, authenticated;
+
+create trigger bouts_mark_late before insert on public.bouts
+  for each row execute function public.mark_late_bout();
+
 -- True when a bout changed fighters once its picks had locked: nobody could
 -- pick the new pairing, so it doesn't count as part of the card.
 create function public.changed_after_lock(bout uuid)
@@ -194,6 +219,9 @@ as $$
     select m.id, m.id || ':main', m.name, m.main_locks, 'main' from main_locks m
     where m.main_locks > m.card_locks and m.main_locks > now() and m.main_locks <= now() + interval '30 minutes'
   ),
+  due_main as (
+    select d.*, public.pro_main_event(d.id) as main_bout from due d
+  ),
   candidates as (
     select p.id as user_id, d.key,
       jsonb_build_object(
@@ -202,7 +230,7 @@ as $$
         'hasMainPick', exists (
           select 1 from public.picks k
           join public.bouts b on b.id = k.bout_id
-          where k.user_id = p.id and b.id = public.pro_main_event(d.id) and k.bout_version = b.version
+          where k.user_id = p.id and b.id = d.main_bout and k.bout_version = b.version
         )
       ) || case when d.section = 'main' then jsonb_build_object(
         'section', 'main',
@@ -215,7 +243,7 @@ as $$
             )
         )
       ) else '{}'::jsonb end as payload
-    from due d
+    from due_main d
     cross join public.profiles p
     where p.deleted_at is null and exists (select 1 from public.push_tokens t where t.user_id = p.id)
   ),

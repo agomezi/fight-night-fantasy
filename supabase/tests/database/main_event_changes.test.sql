@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 -- Order 1 is the main event, 2 the co-main, 3 a prelim.
 create function pg_temp.card(ev text, starts timestamptz) returns jsonb language sql as $$
@@ -109,6 +109,17 @@ select results_eq(
   $$select substring(user_id::text from 35)::int, result from public.card_results where event_id = pg_temp.ev('mc2') order by 1$$,
   $$values (1, 'L'), (2, 'L'), (3, 'W'), (4, 'W')$$,
   'the pro record is decided on the co-main');
+
+-- A replacement main event the feed lists as a new fight, after the lock.
+select public.sync_event_card(pg_temp.card('mc4', now() - interval '2 hours'));
+update public.events set created_at = now() - interval '1 day' where id = pg_temp.ev('mc4');
+update public.bouts set status = 'cancelled', fight_order = 9 where id = pg_temp.bout('mc4', 1);
+insert into public.bouts (ufc_fight_id, event_id, fight_order, card_segment, scheduled_rounds, red_fighter_id, blue_fighter_id)
+select 'mc4new', b.event_id, 1, 'main', 5, b.red_fighter_id, (select blue_fighter_id from public.bouts where id = pg_temp.bout('mc4', 3))
+from public.bouts b where b.id = pg_temp.bout('mc4', 1);
+select ok(public.changed_after_lock((select id from public.bouts where ufc_fight_id = 'mc4new')),
+  'a fight first stored after the lock counts as changed after it');
+select is(public.pro_main_event(pg_temp.ev('mc4')), pg_temp.bout('mc4', 2), 'so the co-main still stands in');
 
 -------------------------------------------------------------------------------
 -- A draw or no contest
