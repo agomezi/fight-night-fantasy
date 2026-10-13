@@ -4,8 +4,17 @@
 export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation";
 
 /** `section` is "main" for the reminder before the main card locks, which
- * also counts the main card fights you haven't picked. */
-export type ReminderPayload = { event: string; minutes: number; hasMainPick: boolean; section?: "main"; missing?: number };
+ * also counts the main card fights you haven't picked, and "changed" when
+ * the main event you picked changed fighters before locking. */
+export type ReminderPayload = {
+  event: string;
+  minutes?: number;
+  hasMainPick?: boolean;
+  section?: "main" | "changed";
+  missing?: number;
+  red?: string;
+  blue?: string;
+};
 export type ScoredPayload = {
   event: string;
   /** The bout, so tapping opens history at it. Missing on older sends. */
@@ -64,6 +73,13 @@ function signed(points: number): string {
 }
 
 function reminder(p: ReminderPayload): Message {
+  if (p.section === "changed") {
+    return {
+      title: `${title(p.event)} main event changed`,
+      body: `It's now ${p.red} vs ${p.blue}. Your pick no longer counts, so pick it again before it locks.`,
+      data: { screen: "picks" },
+    };
+  }
   if (p.section === "main") {
     const missing = p.missing ?? 0;
     return {
