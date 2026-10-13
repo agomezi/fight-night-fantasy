@@ -135,12 +135,10 @@ export default function Profile() {
             <View style={styles.usernameBar} />
           </View>
           <Text style={styles.levelText}>{career ? career.rank.toUpperCase() : "—"}</Text>
-          {career?.nextRank != null && career.toNext != null && (
+          {/* How close the next rank is, without saying what it is. */}
+          {career?.nextRank != null && (
             <View style={styles.rankProgress}>
               <AnimatedBar percent={career.progress * 100} height={3} style={{ alignSelf: "stretch" }} />
-              <Text style={styles.rankProgressText}>
-                {career.toNext} TO {career.nextRank.toUpperCase()}
-              </Text>
             </View>
           )}
           <Text style={styles.memberLine}>

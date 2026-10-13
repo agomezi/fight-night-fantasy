@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(38);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -101,6 +101,17 @@ select is((select field from public.card_results where user_id = pg_temp.u(2) an
   'the field is everyone who picked the main event');
 select is((select main_event_points from public.card_results where user_id = pg_temp.u(2) and event_id = pg_temp.ev('cr1')), 50,
   '2 and 3 tie at the cut on points; 2''s main event puts them through');
+
+-- 4's main event pick was made before the opponent changed, so it's void.
+update public.scores set counts_for_accuracy = false
+where user_id = pg_temp.u(4) and bout_id = (select id from public.bouts where ufc_fight_id = 'cr11');
+select pg_temp.settle('cr1');
+select results_eq($$select * from pg_temp.results('cr1')$$,
+  $$values (1, 'W'), (2, 'W'), (3, 'L')$$,
+  'a voided main event pick is no fight');
+update public.scores set counts_for_accuracy = true
+where user_id = pg_temp.u(4) and bout_id = (select id from public.bouts where ufc_fight_id = 'cr11');
+select pg_temp.settle('cr1');
 
 -- cr2: 2 and 3 are level on points and main event at the cut line.
 select pg_temp.play(1, 'cr2', 1, 50), pg_temp.play(1, 'cr2', 2, 50);
