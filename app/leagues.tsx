@@ -263,7 +263,7 @@ export default function Leagues() {
                         }}
                       >
                         <Text style={{ color: c.text, fontSize: 12, fontWeight: "800", letterSpacing: 1.5 }}>
-                          VIEW ALL MATCHUPS
+                          PICKS & MATCHUPS
                         </Text>
                         <Ionicons name="arrow-forward" size={15} color={c.text} />
                       </PressableScale>

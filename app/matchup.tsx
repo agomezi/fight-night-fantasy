@@ -8,6 +8,7 @@ import CardBackdrop from "../components/CardBackdrop";
 import EmptyState from "../components/EmptyState";
 import LiveDot from "../components/LiveDot";
 import MatchupCard from "../components/MatchupCard";
+import MatchupPicksList from "../components/MatchupPicksList";
 import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import { appear } from "../constants/motion";
@@ -159,23 +160,28 @@ export default function MatchupScreen() {
             )}
             {mine.length > 0 ? (
               mine.map((m) => (
-                // The same octagon card as the matchup on the Leagues tab.
-                <View
-                  key={m.b.userId}
-                  style={{
-                    marginBottom: 14,
-                    backgroundColor: c.card,
-                    borderRadius: 18,
-                    borderWidth: 1,
-                    borderColor: c.border,
-                    overflow: "hidden",
-                    paddingVertical: 18,
-                  }}
-                >
-                  <CardBackdrop variant="octagon" />
-                  <View style={{ width: "74%", alignSelf: "center" }}>
-                    <MatchupCard matchup={m} onPressPlayer={setViewing} bare />
+                // The same octagon card as the matchup on the Leagues tab,
+                // then both sides' picks.
+                <View key={m.b.userId}>
+                  <View
+                    style={{
+                      marginBottom: 14,
+                      backgroundColor: c.card,
+                      borderRadius: 18,
+                      borderWidth: 1,
+                      borderColor: c.border,
+                      overflow: "hidden",
+                      paddingVertical: 18,
+                    }}
+                  >
+                    <CardBackdrop variant="octagon" />
+                    <View style={{ width: "74%", alignSelf: "center" }}>
+                      <MatchupCard matchup={m} onPressPlayer={setViewing} bare />
+                    </View>
                   </View>
+                  {state.status === "ready" && state.league && (
+                    <MatchupPicksList leagueId={state.league.id} matchup={m} />
+                  )}
                 </View>
               ))
             ) : (
