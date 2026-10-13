@@ -45,6 +45,16 @@ describe("notificationText", () => {
     ).toBe("You have 1 main card fight left to pick. Lock in your picks before it starts.");
   });
 
+  test("a main event that changed fighters asks for the pick again", () => {
+    expect(
+      notificationText("reminder", { event: "UFC 333: A vs. B", section: "changed", red: "Silva", blue: "Wang" })
+    ).toEqual({
+      title: "UFC 333 main event changed",
+      body: "It's now Silva vs Wang. Your pick no longer counts, so pick it again before it locks.",
+      data: { screen: "picks" },
+    });
+  });
+
   test("main card reminder for someone with every main card fight picked", () => {
     expect(
       notificationText("reminder", { event: "UFC 333: A vs. B", minutes: 25, hasMainPick: true, section: "main", missing: 0 }).body
