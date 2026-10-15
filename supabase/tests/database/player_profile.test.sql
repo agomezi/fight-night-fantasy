@@ -37,8 +37,11 @@ select is((select count(*)::int from public.league_member_profile('00000000-0000
 select throws_ok($$select public.report_player(pg_temp.u(2), 'rude', null)$$, 'P0001', 'Pick a reason for the report.',
   'a report needs one of the reasons');
 select is(public.report_player(pg_temp.u(2), 'impersonation', '  pretending to be a pro  '), true, 'a report is filed');
+reset role;
 select is((select (reason, league_id, note)::text from public.name_reports where reported_id = pg_temp.u(2)),
   '(impersonation,,"pretending to be a pro")', 'with its reason and note, from no league');
+set local role authenticated;
+select pg_temp.act(1);
 select is(public.report_player(pg_temp.u(2), 'other', null), false, 'and only once');
 select is((select reported from public.player_profile(pg_temp.u(2))), true, 'which the card then shows');
 select throws_ok($$select public.report_league_member('00000000-0000-0000-0000-0000000000aa', pg_temp.u(2), 'other', null)$$,
