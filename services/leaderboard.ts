@@ -1,4 +1,4 @@
-// The global season leaderboard, and reporting a name on it. The shaping is
+// The global season leaderboard. The shaping is
 // pure so it can be tested without a database.
 
 export type LeaderboardRow = {
@@ -53,11 +53,4 @@ export async function loadLeaderboard(maxRows = 100): Promise<Leaderboard> {
   const { data, error } = await supabase.rpc("season_leaderboard", { max_rows: maxRows });
   if (error) throw new Error(error.message);
   return toLeaderboard((data ?? []) as Raw[]);
-}
-
-/** Reports a player's name for review. Each player can report another once; repeats add nothing. */
-export async function reportName(userId: string, reason = "offensive name"): Promise<void> {
-  const { supabase } = await import("./supabase");
-  const { error } = await supabase.rpc("report_display_name", { reported: userId, reason });
-  if (error) throw new Error(error.message);
 }
