@@ -10,8 +10,8 @@ function signed(points: number): string {
   return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : "0";
 }
 
-/** One player on the global leaderboard. Your own row is tinted; tapping
- * anyone else's offers to report their name. */
+/** One player on the global leaderboard. Your own row is tinted; tapping a
+ * row opens that player's card. */
 export default function LeaderboardRow({
   row,
   index = 0,
@@ -43,7 +43,7 @@ export default function LeaderboardRow({
           borderBottomColor: c.border,
         }}
       >
-        <Text style={{ width: 36, color: row.rank <= 3 ? c.text : c.textMuted, fontSize: 15, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
+        <Text style={{ width: 36, color: c.text, fontSize: 15, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
           {row.tied ? `T-${row.rank}` : row.rank}
         </Text>
         <View

@@ -410,25 +410,26 @@ export async function loadRecordHistory(leagueId: string, userId: string): Promi
   return toSeasonRecords((data ?? []) as RawSeasonRecord[]);
 }
 
-export async function loadMemberProfile(leagueId: string, userId: string): Promise<MemberProfile | null> {
-  const { data, error } = await (await db()).rpc("league_member_profile", { league: leagueId, member: userId });
+/** A player's card. With no league, any player's, as on the global leaderboard. */
+export async function loadMemberProfile(leagueId: string | null, userId: string): Promise<MemberProfile | null> {
+  const { data, error } = leagueId
+    ? await (await db()).rpc("league_member_profile", { league: leagueId, member: userId })
+    : await (await db()).rpc("player_profile", { member: userId });
   if (error) throw new Error(error.message);
   return toMemberProfile((data ?? []) as RawMemberProfile[]);
 }
 
 /** Reports a league mate's name. False when that name was already reported by you. */
 export async function reportMember(
-  leagueId: string,
+  leagueId: string | null,
   userId: string,
   reason: ReportReason,
   note?: string
 ): Promise<boolean> {
-  const { data, error } = await (await db()).rpc("report_league_member", {
-    league: leagueId,
-    member: userId,
-    reason,
-    note: note?.trim() || null,
-  });
+  const args = { member: userId, reason, note: note?.trim() || null };
+  const { data, error } = leagueId
+    ? await (await db()).rpc("report_league_member", { league: leagueId, ...args })
+    : await (await db()).rpc("report_player", args);
   if (error) throw new Error(error.message);
   return data as boolean;
 }

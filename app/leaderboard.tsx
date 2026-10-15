@@ -1,20 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import LeaderboardRow from "../components/LeaderboardRow";
+import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import Skeleton from "../components/Skeleton";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
-import { loadLeaderboard, reportName, type Leaderboard, type LeaderboardRow as Row } from "../services/leaderboard";
+import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import { makeCommonStyles } from "../styles/common";
 
 /*
  * Everyone's season, ranked. Points first, accuracy breaking ties, your own
- * row always shown even outside the top 100. Tapping another player offers
- * to report their name.
+ * row always shown even outside the top 100. Tapping a player opens their
+ * card, the same as in a league, with report and block behind its menu.
  */
 export default function LeaderboardScreen() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function LeaderboardScreen() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const [board, setBoard] = useState<Leaderboard | null>(null);
   const [failed, setFailed] = useState(false);
+  const [viewing, setViewing] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,22 +37,6 @@ export default function LeaderboardScreen() {
       };
     }, [])
   );
-
-  const report = (row: Row) => {
-    Alert.alert(row.name, "Report this name as offensive or inappropriate?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Report name",
-        style: "destructive",
-        onPress: () =>
-          reportName(row.userId)
-            .then(() => Alert.alert("Thanks", "We'll review it."))
-            .catch((e) =>
-              Alert.alert("Couldn't send the report", e instanceof Error ? e.message : "Please try again.")
-            ),
-      },
-    ]);
-  };
 
   // Your row sits in rank order when you're in the top 100, and at the foot
   // of the table, after a gap, when you're not.
@@ -93,19 +79,20 @@ export default function LeaderboardScreen() {
                 row={row}
                 index={i}
                 last={i === top.length - 1}
-                onPress={row.isMe ? undefined : () => report(row)}
+                onPress={() => setViewing(row.userId)}
               />
             ))}
             {meBelow && (
               <>
                 <Text style={{ color: c.textFaint, textAlign: "center", paddingVertical: 8 }}>⋯</Text>
-                <LeaderboardRow row={meBelow} last />
+                <LeaderboardRow row={meBelow} last onPress={() => setViewing(meBelow.userId)} />
               </>
             )}
           </>
         )}
       </ScrollView>
       <View style={{ height: insets.bottom }} />
+      <MemberProfileSheet leagueId={null} userId={viewing} onClose={() => setViewing(null)} />
     </SafeAreaView>
   );
 }

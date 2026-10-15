@@ -21,17 +21,18 @@ import ScreenSkeleton from "./ScreenSkeleton";
 type Step = "profile" | "report" | "sent" | "already" | "block" | "blocked";
 
 /**
- * A league mate's profile, in a card over the screen: name, accuracy this
+ * A player's profile, in a card over the screen: name, accuracy this
  * season and favorite division. Reporting and blocking sit behind the menu in
  * the corner so they stay out of the way; a blocked player's menu offers only
- * Unblock. Open it by passing a member's id; null closes it.
+ * Unblock. Open it by passing a member's id; null closes it. With no
+ * league it opens anyone's, as from the global leaderboard.
  */
 export default function MemberProfileSheet({
   leagueId,
   userId,
   onClose,
 }: {
-  leagueId: string;
+  leagueId: string | null;
   userId: string | null;
   onClose: () => void;
 }) {
