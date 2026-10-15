@@ -38,7 +38,7 @@ export function fromPickRow(bout: EventBout, row: PickRow): LanePick | null {
 }
 
 /** A saved pick as one short line: "SILVA · KO/TKO · R2", "SILVA · DEC", "SILVA". */
-export function pickSummary(bout: EventBout, pick: LanePick): string {
+export function pickSummary(bout: { red: { name: string }; blue: { name: string } }, pick: LanePick): string {
   const fighter = pick.corner === "red" ? bout.red : bout.blue;
   const parts = [lastName(fighter.name).toUpperCase()];
   if (pick.finish === "DEC") parts.push("DEC");
