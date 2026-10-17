@@ -163,8 +163,11 @@ set search_path = ''
 as $$
 begin
   perform public.require_league_member(league);
-  -- The table comes back in standings order.
-  return query select * from public.league_table(league);
+  return query
+  select t.rank, t.user_id, t.display_name, t.status, t.wins, t.losses, t.draws, t.points,
+         t.correct, t.counted, t.is_me, t.is_owner, t.season_label
+  from public.league_table(league) with ordinality t
+  order by t.ordinality;
 end;
 $$;
 
@@ -252,7 +255,10 @@ begin
     for r in
       select s.user_a, s.points_a, s.user_b, s.points_b
       from public.league_schedule(lg.id, public.current_season()) s
-      where s.event_id = ev.id and s.state = 'live' and s.user_b is not null
+      -- Live, or final the same night, so the fight that decides it still
+      -- counts when the card goes final in the same update.
+      where s.event_id = ev.id and s.user_b is not null
+        and (s.state = 'live' or (s.state = 'final' and ev.locks_at > now() - interval '12 hours'))
     loop
       -- Missing the tier's required picks loses whatever the points say, so
       -- a lead there means nothing.
@@ -283,9 +289,22 @@ begin
         from (values (r.user_a, r.user_b, r.points_a, r.points_b),
                      (r.user_b, r.user_a, r.points_b, r.points_a)) x(me, opp, mine, theirs)
         join public.profiles p on p.id = x.me
+        join public.profiles o on o.id = x.opp
         where p.deleted_at is null
-          -- Nothing about a player you've blocked.
-          and not exists (select 1 from public.player_blocks pb where pb.blocker = x.me and pb.blocked = x.opp)
+          -- Still in the league: leaving keeps you in this season's rotation.
+          and exists (
+            select 1 from public.league_members m
+            where m.league_id = lg.id and m.user_id = x.me and m.left_at is null
+          )
+          -- Nothing about a player you've blocked or who blocked you, or one
+          -- who is gone, banned or suspended.
+          and not exists (
+            select 1 from public.player_blocks pb
+            where (pb.blocker = x.me and pb.blocked = x.opp) or (pb.blocker = x.opp and pb.blocked = x.me)
+          )
+          and o.deleted_at is null
+          and (select ps.standing from public.player_standing(x.opp) ps) is distinct from 'banned'
+          and (select ps.standing from public.player_standing(x.opp) ps) is distinct from 'suspended'
       loop
         body := jsonb_build_object(
           'event', ev.name,
@@ -373,6 +392,8 @@ as $$
     from players pl
     join tables t on t.user_id = pl.user_id and t.rank is not null
     join public.leagues l on l.id = t.league_id
+    -- Only leagues you're still in.
+    join public.league_members m on m.league_id = t.league_id and m.user_id = pl.user_id and m.left_at is null
     group by pl.user_id, pl.event_id, pl.event_name
   ),
   claimed as (
@@ -434,10 +455,10 @@ $$;
 -- The inbox
 -------------------------------------------------------------------------------
 
--- As before, and a lead change names the opponent as you'd see them now:
--- "Blocked player" once you've blocked them, "Player" while their name is
--- hidden. The opponent is the key's third part.
-create or replace function public.my_notifications(max_rows integer default 50)
+-- The inbox, every kind. A lead change names the opponent as you'd see them
+-- now: "Blocked player" once you've blocked them, "Player" while their name
+-- is hidden. The opponent is the key's third part.
+create function public.inbox_items(max_rows integer default 50)
 returns table (kind text, key text, payload jsonb, sent_at timestamptz, read boolean)
 language sql
 stable
@@ -469,4 +490,47 @@ as $$
   where n.user_id = (select auth.uid()) and n.payload is not null
   order by n.sent_at desc, n.key
   limit least(greatest(max_rows, 1), 200);
+$$;
+
+create function public.inbox_unread_count()
+returns integer
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select count(*)::integer from public.notifications_sent n
+  where n.user_id = (select auth.uid()) and n.payload is not null and n.read_at is null;
+$$;
+
+revoke execute on function public.inbox_items(integer), public.inbox_unread_count() from public, anon;
+grant execute on function public.inbox_items(integer), public.inbox_unread_count() to authenticated;
+
+-- What builds from before these kinds call. They'd show a lead change or a
+-- standing as a card's final score, so those stay out of their inbox and
+-- badge; this build calls the two above.
+create or replace function public.my_notifications(max_rows integer default 50)
+returns table (kind text, key text, payload jsonb, sent_at timestamptz, read boolean)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select i.kind, i.key, i.payload, i.sent_at, i.read
+  from public.inbox_items(200) with ordinality i
+  where i.kind not in ('matchup', 'standing')
+  order by i.ordinality
+  limit least(greatest(max_rows, 1), 200);
+$$;
+
+create or replace function public.unread_notification_count()
+returns integer
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select count(*)::integer from public.notifications_sent n
+  where n.user_id = (select auth.uid()) and n.payload is not null and n.read_at is null
+    and n.kind not in ('matchup', 'standing');
 $$;

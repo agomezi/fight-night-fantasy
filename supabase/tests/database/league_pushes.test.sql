@@ -1,12 +1,12 @@
 -- League pushes during a card: lead changes in head-to-heads (the first lead
 -- only noted, ties keep the leader, at most two a night, none about a blocked
--- player or in a matchup a missing pick has decided, none once final), and
+-- player or in a matchup a missing pick has decided, none after the night), and
 -- where you stand as the main card starts (once, ranked leagues only).
 -- Runs with `npx supabase test db`.
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(31);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -35,9 +35,9 @@ create function pg_temp.gym() returns uuid language sql as $$ select '00000000-0
 insert into auth.users (id, email) select pg_temp.u(n), 'lp' || n || '@example.test' from generate_series(1, 5) n;
 update public.profiles p set display_name = 'Player' || v.n from generate_series(1, 5) v(n) where p.id = pg_temp.u(v.n);
 insert into public.leagues (id, name, owner_id, tier, created_at)
-values (pg_temp.gym(), 'Gym League', pg_temp.u(1), 'pro', now() - interval '3 hours');
+values (pg_temp.gym(), 'Gym League', pg_temp.u(1), 'pro', now() - interval '3 days');
 insert into public.league_members (league_id, user_id, joined_at)
-select pg_temp.gym(), pg_temp.u(n), now() - interval '3 hours' from generate_series(1, 4) n;
+select pg_temp.gym(), pg_temp.u(n), now() - interval '3 days' from generate_series(1, 4) n;
 
 -- Everyone but 03 picks the main event; 05 picks it too.
 insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
@@ -101,9 +101,8 @@ select is((select count(*)::int from pg_temp.claim()), 0, 'drawing level sends n
 -- 01 blocks their opponent, then retakes the lead.
 insert into public.player_blocks (blocker, blocked) values (pg_temp.u(1), pg_temp.opp(1));
 select pg_temp.score(pg_temp.u(1), 3, 25);
-create temp table sent2 as select * from pg_temp.claim() j;
-select is((select count(*)::int from sent2), 1, 'the lead changing back sends again');
-select is((select (j->>'to')::uuid from sent2 j), pg_temp.opp(1), 'but not to someone who blocked the other player');
+select is((select count(*)::int from pg_temp.claim()), 0, 'a lead change between blocked players tells neither');
+select is((select flips from public.matchup_leads where pg_temp.u(1) in (user_a, user_b)), 2, 'though it counts');
 
 delete from public.player_blocks;
 select pg_temp.score(pg_temp.opp(1), 3, 40);
@@ -119,14 +118,67 @@ select is((select count(*)::int from pg_temp.claim()), 0, 'a matchup a missing p
 select is((select count(*)::int from public.matchup_leads where pg_temp.u(3) in (user_a, user_b)), 0, 'nor is noted');
 
 
--- Once the card is final, a late change sends nothing.
+-- From here on 01's matchup starts its night's count afresh.
+create function pg_temp.fresh() returns void language sql as $$
+  update public.matchup_leads set flips = 0 where pg_temp.u(1) in (user_a, user_b);
+  delete from public.notifications_sent where kind = 'matchup';
+$$;
+-- The lead's current holder, and whoever doesn't hold it.
+create function pg_temp.leader() returns uuid language sql as $$
+  select leader from public.matchup_leads where pg_temp.u(1) in (user_a, user_b)
+$$;
+-- Hands the lead to whoever doesn't hold it, by 100 on the main event.
+create function pg_temp.flip() returns void language sql as $$
+  select pg_temp.score(
+    case when pg_temp.leader() = pg_temp.u(1) then pg_temp.opp(1) else pg_temp.u(1) end, 1,
+    coalesce((select max(s.points) from public.scores s where s.bout_id = pg_temp.bid(1)), 0) + 100)
+$$;
+
+-- Someone who blocked you hears nothing about you either.
+select pg_temp.fresh();
+insert into public.player_blocks (blocker, blocked) values (pg_temp.opp(1), pg_temp.u(1));
+select pg_temp.flip();
+select is((select count(*)::int from pg_temp.claim()), 0, 'a block either way sends nothing to either');
+delete from public.player_blocks;
+
+-- 01 leaves the league: still in this season's rotation, but not told.
+select pg_temp.fresh();
+update public.league_members set left_at = now() where user_id = pg_temp.u(1);
+select pg_temp.flip();
+select is((select array_agg((j->>'to')::uuid) from pg_temp.claim() j), array[pg_temp.opp(1)],
+  'someone who left the league isn''t told');
+update public.league_members set left_at = null where user_id = pg_temp.u(1);
+
+-- The card goes final in the same update as the fight that flips it.
+select pg_temp.fresh();
 update public.events set status = 'complete' where id = pg_temp.ev();
 insert into public.results (bout_id, status, winner_fighter_id, method, round, source)
 select b.id, 'final', b.red_fighter_id, 'DEC', null, 'ufc_live' from public.bouts b where b.event_id = pg_temp.ev()
 on conflict do nothing;
-select pg_temp.score(pg_temp.u(1), 1, 300);
-select is((select count(*)::int from pg_temp.claim()), 0, 'nothing once the card is final');
-update public.events set status = 'live' where id = pg_temp.ev();
+select pg_temp.flip();
+select is((select count(*)::int from pg_temp.claim()), 2, 'the deciding fight still counts as the card goes final');
+
+-- A correction the next day sends nothing.
+select pg_temp.fresh();
+update public.events set locks_at = now() - interval '1 day' where id = pg_temp.ev();
+select pg_temp.flip();
+select is((select count(*)::int from pg_temp.claim()), 0, 'nothing once the night is over');
+update public.events set locks_at = now() - interval '1 hour', status = 'live' where id = pg_temp.ev();
+
+-------------------------------------------------------------------------------
+-- The inbox
+-------------------------------------------------------------------------------
+
+select pg_temp.fresh();
+select pg_temp.flip();
+select pg_temp.claim();
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', pg_temp.u(1), 'role', 'authenticated')::text, true);
+select is((select count(*)::int from public.inbox_items() i where i.kind = 'matchup'), 1, 'this build''s inbox shows lead changes');
+select is((select count(*)::int from public.my_notifications() i where i.kind = 'matchup'), 0,
+  'older builds'' inbox doesn''t, since they can''t show them');
+select is(public.inbox_unread_count() - public.unread_notification_count(), 1, 'nor count them in the badge');
+reset role;
 
 -------------------------------------------------------------------------------
 -- Main card start

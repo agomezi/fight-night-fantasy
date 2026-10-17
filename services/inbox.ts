@@ -69,13 +69,13 @@ async function db() {
 }
 
 export async function loadInbox(maxRows = 50): Promise<InboxItem[]> {
-  const { data, error } = await (await db()).rpc("my_notifications", { max_rows: maxRows });
+  const { data, error } = await (await db()).rpc("inbox_items", { max_rows: maxRows });
   if (error) throw new Error(error.message);
   return toInbox((data ?? []) as RawInboxItem[]);
 }
 
 export async function loadUnreadCount(): Promise<number> {
-  const { data, error } = await (await db()).rpc("unread_notification_count");
+  const { data, error } = await (await db()).rpc("inbox_unread_count");
   if (error) throw new Error(error.message);
   return (data as number | null) ?? 0;
 }

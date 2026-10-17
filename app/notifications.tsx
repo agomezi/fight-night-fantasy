@@ -121,7 +121,8 @@ export default function Notifications() {
             </View>
 
             {items.map((n, i) => {
-              const meta = KIND[n.kind];
+              // A kind from a newer server than this build still shows.
+              const meta = KIND[n.kind] ?? { icon: "notifications" as const, tint: (c: any) => c.textMuted };
               const tint = meta.tint(c);
               return (
                 <Animated.View key={n.key} entering={appear(Math.min(i, 8))}>

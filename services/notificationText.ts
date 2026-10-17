@@ -236,5 +236,7 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "moderation") return moderation(payload as ModerationPayload);
   if (kind === "matchup") return matchup(payload as MatchupPayload);
   if (kind === "standing") return standing(payload as StandingPayload);
-  return final(payload as FinalPayload);
+  if (kind === "final") return final(payload as FinalPayload);
+  // A kind from a newer server than this build.
+  return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };
 }
