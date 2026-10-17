@@ -18,13 +18,16 @@ export type InboxItem = {
 
 export type RawInboxItem = { kind: NotificationKind; key: string; payload: unknown; sent_at: string; read: boolean };
 
-const SCREENS = new Set(["history", "picks", "edit-profile"]);
+const SCREENS = new Set(["history", "picks", "edit-profile", "leagues"]);
 
 /** Where a notification's data points. Shared by push taps and the inbox. */
 export function notificationHref(data: unknown): Href | null {
   const { screen, leagueId, bout } = (data ?? {}) as { screen?: unknown; leagueId?: unknown; bout?: unknown };
   if (screen === "league-standings" && typeof leagueId === "string" && leagueId) {
     return `/league-standings?id=${encodeURIComponent(leagueId)}`;
+  }
+  if (screen === "matchup" && typeof leagueId === "string" && leagueId) {
+    return `/matchup?id=${encodeURIComponent(leagueId)}`;
   }
   if (screen === "history" && typeof bout === "string" && bout) {
     return `/history?bout=${encodeURIComponent(bout)}`;
