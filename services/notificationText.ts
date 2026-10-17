@@ -43,6 +43,8 @@ export type MatchupPayload = {
   league: string;
   leagueId: string;
   opponent: string;
+  /** Missing on rows from before it was added; the inbox reads it off the key. */
+  opponentId?: string;
   mine: number;
   theirs: number;
   lead: boolean;
@@ -67,7 +69,12 @@ export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
 
 /** `screen` is where tapping it goes; `leagueId` picks the league there and
  * `bout` the fight in history. */
-export type Message = { title: string; body: string; data: { screen: string; leagueId?: string; bout?: string } };
+export type Message = {
+  title: string;
+  body: string;
+  /** `opponent` picks the matchup on the head-to-head screen in a doubleheader week. */
+  data: { screen: string; leagueId?: string; bout?: string; opponent?: string };
+};
 
 const METHOD = { KO: "KO/TKO", SUB: "Submission", DEC: "Decision" } as const;
 const VOID = {
@@ -156,16 +163,17 @@ export function ordinal(n: number): string {
 function matchup(p: MatchupPayload): Message {
   const by = Math.abs(p.mine - p.theirs);
   const score = `(${p.mine}–${p.theirs})`;
+  const data = { screen: "matchup", leagueId: p.leagueId, ...(p.opponentId ? { opponent: p.opponentId } : {}) };
   return p.lead
     ? {
         title: `You passed ${p.opponent}`,
         body: `You're up ${by} in ${p.league} ${score}.`,
-        data: { screen: "matchup", leagueId: p.leagueId },
+        data,
       }
     : {
         title: `${p.opponent} overtook you`,
         body: `You're down ${by} in ${p.league} ${score}.`,
-        data: { screen: "matchup", leagueId: p.leagueId },
+        data,
       };
 }
 

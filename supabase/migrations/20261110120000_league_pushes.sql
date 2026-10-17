@@ -137,7 +137,8 @@ begin
 end;
 $$;
 
-revoke execute on function public.league_table(uuid) from public, anon, authenticated;
+-- Only the functions here call it, as its owner.
+revoke execute on function public.league_table(uuid) from public, anon, authenticated, service_role;
 
 -- As before, for members only, from the shared table.
 create or replace function public.league_standings(league uuid)
@@ -311,6 +312,8 @@ begin
           'league', lg.name,
           'leagueId', lg.id,
           'opponent', public.league_display_name(side.opp),
+          -- Which matchup, for a doubleheader week.
+          'opponentId', side.opp,
           'mine', side.mine,
           'theirs', side.theirs,
           'lead', side.me = lead_by
@@ -334,7 +337,7 @@ $$;
 
 revoke execute on function public.claim_matchup_notifications(uuid) from public, anon, authenticated;
 grant execute on function public.claim_matchup_notifications(uuid) to service_role;
-revoke execute on function public.max_lead_pushes() from public, anon, authenticated;
+revoke execute on function public.max_lead_pushes() from public, anon, authenticated, service_role;
 
 -------------------------------------------------------------------------------
 -- Main card start

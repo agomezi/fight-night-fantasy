@@ -61,7 +61,8 @@ function OtherMatchup({ m, index, onPressPlayer }: { m: Matchup; index: number; 
 export default function MatchupScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  // `vs` puts that matchup first, for a push about one of a doubleheader's two.
+  const { id, vs } = useLocalSearchParams<{ id?: string; vs?: string }>();
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeLeaguesStyles);
@@ -72,7 +73,9 @@ export default function MatchupScreen() {
   const weeks = state.status === "ready" ? state.weeks : [];
   const week = weeks.find((w) => w.week === picked) ?? currentWeek(weeks);
   // Two in an odd league's doubleheader week.
-  const mine = week?.matchups.filter((m) => m.isMine) ?? [];
+  const mine = (week?.matchups.filter((m) => m.isMine) ?? []).sort(
+    (x, y) => Number(y.b.userId === vs) - Number(x.b.userId === vs)
+  );
   const others = week?.matchups.filter((m) => !m.isMine) ?? [];
 
   return (

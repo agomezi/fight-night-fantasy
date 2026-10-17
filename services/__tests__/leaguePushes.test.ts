@@ -1,4 +1,4 @@
-import { notificationHref } from "../inbox";
+import { notificationHref, toInbox } from "../inbox";
 import { notificationText, ordinal } from "../notificationText";
 
 describe("lead change pushes", () => {
@@ -17,6 +17,25 @@ describe("lead change pushes", () => {
       title: "Ben overtook you",
       body: "You're down 7 in Gym League (75–82).",
     });
+  });
+
+  it("opens the matchup it's about, for a doubleheader week", () => {
+    const { data } = notificationText("matchup", { ...base, opponentId: "u2", mine: 1, theirs: 0, lead: true });
+    expect(data).toEqual({ screen: "matchup", leagueId: "lg1", opponent: "u2" });
+    expect(notificationHref(data)).toBe("/matchup?id=lg1&vs=u2");
+  });
+
+  it("reads the opponent off the key for inbox rows sent without it", () => {
+    const [item] = toInbox([
+      {
+        kind: "matchup",
+        key: "ev1:lg1:u2:1",
+        payload: { ...base, mine: 1, theirs: 0, lead: true },
+        sent_at: "2026-10-17T02:00:00Z",
+        read: false,
+      },
+    ]);
+    expect(item.href).toBe("/matchup?id=lg1&vs=u2");
   });
 
   it("opens the head-to-head screen for that league", () => {
