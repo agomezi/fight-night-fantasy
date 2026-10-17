@@ -105,6 +105,10 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
 
   const { data: claimed, error: claimError } = await db.rpc("claim_event_notifications", { event_id: eventId });
   const notifications = claimError ? { error: claimError.message } : await notify(db, (claimed ?? []) as Claimed[]);
+  // Lead changes in league matchups, apart, so a failure there can't stop
+  // the result pushes above.
+  const { data: leads, error: leadError } = await db.rpc("claim_matchup_notifications", { event: eventId });
+  const matchups = leadError ? { error: leadError.message } : await notify(db, (leads ?? []) as Claimed[]);
 
   const hasProvisional = results.some(r => r.status === "provisional");
   const dueAt = new Date(Date.now() + nextPollIn(card, hasProvisional)).toISOString();
@@ -119,6 +123,7 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
     scores: { ...replaced, total: scores.length },
     ...(settleError ? { settle: { error: settleError.message } } : {}),
     notifications,
+    matchups,
     nextPoll: dueAt,
     ...(issues.length ? { issues } : {}),
   };
@@ -136,9 +141,18 @@ Deno.serve(async request => {
   if (mode === "reminders" || mode === "activity") {
     const { data, error } = await db.rpc(mode === "reminders" ? "claim_reminders" : "claim_activity_notifications");
     const pushed = error ? { mode, error: error.message } : { mode, ...(await notify(db, (data ?? []) as Claimed[])) };
+    // Where you stand as the main card starts, apart from the reminders so
+    // neither can stop the other.
+    let standings: Record<string, unknown> | undefined;
+    let rankFailed = false;
+    if (mode === "reminders") {
+      const { data: ranks, error: rankError } = await db.rpc("claim_standing_notifications");
+      rankFailed = rankError != null;
+      standings = rankError ? { error: rankError.message } : await notify(db, (ranks ?? []) as Claimed[]);
+    }
     const reports = mode === "activity" ? await emailReports(db) : undefined;
-    const report = reports ? { ...pushed, reports } : pushed;
-    const failed = error != null || (reports != null && "error" in reports);
+    const report = { ...pushed, ...(standings ? { standings } : {}), ...(reports ? { reports } : {}) };
+    const failed = error != null || (reports != null && "error" in reports) || rankFailed;
     console.log(JSON.stringify(report));
     return Response.json(report, { status: failed ? 500 : 200 });
   }

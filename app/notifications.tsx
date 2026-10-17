@@ -20,6 +20,8 @@ const KIND: Record<NotificationKind, { icon: keyof typeof Ionicons.glyphMap; tin
   league_join: { icon: "people", tint: (c) => c.gold },
   reminder: { icon: "time", tint: (c) => c.blue },
   moderation: { icon: "shield-checkmark", tint: (c) => c.textMuted },
+  matchup: { icon: "swap-vertical", tint: (c) => c.red },
+  standing: { icon: "podium", tint: (c) => c.gold },
 };
 
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; items: InboxItem[] };
@@ -119,7 +121,8 @@ export default function Notifications() {
             </View>
 
             {items.map((n, i) => {
-              const meta = KIND[n.kind];
+              // A kind from a newer server than this build still shows.
+              const meta = KIND[n.kind] ?? { icon: "notifications" as const, tint: (c: any) => c.textMuted };
               const tint = meta.tint(c);
               return (
                 <Animated.View key={n.key} entering={appear(Math.min(i, 8))}>

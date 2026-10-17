@@ -1,7 +1,7 @@
 // What each push notification says. Pure and dependency-free, so the results
 // sync imports it under Deno and jest tests it here.
 
-export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation";
+export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation" | "matchup" | "standing";
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
@@ -37,6 +37,23 @@ export type ScoredPayload = {
 };
 export type FinalPayload = { event: string; points: number; hit: number; total: number };
 export type LeagueJoinPayload = { league: string; leagueId: string; member: string };
+/** The lead in your head-to-head changed hands: `lead` when you took it. */
+export type MatchupPayload = {
+  event: string;
+  league: string;
+  leagueId: string;
+  opponent: string;
+  /** Missing on rows from before it was added; the inbox reads it off the key. */
+  opponentId?: string;
+  mine: number;
+  theirs: number;
+  lead: boolean;
+};
+/** Where you stand in each league you're ranked in, as the main card starts. */
+export type StandingPayload = {
+  event: string;
+  leagues: { league: string; leagueId: string; rank: number; tied: boolean }[];
+};
 /**
  * A moderator's decision, or `under_review` when enough reports hide the
  * player's name until a moderator looks. `until` is when a suspension ends.
@@ -52,7 +69,12 @@ export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
 
 /** `screen` is where tapping it goes; `leagueId` picks the league there and
  * `bout` the fight in history. */
-export type Message = { title: string; body: string; data: { screen: string; leagueId?: string; bout?: string } };
+export type Message = {
+  title: string;
+  body: string;
+  /** `opponent` picks the matchup on the head-to-head screen in a doubleheader week. */
+  data: { screen: string; leagueId?: string; bout?: string; opponent?: string };
+};
 
 const METHOD = { KO: "KO/TKO", SUB: "Submission", DEC: "Decision" } as const;
 const VOID = {
@@ -131,6 +153,41 @@ function final(p: FinalPayload): Message {
   };
 }
 
+/** 1st, 2nd, 3rd, 4th … 11th, 12th, 13th … 21st. */
+export function ordinal(n: number): string {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
+}
+
+function matchup(p: MatchupPayload): Message {
+  const by = Math.abs(p.mine - p.theirs);
+  const score = `(${p.mine}–${p.theirs})`;
+  const data = { screen: "matchup", leagueId: p.leagueId, ...(p.opponentId ? { opponent: p.opponentId } : {}) };
+  return p.lead
+    ? {
+        title: `You passed ${p.opponent}`,
+        body: `You're up ${by} in ${p.league} ${score}.`,
+        data,
+      }
+    : {
+        title: `${p.opponent} overtook you`,
+        body: `You're down ${by} in ${p.league} ${score}.`,
+        data,
+      };
+}
+
+function standing(p: StandingPayload): Message {
+  const places = p.leagues.map((l) => `${l.tied ? "tied " : ""}${ordinal(l.rank)} in ${l.league}`);
+  const list = places.length <= 2 ? places.join(" and ") : `${places.slice(0, -1).join(", ")} and ${places[places.length - 1]}`;
+  const first = p.leagues[0];
+  return {
+    title: `${title(p.event)} main card is starting`,
+    body: `You're ${list} going in.`,
+    data: first ? { screen: "league-standings", leagueId: first.leagueId } : { screen: "leagues" },
+  };
+}
+
 function leagueJoin(p: LeagueJoinPayload): Message {
   return {
     title: `${p.member} joined ${p.league}`,
@@ -185,5 +242,9 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "scored") return scored(payload as ScoredPayload);
   if (kind === "league_join") return leagueJoin(payload as LeagueJoinPayload);
   if (kind === "moderation") return moderation(payload as ModerationPayload);
-  return final(payload as FinalPayload);
+  if (kind === "matchup") return matchup(payload as MatchupPayload);
+  if (kind === "standing") return standing(payload as StandingPayload);
+  if (kind === "final") return final(payload as FinalPayload);
+  // A kind from a newer server than this build.
+  return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };
 }

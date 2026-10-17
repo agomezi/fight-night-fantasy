@@ -18,13 +18,22 @@ export type InboxItem = {
 
 export type RawInboxItem = { kind: NotificationKind; key: string; payload: unknown; sent_at: string; read: boolean };
 
-const SCREENS = new Set(["history", "picks", "edit-profile"]);
+const SCREENS = new Set(["history", "picks", "edit-profile", "leagues"]);
 
 /** Where a notification's data points. Shared by push taps and the inbox. */
 export function notificationHref(data: unknown): Href | null {
-  const { screen, leagueId, bout } = (data ?? {}) as { screen?: unknown; leagueId?: unknown; bout?: unknown };
+  const { screen, leagueId, bout, opponent } = (data ?? {}) as {
+    screen?: unknown;
+    leagueId?: unknown;
+    bout?: unknown;
+    opponent?: unknown;
+  };
   if (screen === "league-standings" && typeof leagueId === "string" && leagueId) {
     return `/league-standings?id=${encodeURIComponent(leagueId)}`;
+  }
+  if (screen === "matchup" && typeof leagueId === "string" && leagueId) {
+    const vs = typeof opponent === "string" && opponent ? `&vs=${encodeURIComponent(opponent)}` : "";
+    return `/matchup?id=${encodeURIComponent(leagueId)}${vs}` as Href;
   }
   if (screen === "history" && typeof bout === "string" && bout) {
     return `/history?bout=${encodeURIComponent(bout)}`;
@@ -36,10 +45,13 @@ export function toInbox(raw: RawInboxItem[]): InboxItem[] {
   return raw.map((r) => {
     // A result's key is "<bout>:<points>", so ones sent before the payload
     // named the bout still open at it.
+    // A lead change's key is "<event>:<league>:<opponent>:<n>", likewise.
     const payload =
       r.kind === "scored" && r.payload && typeof r.payload === "object" && !("bout" in r.payload)
         ? { ...r.payload, bout: r.key.split(":")[0] }
-        : r.payload;
+        : r.kind === "matchup" && r.payload && typeof r.payload === "object" && !("opponentId" in r.payload)
+          ? { ...r.payload, opponentId: r.key.split(":")[2] }
+          : r.payload;
     const { title, body, data } = notificationText(r.kind, payload);
     return { key: `${r.kind}:${r.key}`, kind: r.kind, title, body, sentAt: new Date(r.sent_at), read: r.read, href: notificationHref(data) };
   });
@@ -66,13 +78,13 @@ async function db() {
 }
 
 export async function loadInbox(maxRows = 50): Promise<InboxItem[]> {
-  const { data, error } = await (await db()).rpc("my_notifications", { max_rows: maxRows });
+  const { data, error } = await (await db()).rpc("inbox_items", { max_rows: maxRows });
   if (error) throw new Error(error.message);
   return toInbox((data ?? []) as RawInboxItem[]);
 }
 
 export async function loadUnreadCount(): Promise<number> {
-  const { data, error } = await (await db()).rpc("unread_notification_count");
+  const { data, error } = await (await db()).rpc("inbox_unread_count");
   if (error) throw new Error(error.message);
   return (data as number | null) ?? 0;
 }
