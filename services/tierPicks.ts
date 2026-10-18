@@ -4,10 +4,11 @@
 //
 //   Casual    the main card                         every bout of it
 //   Amateur   main card + the last 3 prelims        every bout of it
-//   Pro and   the whole card                        the main event
-//   Hardcore
+//   Pro and   the whole card                        what the owner sets: the
+//   Hardcore                                        main event, the main card,
+//                                                   the whole card or the top N
 
-import type { LeagueTier } from "./leagues";
+import type { LeagueTier, PickRule } from "./leagues";
 
 export type TierBout = {
   id: string;
@@ -25,10 +26,14 @@ export function tierBouts<T extends TierBout>(tier: LeagueTier, card: T[]): T[] 
   return card.filter((b) => main.includes(b) || prelims.includes(b));
 }
 
-/** The bouts `tier` requires picked. */
-export function requiredBouts<T extends TierBout>(tier: LeagueTier, card: T[]): T[] {
-  if (tier === "pro" || tier === "hardcore") return card.slice(0, 1);
-  return tierBouts(tier, card);
+/** The bouts a league requires picked. Mirrors league_required_bouts. */
+export function requiredBouts<T extends TierBout>(tier: LeagueTier, card: T[], rule?: PickRule | null): T[] {
+  if (tier !== "pro" && tier !== "hardcore") return tierBouts(tier, card);
+  const scope = rule?.scope ?? "main_event";
+  if (scope === "whole_card") return card;
+  if (scope === "main_card") return card.filter((b, i) => i === 0 || b.segment === "main" || b.segment === null);
+  if (scope === "top_n") return card.slice(0, rule?.topN ?? 1);
+  return card.slice(0, 1);
 }
 
 export type TierNeed = {
@@ -44,7 +49,7 @@ export type TierNeed = {
  * those can't be picked any more. The main event is always required.
  */
 export function lockInNeeds<T extends TierBout>(
-  leagues: { name: string; tier: LeagueTier }[],
+  leagues: { name: string; tier: LeagueTier; rule?: PickRule | null }[],
   card: T[],
   picked: (id: string) => boolean,
   open: (bout: T) => boolean
@@ -54,7 +59,7 @@ export function lockInNeeds<T extends TierBout>(
   let league: string | null = null;
   let most = 0;
   for (const l of leagues) {
-    const need = stillNeeded(requiredBouts(l.tier, card));
+    const need = stillNeeded(requiredBouts(l.tier, card, l.rule));
     need.forEach((b) => missing.add(b.id));
     if (need.length > most) {
       most = need.length;

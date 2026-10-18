@@ -57,7 +57,13 @@ export default function LeagueStandingRow({
             {row.name}
           </Text>
           <Text style={styles.playerTeam}>
-            {[row.rank != null ? row.record : null, accuracy, note].filter(Boolean).join(" · ") || "No picks scored"}
+            {[
+              row.rank != null ? row.record + (row.forfeitWins ? ` (${row.forfeitWins} by forfeit)` : "") : null,
+              accuracy,
+              note,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "No picks scored"}
           </Text>
         </View>
 

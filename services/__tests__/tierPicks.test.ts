@@ -57,3 +57,29 @@ describe("lockInNeeds", () => {
     expect(need).toEqual({ missing: [], league: null });
   });
 });
+
+describe("a Pro league's minimum picks", () => {
+  test("follows the owner's rule", () => {
+    expect(ids(requiredBouts("pro", card, { scope: "main_event", topN: null }))).toEqual(["m1"]);
+    expect(ids(requiredBouts("pro", card, { scope: "main_card", topN: null }))).toEqual(["m1", "m2"]);
+    expect(ids(requiredBouts("pro", card, { scope: "top_n", topN: 4 }))).toEqual(["m1", "m2", "p1", "p2"]);
+    expect(ids(requiredBouts("hardcore", card, { scope: "whole_card", topN: null }))).toHaveLength(8);
+  });
+
+  test("is ignored by Casual and Amateur, whose range is fixed", () => {
+    expect(ids(requiredBouts("casual", card, { scope: "whole_card", topN: null }))).toEqual(["m1", "m2"]);
+  });
+
+  test("holds the lock-in button for the league asking the most", () => {
+    const need = lockInNeeds(
+      [
+        { name: "Easy", tier: "casual" },
+        { name: "Strict", tier: "pro", rule: { scope: "top_n", topN: 5 } },
+      ],
+      card,
+      (id) => id === "m1",
+      () => true
+    );
+    expect(need).toEqual({ missing: ["m2", "p1", "p2", "p3"], league: "Strict" });
+  });
+});

@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated from "react-native-reanimated";
 import EmptyState from "../components/EmptyState";
 import MemberProfileSheet from "../components/MemberProfileSheet";
+import PickRuleSetting from "../components/PickRuleSetting";
 import PressableScale from "../components/PressableScale";
 import ScoringRules from "../components/ScoringRules";
 import { appear } from "../constants/motion";
@@ -170,6 +171,13 @@ export default function LeagueSettings() {
           <Text style={{ color: c.text2, fontSize: 13.5, lineHeight: 19, marginBottom: 10 }}>{TIER_BLURB[league.tier]}</Text>
         )}
         <ScoringRules />
+
+        {league.rule && (
+          <>
+            <Text style={sectionLabel}>MINIMUM PICKS</Text>
+            <PickRuleSetting leagueId={league.id} rule={league.rule} isOwner={league.isOwner} onChanged={state.reload} />
+          </>
+        )}
 
         <Text style={sectionLabel}>MEMBERS · {league.members}</Text>
         {members.map((m, i) => (

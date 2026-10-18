@@ -37,7 +37,7 @@ export const POINTS = {
 export const DEDUCTIONS = {
   fighter: 50,
   method: 30,
-  round: 15,
+  round: 5,
 } as const;
 
 /**
@@ -65,7 +65,7 @@ const DEDUCTION_SCALE: Record<Tier, number> = {
 
 /**
  * The deductions a tier plays with. Halves round down, so Casual is
- * -25 / -15 / -7 and no fractional points ever reach the UI.
+ * -25 / -15 / -2 and no fractional points ever reach the UI.
  */
 export function deductionsFor(tier: Tier) {
   const scale = DEDUCTION_SCALE[tier];

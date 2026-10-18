@@ -2,6 +2,7 @@ import {
   currentWeek,
   matchupOutcome,
   outcomeText,
+  pickRuleLabel,
   rankLabel,
   recordOf,
   toMemberProfile,
@@ -69,7 +70,7 @@ describe("toMyLeagues", () => {
       },
     ]);
     expect(league).toEqual({
-      id: "l1", name: "Alpha", tier: "casual", inviteCode: "AB12CD34", isOwner: true, members: 5,
+      id: "l1", name: "Alpha", tier: "casual", rule: null, inviteCode: "AB12CD34", isOwner: true, members: 5,
       status: "active", rank: 2, record: "3-1-1", points: 240,
     });
   });
@@ -146,7 +147,7 @@ describe("matchupOutcome", () => {
 
 describe("waitingLine", () => {
   const league = (members: number, status: MemberStatus = "active"): MyLeague => ({
-    id: "l", name: "L", tier: "casual", inviteCode: "AB12CD34", isOwner: false, members, status,
+    id: "l", name: "L", tier: "casual", rule: null, inviteCode: "AB12CD34", isOwner: false, members, status,
     rank: null, record: "0-0", points: 0,
   });
   const pre = toStandings([standing(null, "Me", { is_me: true, status: "active", season_label: "PRE-SEASON" })]);
@@ -188,5 +189,35 @@ describe("sitting out", () => {
     expect(outcomeText("won", -94, 0)).toBe("THEY SAT OUT · YOU WON");
     expect(outcomeText("lost", -10, 20)).toBe("YOU LOST");
     expect(outcomeText("won", 30, 20)).toBe("YOU WON");
+  });
+});
+
+describe("league rules", () => {
+  const raw = (tier: "casual" | "pro", id: string) => ({
+    league_id: id, name: id, tier, invite_code: "ab12cd34", is_owner: true, members: 4, my_status: "active" as const,
+    my_rank: 1, wins: 1, losses: 0, draws: 0, points: 10,
+  });
+
+  test("a Pro league carries its minimum, Casual none", () => {
+    const [pro, casual, unset] = toMyLeagues(
+      [raw("pro", "p"), raw("casual", "c"), raw("pro", "u")],
+      [{ league_id: "p", scope: "top_n", top_n: 6 }]
+    );
+    expect(pro.rule).toEqual({ scope: "top_n", topN: 6 });
+    expect(casual.rule).toBeNull();
+    expect(unset.rule).toEqual({ scope: "main_event", topN: null });
+  });
+
+  test("labels each rule", () => {
+    expect(pickRuleLabel({ scope: "main_event", topN: null })).toBe("Main event only");
+    expect(pickRuleLabel({ scope: "main_card", topN: null })).toBe("Main card");
+    expect(pickRuleLabel({ scope: "top_n", topN: 6 })).toBe("Top 6 fights");
+    expect(pickRuleLabel({ scope: "whole_card", topN: null })).toBe("Whole card");
+  });
+
+  test("standings read forfeit wins", () => {
+    const [row] = toStandings([standing(1, "Joe", { forfeit_wins: 1 })]).rows;
+    expect(row.forfeitWins).toBe(1);
+    expect(toStandings([standing(1, "Ann")]).rows[0].forfeitWins).toBe(0);
   });
 });

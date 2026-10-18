@@ -365,14 +365,15 @@ export default function Picks() {
 
   const totalFights = allFights.length;
   const madePicks = Object.keys(picks).length;
-  // The main event is always required. Each league's tier can ask for more:
-  // Casual the whole main card, Amateur that plus the last 3 prelims. Bouts
+  // The main event is always required. Each league can ask for more: Casual
+  // the whole main card, Amateur that plus the last 3 prelims, Pro what its
+  // owner sets. Bouts
   // that already locked can't be asked for. Missing a league's picks loses
   // that week's matchup, so the button holds out for them.
   const leagueState = useLeague();
   const myLeagues = leagueState.status === "ready" ? leagueState.leagues : [];
   const need = lockInNeeds(
-    myLeagues.map((l) => ({ name: l.name, tier: l.tier })),
+    myLeagues.map((l) => ({ name: l.name, tier: l.tier, rule: l.rule })),
     allFights,
     (id) => !!picks[id],
     (f) => !isLocked(f)

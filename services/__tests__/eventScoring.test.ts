@@ -62,7 +62,7 @@ describe("scoreEvent", () => {
         pick({ user_id: "round", finish: "round", finish_round: 3, method: null }),
       ]
     );
-    expect(Object.fromEntries(rows.map(r => [r.user_id, r.points]))).toEqual({ dec: 100, any: 50, round: 35 });
+    expect(Object.fromEntries(rows.map(r => [r.user_id, r.points]))).toEqual({ dec: 100, any: 50, round: 45 });
   });
 
   test("writes no row while a bout has no result", () => {
@@ -103,8 +103,8 @@ describe("scoreEvent", () => {
 
   test("plays full deductions for global scores and halves them for Casual", () => {
     const [row] = scoreEvent([bout()], [result()], [pick({ picked_fighter_id: "blue", finish_round: 3, method: "SUB" })]);
-    expect(row.points).toBe(-95);
-    expect(row.casual_points).toBe(-47);
+    expect(row.points).toBe(-85);
+    expect(row.casual_points).toBe(-42);
   });
 
   test("scales Casual's wrong-fighter earnings with its deductions", () => {

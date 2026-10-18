@@ -46,8 +46,8 @@ describe("every combination (full deductions)", () => {
     ["fighter + method, method wrong", { corner: "red", finish: "ANY", method: "SUB" }, 20],
     ["all three right", { corner: "red", finish: 2, method: "KO" }, 125],
     ["method wrong, round right", { corner: "red", finish: 2, method: "SUB" }, 45],
-    ["method right, round wrong", { corner: "red", finish: 3, method: "KO" }, 85],
-    ["method wrong, round wrong", { corner: "red", finish: 3, method: "SUB" }, 5],
+    ["method right, round wrong", { corner: "red", finish: 3, method: "KO" }, 95],
+    ["method wrong, round wrong", { corner: "red", finish: 3, method: "SUB" }, 15],
   ] as const)("fighter right — %s scores %i", (_, p, total) => {
     const s = scorePick(pick(p), koRound2);
     expect(s.points).toBe(total);
@@ -60,7 +60,7 @@ describe("every combination (full deductions)", () => {
     ["fighter + method, method right", { corner: "blue", finish: "ANY", method: "KO" }, -25],
     ["fighter + method, method wrong", { corner: "blue", finish: "ANY", method: "SUB" }, -80],
     ["method + round right", { corner: "blue", finish: 2, method: "KO" }, -13],
-    ["all wrong", { corner: "blue", finish: 3, method: "SUB" }, -95],
+    ["all wrong", { corner: "blue", finish: 3, method: "SUB" }, -85],
   ] as const)("fighter wrong — %s scores %i", (_, p, total) => {
     const s = scorePick(pick(p), koRound2);
     expect(s.points).toBe(total);
@@ -77,7 +77,7 @@ describe("half credit on a wrong fighter", () => {
 
   it("does not halve deductions", () => {
     const s = scorePick(pick({ corner: "blue", finish: 3, method: "SUB" }), koRound2);
-    expect(s.breakdown).toEqual({ fighter: -50, method: -30, round: -15, underdogBonus: 0 });
+    expect(s.breakdown).toEqual({ fighter: -50, method: -30, round: -5, underdogBonus: 0 });
   });
 
   it.each(["casual", "amateur", "pro", "hardcore"] as const)(
@@ -126,13 +126,13 @@ describe("decisions", () => {
 
   it("deducts method and round for a finish call that goes the distance", () => {
     const s = scorePick(pick({ corner: "red", finish: 2, method: "KO" }), decision);
-    expect(s.points).toBe(5);
+    expect(s.points).toBe(15);
   });
 
   it("deducts a named round on a decision even with no method named", () => {
     const s = scorePick(pick({ corner: "red", finish: 3 }), decision);
-    expect(s.breakdown.round).toBe(-15);
-    expect(s.points).toBe(35);
+    expect(s.breakdown.round).toBe(-5);
+    expect(s.points).toBe(45);
   });
 
   it("half-credits a correct DEC call on the wrong fighter", () => {
@@ -142,12 +142,12 @@ describe("decisions", () => {
 });
 
 describe("tiers", () => {
-  it("plays Casual at half deductions: -25 / -15 / -7", () => {
-    expect(deductionsFor("casual")).toEqual({ fighter: 25, method: 15, round: 7 });
+  it("plays Casual at half deductions: -25 / -15 / -2", () => {
+    expect(deductionsFor("casual")).toEqual({ fighter: 25, method: 15, round: 2 });
     const s = scorePick(pick({ corner: "blue", finish: 3, method: "SUB" }), koRound2, {
       tier: "casual",
     });
-    expect(s.points).toBe(-47);
+    expect(s.points).toBe(-42);
   });
 
   it("keeps Casual earnings whole when the fighter is right", () => {
@@ -166,7 +166,7 @@ describe("tiers", () => {
   });
 
   it.each(["amateur", "pro", "hardcore"] as const)("plays %s at full deductions", (tier) => {
-    expect(deductionsFor(tier)).toEqual({ fighter: 50, method: 30, round: 15 });
+    expect(deductionsFor(tier)).toEqual({ fighter: 50, method: 30, round: 5 });
   });
 
   it("defaults to full deductions outside a league", () => {
@@ -184,7 +184,7 @@ describe("underdog multiplier", () => {
 
   it("multiplies a net total that includes deductions, while it stays positive", () => {
     const s = scorePick(pick({ corner: "red", finish: 3, method: "SUB" }), koRound2, redUnderdogMain);
-    expect(s.points).toBe(7); // +5 x 1.5
+    expect(s.points).toBe(22); // +15 x 1.5
   });
 
   it("never amplifies a loss", () => {
@@ -192,7 +192,7 @@ describe("underdog multiplier", () => {
       segment: "main",
       underdogCorner: "blue",
     });
-    expect(s.points).toBe(-95);
+    expect(s.points).toBe(-85);
     expect(s.breakdown.underdogBonus).toBe(0);
   });
 
@@ -327,13 +327,13 @@ describe("summarise", () => {
   it("totals points and computes accuracy over counted bouts only", () => {
     const bouts = [
       { score: scorePick(pick({ corner: "red", finish: 2, method: "KO" }), koRound2) }, // 125, hit
-      { score: scorePick(pick({ corner: "blue", finish: 1 }), koRound2) }, // -65, miss
+      { score: scorePick(pick({ corner: "blue", finish: 1 }), koRound2) }, // -55, miss
       { score: scorePick(pick({ corner: "red", finish: 1 }), { status: "void", reason: "NC" }) }, // void
       { score: scorePick(null, koRound2) }, // no pick
     ];
     const s = summarise(bouts);
 
-    expect(s.points).toBe(60);
+    expect(s.points).toBe(70);
     // Only the hit and the miss count — void and unpicked are excluded.
     expect(s.counted).toBe(2);
     expect(s.correct).toBe(1);
@@ -383,10 +383,10 @@ describe("summarise", () => {
 });
 
 describe("settleSeason", () => {
-  const allWrong = scorePick(pick({ corner: "blue", finish: 3, method: "SUB" }), koRound2); // -95
+  const allWrong = scorePick(pick({ corner: "blue", finish: 3, method: "SUB" }), koRound2); // -85
   const fighterOnlyWrong = scorePick(pick({ corner: "blue", finish: "ANY" }), koRound2); // -50
   const readRightFighterWrong = scorePick(pick({ corner: "blue", finish: "ANY", method: "KO" }), koRound2); // -25
-  const scrape = scorePick(pick({ corner: "red", finish: 3, method: "SUB" }), koRound2); // +5
+  const scrape = scorePick(pick({ corner: "red", finish: 3, method: "SUB" }), koRound2); // +15
   const winner = scorePick(pick({ corner: "red", finish: "ANY" }), koRound2); // +50
   const perfect = scorePick(pick({ corner: "red", finish: 2, method: "KO" }), koRound2); // +125
   const voided = scorePick(pick({ corner: "red", finish: "ANY" }), { status: "void", reason: "NC" });
@@ -394,7 +394,7 @@ describe("settleSeason", () => {
 
   it.each(["pro", "hardcore"] as const)("lets %s go negative with every deduction in full", (tier) => {
     const s = settleSeason(tier, [allWrong, winner]);
-    expect(s.total).toBe(-45);
+    expect(s.total).toBe(-35);
     expect(s.debt).toBe(0);
   });
 
@@ -403,13 +403,13 @@ describe("settleSeason", () => {
       tier: "casual",
     });
     const s = settleSeason("casual", [casualAllWrong, winner]);
-    expect(s.entries[0]).toMatchObject({ points: -47, applied: 0, total: 0, debt: 0 });
+    expect(s.entries[0]).toMatchObject({ points: -42, applied: 0, total: 0, debt: 0 });
     expect(s.total).toBe(50);
   });
 
   it("leaves an Amateur at 0 owing the debt after an all-wrong bout", () => {
     const s = settleSeason("amateur", [allWrong]);
-    expect(s.entries[0]).toMatchObject({ points: -95, applied: 0, total: 0, debt: AMATEUR_DEBT });
+    expect(s.entries[0]).toMatchObject({ points: -85, applied: 0, total: 0, debt: AMATEUR_DEBT });
   });
 
   it("counts a wrong fighter-only pick as everything wrong", () => {
@@ -423,8 +423,8 @@ describe("settleSeason", () => {
 
   it("pays the debt off across several bouts if one doesn't cover it", () => {
     const s = settleSeason("amateur", [allWrong, scrape, winner]);
-    expect(s.entries[1]).toMatchObject({ applied: 0, total: 0, debt: 15 });
-    expect(s.entries[2]).toMatchObject({ applied: 35, total: 35, debt: 0 });
+    expect(s.entries[1]).toMatchObject({ applied: 0, total: 0, debt: 5 });
+    expect(s.entries[2]).toMatchObject({ applied: 45, total: 45, debt: 0 });
   });
 
   it("does not stack", () => {
