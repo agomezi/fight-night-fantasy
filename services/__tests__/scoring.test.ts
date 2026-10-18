@@ -17,6 +17,7 @@ import {
   summarise,
   type BoutResult,
   type ScoreContext,
+  SOFT_ROUND_FROM,
 } from "../scoring";
 
 /** Red wins by KO in round 2 — the workhorse result for most cases. */
@@ -452,5 +453,20 @@ describe("settleSeason", () => {
     // The opening bout is re-ruled from a loss to a win; the debt never existed.
     expect(settleSeason("amateur", [allWrong, perfect]).total).toBe(105);
     expect(settleSeason("amateur", [perfect, perfect]).total).toBe(250);
+  });
+});
+
+describe("the softer round", () => {
+  const roundWrong = pick({ corner: "red", finish: 3, method: "KO" });
+
+  it("costs 5 on cards from SOFT_ROUND_FROM", () => {
+    expect(scorePick(roundWrong, koRound2, { cardStartsAt: SOFT_ROUND_FROM }).breakdown.round).toBe(-5);
+    expect(scorePick(roundWrong, koRound2, { cardStartsAt: "2026-10-25T00:00:00Z" }).points).toBe(95);
+  });
+
+  it("keeps 15 on cards that started before it, so re-scoring them changes nothing", () => {
+    expect(scorePick(roundWrong, koRound2, { cardStartsAt: "2026-10-17T22:00:00Z" }).points).toBe(85);
+    expect(deductionsFor("casual", "2026-10-17T22:00:00Z").round).toBe(7);
+    expect(deductionsFor("casual", SOFT_ROUND_FROM).round).toBe(2);
   });
 });

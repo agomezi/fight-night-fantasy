@@ -12,6 +12,8 @@ export type ReminderPayload = {
   hasMainPick?: boolean;
   section?: "main" | "changed";
   missing?: number;
+  /** Open fights any of your leagues requires that you haven't picked. */
+  leagueMissing?: number;
   red?: string;
   blue?: string;
 };
@@ -102,8 +104,10 @@ function reminder(p: ReminderPayload): Message {
       data: { screen: "picks" },
     };
   }
+  const owed = p.leagueMissing ?? 0;
+  const owedLine = `Your leagues still need ${owed} more pick${owed === 1 ? "" : "s"} from you. Miss one and you lose that matchup.`;
   if (p.section === "main") {
-    const missing = p.missing ?? 0;
+    const missing = Math.max(p.missing ?? 0, owed);
     return {
       title: `Main card starts in ${p.minutes} min`,
       body: missing > 0
@@ -114,9 +118,11 @@ function reminder(p: ReminderPayload): Message {
   }
   return {
     title: `${title(p.event)} locks in ${p.minutes} min`,
-    body: p.hasMainPick
-      ? "Your picks are in. Each part of the card locks as it starts, so change them while you can."
-      : "You haven't picked the main event yet. Get your card in before it locks.",
+    body: !p.hasMainPick
+      ? "You haven't picked the main event yet. Get your card in before it locks."
+      : owed > 0
+        ? owedLine
+        : "Your picks are in. Each part of the card locks as it starts, so change them while you can.",
     data: { screen: "picks" },
   };
 }

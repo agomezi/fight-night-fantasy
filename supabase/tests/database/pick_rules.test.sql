@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(23);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -94,6 +94,36 @@ select ok(not public.met_league_picks(pg_temp.lg(), pg_temp.u(3), pg_temp.ev()),
 insert into public.league_pick_rules (league_id, effective_at, scope) values (pg_temp.lg(), now(), 'main_event');
 select ok(not public.met_league_picks(pg_temp.lg(), pg_temp.u(3), pg_temp.ev()),
   'a rule changed after the card started doesn''t rewrite it');
+select is((select scope from public.my_league_pick_rules() where league_id = pg_temp.lg()), 'main_card',
+  'and the app reads the rule this card plays, not the one changed since')
+  from (select set_config('request.jwt.claims', json_build_object('sub', pg_temp.u(1))::text, true)) x;
+
+-- Top 3 from before the start; then the second bout's fighter changes after
+-- the lock. It's void, and the count doesn't move on to the fourth.
+insert into public.league_pick_rules (league_id, effective_at, scope, top_n)
+values (pg_temp.lg(), now() - interval '2 hours', 'top_n', 3);
+update public.bouts set version_changed_at = now() where id = pg_temp.bid(2);
+select is(pg_temp.required(pg_temp.lg()), array[1, 3], 'top N counts the card as it was at the lock');
+update public.bouts set version_changed_at = null where id = pg_temp.bid(2);
+delete from public.league_pick_rules where league_id = pg_temp.lg() and effective_at = now() - interval '2 hours';
+
+-- A second card, locking in 30 minutes: the lock reminder counts what the
+-- league still needs.
+select public.sync_event_card(jsonb_build_object(
+  'ufcEventId', 'pr2', 'name', 'UFC Fight Night: Pr vs. Two', 'startsAt', now() + interval '30 minutes', 'status', 'scheduled',
+  'issues', '[]'::jsonb, 'bouts', (
+    select jsonb_agg(jsonb_build_object('ufcFightId', 'pr2' || o, 'order', o, 'segment', 'main',
+      'scheduledRounds', 3, 'weightClass', null,
+      'red', jsonb_build_object('ufcFighterId', 'pr2r' || o, 'name', 'Red Two ' || o, 'nickname', null),
+      'blue', jsonb_build_object('ufcFighterId', 'pr2b' || o, 'name', 'Blue Two ' || o, 'nickname', null)))
+    from generate_series(1, 3) o)));
+insert into public.push_tokens (token, user_id, platform) values ('ExponentPushToken[pr-test-1]', pg_temp.u(1), 'ios');
+insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
+select pg_temp.u(1), b.id, b.version, b.red_fighter_id, 'ANY'::public.finish_kind from public.bouts b
+where b.ufc_fight_id = 'pr21';
+select is((select (payload->>'leagueMissing')::int from public.claim_reminders() where user_id = pg_temp.u(1)), 2,
+  'the lock reminder counts the main card fights the league still needs');
+delete from public.events where ufc_event_id = 'pr2';
 
 -------------------------------------------------------------------------------
 -- Forfeits count half

@@ -117,3 +117,11 @@ describe("scoreEvent", () => {
     expect(scoreEvent([bout()], [result()], [pick({ bout_id: "elsewhere" })])).toEqual([]);
   });
 });
+
+test("scores a card by the round deduction it was played under", () => {
+  const roundWrong = pick({ finish: "round", finish_round: 3, method: "KO" });
+  const [old] = scoreEvent([bout()], [result()], [roundWrong], "2026-10-17T22:00:00Z");
+  const [fresh] = scoreEvent([bout()], [result()], [roundWrong], "2026-10-25T00:00:00Z");
+  expect(old.breakdown.round).toBe(-15);
+  expect(fresh.breakdown.round).toBe(-5);
+});

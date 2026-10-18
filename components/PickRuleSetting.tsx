@@ -28,14 +28,19 @@ export default function PickRuleSetting({
   const { c } = useTheme();
   const [saving, setSaving] = useState(false);
   // What top N shows before it's picked, and while it's being adjusted.
-  const [n, setN] = useState(rule.scope === "top_n" && rule.topN ? rule.topN : 6);
+  // Adjusting only changes this; Save sends it, once.
+  const savedN = rule.scope === "top_n" && rule.topN ? rule.topN : 6;
+  const [n, setN] = useState(savedN);
 
   const save = (next: PickRule) => {
     if (saving) return;
     setSaving(true);
     setPickRule(leagueId, next)
       .then(onChanged)
-      .catch((e) => Alert.alert("Couldn't change the rule", (e as Error).message))
+      .catch((e) => {
+        setN(savedN);
+        Alert.alert("Couldn't change the rule", (e as Error).message);
+      })
       .finally(() => setSaving(false));
   };
 
@@ -84,10 +89,7 @@ export default function PickRuleSetting({
                   return (
                     <PressableScale
                       key={step}
-                      onPress={() => {
-                        setN(next);
-                        if (on && next !== n) save({ scope: "top_n", topN: next });
-                      }}
+                      onPress={() => setN(next)}
                       disabled={saving || next === n}
                       hitSlop={8}
                       accessibilityLabel={step < 0 ? "Fewer fights" : "More fights"}
@@ -100,7 +102,16 @@ export default function PickRuleSetting({
                     </PressableScale>
                   );
                 })}
-                <Text style={muted}>2 to 20 fights</Text>
+                <Text style={[muted, { flex: 1 }]}>2 to 20 fights</Text>
+                {on && n !== savedN && (
+                  <PressableScale
+                    onPress={() => save({ scope: "top_n", topN: n })}
+                    disabled={saving}
+                    style={{ backgroundColor: c.red, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 }}
+                  >
+                    <Text style={{ color: "#FFFFFF", fontSize: 12, fontWeight: "800", letterSpacing: 0.8 }}>SAVE</Text>
+                  </PressableScale>
+                )}
               </View>
             )}
           </View>

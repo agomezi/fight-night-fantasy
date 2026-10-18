@@ -94,8 +94,11 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   const picks = boutIds.length
     ? await rows(db.from("picks").select("user_id, bout_id, bout_version, picked_fighter_id, finish, finish_round, method").in("bout_id", boutIds))
     : [];
+  // When the card started decides the deductions it plays, so a finished
+  // card re-scored later keeps the rules it was played under.
+  const [event] = await rows(db.from("events").select("locks_at").eq("id", eventId));
   // deno-lint-ignore no-explicit-any
-  const scores = scoreEvent(bouts as any, results as any, picks as any);
+  const scores = scoreEvent(bouts as any, results as any, picks as any, (event?.locks_at as string | undefined) ?? null);
   const { data: replaced, error: scoreError } = await db.rpc("replace_event_scores", { event_id: eventId, score_rows: scores });
   if (scoreError) throw new Error(scoreError.message);
 

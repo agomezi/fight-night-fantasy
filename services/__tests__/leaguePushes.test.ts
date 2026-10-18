@@ -83,3 +83,22 @@ describe("ordinal", () => {
     expect(ordinal(n)).toBe(label);
   });
 });
+
+describe("lock reminders under a league's minimum", () => {
+  const event = "UFC Fight Night: Buckley vs. Malott";
+
+  it("doesn't say you're set while a league still needs picks", () => {
+    expect(notificationText("reminder", { event, minutes: 60, hasMainPick: true, leagueMissing: 3 }).body).toBe(
+      "Your leagues still need 3 more picks from you. Miss one and you lose that matchup."
+    );
+    expect(notificationText("reminder", { event, minutes: 60, hasMainPick: true, leagueMissing: 0 }).body).toMatch(
+      /^Your picks are in/
+    );
+  });
+
+  it("counts them before the main card locks", () => {
+    expect(
+      notificationText("reminder", { event, minutes: 30, section: "main", missing: 0, leagueMissing: 2 }).body
+    ).toBe("You have 2 main card fights left to pick. Lock in your picks before it starts.");
+  });
+});

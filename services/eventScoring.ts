@@ -81,7 +81,13 @@ function pickFor(bout: BoutRow, row: PickRow): LanePick {
  * stored beside the full ones; every other tier scores a bout the same and
  * differs only in the season ledger, which league standings replay.
  */
-export function scoreEvent(bouts: BoutRow[], results: ResultRow[], picks: PickRow[]): ScoreRow[] {
+/** `cardStartsAt` picks the deductions the card plays: see SOFT_ROUND_FROM. */
+export function scoreEvent(
+  bouts: BoutRow[],
+  results: ResultRow[],
+  picks: PickRow[],
+  cardStartsAt?: string | null
+): ScoreRow[] {
   const boutsById = new Map(bouts.map(b => [b.id, b]));
   const resultsByBout = new Map(results.map(r => [r.bout_id, r]));
   const rows: ScoreRow[] = [];
@@ -102,6 +108,7 @@ export function scoreEvent(bouts: BoutRow[], results: ResultRow[], picks: PickRo
     const context = {
       segment: bout.card_segment ?? undefined,
       underdogCorner: bout.underdog_corner,
+      cardStartsAt,
     };
     const score = scorePick(lanePick, result, { ...context, tier: "pro" });
     const casual = scorePick(lanePick, result, { ...context, tier: "casual" });

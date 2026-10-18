@@ -4,15 +4,18 @@
 -- to pick: the main event only, the main card, the whole card, or the top N
 -- bouts (the main event and the next N-1 down the card, into the prelims).
 -- Missing it loses that week's matchup, as missing the main event always
--- has. A change applies from the next card to start, so finished weeks never
--- change under anyone. Pro leagues play the main card from now on; cards
+-- has. A change applies from the next card to start, so no week already
+-- started changes under anyone. Pro leagues play the main card from now on; cards
 -- already started stay main event only. Casual and Amateur keep their fixed
 -- ranges.
 --
 -- Forfeits: a win because the other side didn't make the required picks
--- still shows as a W, but adds half a win to the standings' win %.
+-- still shows as a W, but adds half a win to the standings' win %. Unlike
+-- the minimum, this applies to weeks already played too: the owner asked for
+-- it with last week's forfeit in mind.
 --
--- (The softer round deduction is in the scoring code the results sync runs.)
+-- (The softer round deduction is in the scoring code the results sync runs,
+-- dated so cards that started before it keep the old one.)
 
 -------------------------------------------------------------------------------
 -- The rule, with its history
@@ -54,6 +57,10 @@ revoke execute on function public.league_pick_rule(uuid, timestamptz) from publi
 -- The bouts a league requires picked on a card. Casual and Amateur: all of
 -- their range. Pro and Hardcore: what the league's rule asks for. Cancelled
 -- bouts, and ones whose fighters changed after the lock, are never required.
+-- The main event is the first bout still standing, so the co-main takes over
+-- from one changed after the lock, as decided in 20261107. Top N counts down
+-- the card as it was at the lock, so a bout changing then doesn't push the
+-- requirement onto a prelim that has already locked.
 create function public.league_required_bouts(league uuid, event uuid)
 returns setof uuid
 language sql
@@ -69,20 +76,24 @@ as $$
     from public.events e, public.league_pick_rule(league, e.locks_at) r
     where e.id = event
   ),
-  card as (
-    select b.id, b.card_segment,
-           row_number() over (order by b.fight_order) as pos
+  counted as (
+    select b.id, b.card_segment, public.changed_after_lock(b.id) as changed,
+           row_number() over (order by b.fight_order) as at_lock
     from public.bouts b, lg
     where b.event_id = event and b.status = 'scheduled'
       and public.bout_counts_for_tier(lg.tier, b.id)
-      and not public.changed_after_lock(b.id)
+  ),
+  card as (
+    select c.*, row_number() over (order by c.at_lock) as pos
+    from counted c where not c.changed
   )
   select c.id from card c, lg, rule r
   where case
     when lg.tier in ('casual', 'amateur') then true
     when r.scope = 'whole_card' then true
-    when r.scope = 'main_card' then c.card_segment = 'main' or c.pos = 1
-    when r.scope = 'top_n' then c.pos <= r.top_n
+    -- A bout entered by hand has no segment and counts as main card.
+    when r.scope = 'main_card' then c.card_segment = 'main' or c.card_segment is null or c.pos = 1
+    when r.scope = 'top_n' then c.at_lock <= r.top_n or c.pos = 1
     else c.pos = 1
   end;
 $$;
@@ -693,8 +704,10 @@ grant execute on function public.league_standings(uuid) to authenticated;
 -- Reading the rule
 -------------------------------------------------------------------------------
 
--- The rule each of your leagues plays its next card under, for the picks
--- screen and the league settings.
+-- The rule each of your leagues plays the current card under, the one the
+-- picks screen shows: live, or the next to start. Read at that card's start,
+-- as the server judges it, so a change made after it started shows from the
+-- next card, as it applies.
 create function public.my_league_pick_rules()
 returns table (league_id uuid, scope text, top_n smallint)
 language sql
@@ -702,11 +715,100 @@ stable
 security definer
 set search_path = ''
 as $$
+  with card as (
+    select e.locks_at from public.events e
+    where e.status in ('scheduled', 'live')
+    order by e.starts_at limit 1
+  )
   select m.league_id, r.scope, r.top_n
   from public.league_members m
-  cross join lateral public.league_pick_rule(m.league_id, 'infinity'::timestamptz) r
+  cross join lateral public.league_pick_rule(
+    m.league_id, coalesce((select c.locks_at from card c), 'infinity'::timestamptz)
+  ) r
   where m.user_id = (select auth.uid()) and m.left_at is null;
 $$;
 
 revoke execute on function public.my_league_pick_rules() from public, anon;
 grant execute on function public.my_league_pick_rules() to authenticated;
+
+-------------------------------------------------------------------------------
+-- Lock reminders count what your leagues require
+-------------------------------------------------------------------------------
+
+-- As before (20261107), with leagueMissing in the payload.
+create or replace function public.claim_reminders()
+returns table (user_id uuid, kind text, payload jsonb, tokens text[], wanted boolean)
+language sql
+security definer
+set search_path = ''
+as $$
+  with main_locks as (
+    select e.id, e.name, e.locks_at as card_locks, min(b.locks_at) as main_locks
+    from public.events e
+    join public.bouts b on b.event_id = e.id
+    where e.status in ('scheduled', 'live') and b.card_segment = 'main' and b.status = 'scheduled'
+    group by e.id
+  ),
+  due as (
+    select e.id, e.id::text as key, e.name, e.locks_at, null::text as section from public.events e
+    where e.status = 'scheduled' and e.locks_at > now() and e.locks_at <= now() + interval '60 minutes'
+    union all
+    select m.id, m.id || ':main', m.name, m.main_locks, 'main' from main_locks m
+    where m.main_locks > m.card_locks and m.main_locks > now() and m.main_locks <= now() + interval '30 minutes'
+  ),
+  due_main as (
+    select d.*, public.pro_main_event(d.id) as main_bout from due d
+  ),
+  candidates as (
+    select p.id as user_id, d.key,
+      jsonb_build_object(
+        'event', d.name,
+        'minutes', greatest(1, round(extract(epoch from d.locks_at - now()) / 60)),
+        'hasMainPick', exists (
+          select 1 from public.picks k
+          join public.bouts b on b.id = k.bout_id
+          where k.user_id = p.id and b.id = d.main_bout and k.bout_version = b.version
+        )
+      ) || jsonb_build_object(
+        -- Fights still open that any of your leagues requires and you haven't
+        -- picked, so the reminder doesn't say you're set when you aren't.
+        'leagueMissing', (
+          select count(distinct b.id) from public.league_members m
+          cross join lateral public.league_required_bouts(m.league_id, d.id) rb(id)
+          join public.bouts b on b.id = rb.id
+          join public.events e on e.id = b.event_id
+          where m.user_id = p.id and m.left_at is null
+            and coalesce(b.locks_at, e.locks_at) > now()
+            and not exists (
+              select 1 from public.picks k
+              where k.user_id = p.id and k.bout_id = b.id and k.bout_version = b.version
+            )
+        )
+      ) || case when d.section = 'main' then jsonb_build_object(
+        'section', 'main',
+        'missing', (
+          select count(*) from public.bouts b
+          where b.event_id = d.id and b.card_segment = 'main' and b.status = 'scheduled'
+            and not exists (
+              select 1 from public.picks k
+              where k.user_id = p.id and k.bout_id = b.id and k.bout_version = b.version
+            )
+        )
+      ) else '{}'::jsonb end as payload
+    from due_main d
+    cross join public.profiles p
+    where p.deleted_at is null and exists (select 1 from public.push_tokens t where t.user_id = p.id)
+  ),
+  claimed as (
+    insert into public.notifications_sent (user_id, kind, key, payload)
+    select c.user_id, 'reminder', c.key, c.payload from candidates c
+    on conflict do nothing
+    returning notifications_sent.user_id, notifications_sent.key
+  )
+  select c.user_id, 'reminder'::text, c.payload,
+    array(select t.token from public.push_tokens t where t.user_id = c.user_id),
+    p.notify_reminders
+  from candidates c
+  join claimed k on k.user_id = c.user_id and k.key = c.key
+  join public.profiles p on p.id = c.user_id;
+$$;
