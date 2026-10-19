@@ -16,6 +16,28 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-global-edge",
+    date: "2026-10-19T12:00:00Z",
+    title: "A new global leaderboard",
+    items: [
+      {
+        icon: "podium",
+        title: "Ranked by edge",
+        body: "The global leaderboard now ranks by edge: how many points you score above the average player on the same fights. Beat the field fight after fight and you climb.",
+      },
+      {
+        icon: "albums",
+        title: "Pick the whole main card",
+        body: "A card counts once you've picked its whole main card. Prelims you add count too. Skipping never costs you points; it just doesn't count.",
+      },
+      {
+        icon: "shield-checkmark",
+        title: "A bad night won't sink you",
+        body: "When everyone gets a fight wrong, nobody loses edge on it. An average night leaves you right around zero.",
+      },
+    ],
+  },
+  {
     id: "2026-10-league-rules",
     date: "2026-10-19T00:00:00Z",
     title: "New league rules",

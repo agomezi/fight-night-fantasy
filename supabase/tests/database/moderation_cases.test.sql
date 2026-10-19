@@ -31,7 +31,8 @@ select '00000000-0000-0000-0000-0000000000aa'::uuid, pg_temp.u(n) from generate_
 union all
 select '00000000-0000-0000-0000-0000000000cc'::uuid, pg_temp.u(n) from unnest(array[3, 5]) n;
 
--- A card two days out, and a scored pick for Cal this season.
+-- A card two days out, and a scored pick for Cal this season, with two more
+-- players picking it so it counts on the leaderboard.
 select public.sync_event_card(jsonb_build_object(
   'ufcEventId', 'mc1', 'name', 'Card mc1', 'startsAt', now() + interval '2 days', 'status', 'scheduled',
   'issues', '[]'::jsonb, 'bouts', jsonb_build_array(jsonb_build_object('ufcFightId', 'mc11', 'order', 1, 'segment', 'main',
@@ -39,8 +40,11 @@ select public.sync_event_card(jsonb_build_object(
     'red', jsonb_build_object('ufcFighterId', 'mc1r', 'name', 'Red', 'nickname', null),
     'blue', jsonb_build_object('ufcFighterId', 'mc1b', 'name', 'Blue', 'nickname', null)))));
 insert into public.scores (user_id, bout_id, season_id, points, casual_points, breakdown, correct, counts_for_accuracy)
-select pg_temp.u(3), b.id, e.season_id, 50, 50, '{}'::jsonb, true, true
-from public.bouts b join public.events e on e.id = b.event_id where b.ufc_fight_id = 'mc11';
+select pg_temp.u(n), b.id, e.season_id, 50, 50, '{}'::jsonb, true, true
+from public.bouts b join public.events e on e.id = b.event_id, unnest(array[1, 2, 3]) n where b.ufc_fight_id = 'mc11';
+insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
+select pg_temp.u(n), b.id, b.version, b.red_fighter_id, 'ANY' from public.bouts b, unnest(array[1, 2, 3]) n
+where b.ufc_fight_id = 'mc11';
 
 create function pg_temp.act(n int) returns void language sql as $$
   select set_config('request.jwt.claims', json_build_object('sub', pg_temp.u(n), 'role', 'authenticated')::text, true);

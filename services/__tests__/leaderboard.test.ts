@@ -28,6 +28,12 @@ describe("toLeaderboard", () => {
     expect(board.rows.map((r) => [r.rank, r.tied])).toEqual([[1, true], [1, true], [3, false]]);
   });
 
+  test("reads each player's edge, and falls back to points before the server sends it", () => {
+    const [ranked] = toLeaderboard([{ ...raw(1, "Bravo", -40, 2, 3), edge: 67 }]).rows;
+    expect([ranked.edge, ranked.points]).toEqual([67, -40]);
+    expect(toLeaderboard([raw(1, "Alpha", 50, 1, 1)]).rows[0].edge).toBe(50);
+  });
+
   test("an empty board is pre-season with no row for you", () => {
     expect(toLeaderboard([])).toEqual({ season: "PRE-SEASON", rows: [], me: null });
   });

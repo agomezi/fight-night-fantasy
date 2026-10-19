@@ -42,6 +42,13 @@ insert into public.scores (user_id, bout_id, season_id, points, casual_points, b
 select pg_temp.u(n), b.id, e.season_id, 10 * n, 10 * n, '{}'::jsonb, true, true
 from public.bouts b join public.events e on e.id = b.event_id, generate_series(1, 3) n
 where b.ufc_fight_id = 'pb11';
+-- With their picks, so the card counts on the leaderboard. Saved straight in:
+-- the card has already locked.
+set local session_replication_role = replica;
+insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
+select pg_temp.u(n), b.id, b.version, b.red_fighter_id, 'ANY' from public.bouts b, generate_series(1, 3) n
+where b.ufc_fight_id = 'pb11';
+set local session_replication_role = origin;
 
 -------------------------------------------------------------------------------
 -- Blocking

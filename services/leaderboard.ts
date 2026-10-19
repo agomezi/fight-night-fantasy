@@ -1,5 +1,7 @@
-// The global season leaderboard. The shaping is
-// pure so it can be tested without a database.
+// The global season leaderboard, ranked by edge: on each fight you pick,
+// your points minus the average of everyone who picked it, summed, over
+// cards where you picked the whole main card. The shaping is pure so it can
+// be tested without a database.
 
 export type LeaderboardRow = {
   rank: number;
@@ -7,11 +9,15 @@ export type LeaderboardRow = {
   tied: boolean;
   userId: string;
   name: string;
+  /** Points above the average player on the same fights; what the board ranks by. */
+  edge: number;
+  /** Season points over every pick. */
   points: number;
   /** 0–100, or null before anything has been scored. */
   accuracy: number | null;
   correct: number;
   counted: number;
+  /** Cards that counted: the whole main card picked. */
   cards: number;
   isMe: boolean;
 };
@@ -22,6 +28,7 @@ type Raw = {
   rank: number;
   user_id: string;
   display_name: string;
+  edge?: number;
   points: number;
   correct: number;
   counted: number;
@@ -38,6 +45,8 @@ export function toLeaderboard(raw: Raw[]): Leaderboard {
     tied: (shared.get(Number(r.rank)) ?? 0) > 1,
     userId: r.user_id,
     name: r.display_name,
+    // Before the server ranks by edge, the board is by points.
+    edge: Number(r.edge ?? r.points),
     points: Number(r.points),
     accuracy: Number(r.counted) > 0 ? Math.round((Number(r.correct) / Number(r.counted)) * 100) : null,
     correct: Number(r.correct),
