@@ -76,6 +76,7 @@ function ThemedApp() {
             <Stack.Screen name="league-settings" />
             <Stack.Screen name="league-join" />
             <Stack.Screen name="settings" />
+            <Stack.Screen name="patch-notes" />
             <Stack.Screen name="blocked-players" />
             <Stack.Screen name="edit-profile" />
             <Stack.Screen name="event/[id]" />

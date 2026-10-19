@@ -203,9 +203,16 @@ export default function Settings() {
           </PressableScale>
         </Animated.View>
 
-        <Text style={styles.sectionLabel}>LEGAL</Text>
+        <Text style={styles.sectionLabel}>ABOUT</Text>
         <Animated.View entering={appear(3)} style={styles.card}>
-          <PressableScale style={styles.row} onPress={() => openLink(PRIVACY_URL)}>
+          <PressableScale style={styles.row} onPress={() => router.push("/patch-notes")}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="sparkles-outline" size={20} color={c.text2} />
+            </View>
+            <Text style={styles.rowLabel}>Patch Notes</Text>
+            <Ionicons name="chevron-forward" size={18} color={c.textFaint} />
+          </PressableScale>
+          <PressableScale style={[styles.row, styles.rowBorder]} onPress={() => openLink(PRIVACY_URL)}>
             <View style={styles.rowIcon}>
               <Ionicons name="shield-checkmark-outline" size={20} color={c.text2} />
             </View>
