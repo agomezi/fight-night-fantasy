@@ -16,3 +16,6 @@ export const rankMovesKey = (userId: string, leagueId: string) => `fnf.league.mo
 
 // Set once the first launch's boot animation has played on this phone.
 export const BOOT_SEEN_KEY = "fnf.boot.seen";
+
+// The newest "what's new" entry this account has closed on this phone.
+export const whatsNewSeenKey = (userId: string) => `fnf.whatsnew.seen.${userId}`;
