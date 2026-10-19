@@ -13,7 +13,7 @@ import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import { makeCommonStyles } from "../styles/common";
 
 /*
- * Everyone's season, ranked. Points first, accuracy breaking ties, your own
+ * Everyone's season, ranked by edge, accuracy breaking ties, your own
  * row always shown even outside the top 100. Tapping a player opens their
  * card, the same as in a league, with report and block behind its menu.
  */
@@ -40,8 +40,10 @@ export default function LeaderboardScreen() {
 
   // Your row sits in rank order when you're in the top 100, and at the foot
   // of the table, after a gap, when you're not.
-  const top = board?.rows.filter((r) => !r.isMe || r.rank <= 100) ?? [];
-  const meBelow = board?.me && board.me.rank > 100 ? board.me : null;
+  // Unranked players follow everyone ranked, so it goes by position.
+  const meAt = board?.rows.findIndex((r) => r.isMe) ?? -1;
+  const top = board?.rows.filter((r, i) => !r.isMe || i < 100) ?? [];
+  const meBelow = board?.me && meAt >= 100 ? board.me : null;
 
   return (
     <SafeAreaView style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]} edges={["top", "left", "right"]}>
@@ -66,12 +68,16 @@ export default function LeaderboardScreen() {
             </View>
           )
         ) : board.rows.length === 0 ? (
-          <EmptyState icon="podium-outline" title="No scores yet" message="The leaderboard fills in once the first card of the season is scored." />
+          <EmptyState
+            icon="podium-outline"
+            title="No one ranked yet"
+            message="The leaderboard fills in once players who picked a whole main card have been scored."
+          />
         ) : (
           <>
             <Text style={{ color: c.red, fontSize: 11, fontWeight: "800", letterSpacing: 1.4 }}>{board.season}</Text>
             <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 4, marginBottom: 10 }}>
-              Ranked by points · accuracy breaks ties
+              Ranked by edge: points above the average player on the same fights. Only cards where you picked the whole main card count.
             </Text>
             {top.map((row, i) => (
               <LeaderboardRow
@@ -82,6 +88,11 @@ export default function LeaderboardScreen() {
                 onPress={() => setViewing(row.userId)}
               />
             ))}
+            {(!board.me || board.me.rank == null) && (
+              <Text style={{ color: c.textMuted, fontSize: 13, textAlign: "center", paddingTop: 16 }}>
+                You&apos;re not on the board yet. Pick a whole main card and it counts.
+              </Text>
+            )}
             {meBelow && (
               <>
                 <Text style={{ color: c.textFaint, textAlign: "center", paddingVertical: 8 }}>⋯</Text>

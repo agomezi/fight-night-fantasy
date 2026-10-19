@@ -9,18 +9,18 @@ import { whatsNewToShow, type WhatsNewEntry } from "../constants/whatsNew";
 import { useTheme } from "../context/ThemeContext";
 import PressableScale from "./PressableScale";
 
-/** What changed in this update, in a card over the screen, once per account
- * on this phone. Mounted only once the player is signed in and past the boot
- * animation. */
+/** What changed since this account last looked, in a card over the screen,
+ * once per account on this phone: every unseen entry, newest first. Mounted
+ * only once the player is signed in and past the boot animation. */
 export default function WhatsNew({ userId, accountCreatedAt }: { userId: string; accountCreatedAt?: string | null }) {
   const { c } = useTheme();
-  const [entry, setEntry] = useState<WhatsNewEntry | null>(null);
+  const [entries, setEntries] = useState<WhatsNewEntry[]>([]);
 
   useEffect(() => {
     let current = true;
     AsyncStorage.getItem(whatsNewSeenKey(userId))
       .then((seen) => {
-        if (current) setEntry(whatsNewToShow(seen, accountCreatedAt));
+        if (current) setEntries(whatsNewToShow(seen, accountCreatedAt));
       })
       .catch(() => {});
     return () => {
@@ -28,11 +28,12 @@ export default function WhatsNew({ userId, accountCreatedAt }: { userId: string;
     };
   }, [userId, accountCreatedAt]);
 
-  if (!entry) return null;
+  if (!entries.length) return null;
 
   const close = () => {
-    AsyncStorage.setItem(whatsNewSeenKey(userId), entry.id).catch(() => {});
-    setEntry(null);
+    // The newest is enough: everything older counts as seen with it.
+    AsyncStorage.setItem(whatsNewSeenKey(userId), entries[0].id).catch(() => {});
+    setEntries([]);
   };
 
   return (
@@ -48,12 +49,16 @@ export default function WhatsNew({ userId, accountCreatedAt }: { userId: string;
           style={{ backgroundColor: c.card, borderRadius: 20, borderWidth: 1, borderColor: c.border, padding: 22, maxHeight: "85%" }}
         >
           <Text style={{ color: c.red, fontSize: 11, fontWeight: "800", letterSpacing: 1.4 }}>WHAT&apos;S NEW</Text>
-          <Text style={{ fontFamily: "BebasNeue", fontSize: 34, color: c.text, letterSpacing: 0.5, marginTop: 2 }}>
-            {entry.title}
-          </Text>
-          <View style={{ width: 36, height: 3, backgroundColor: c.red, borderRadius: 2, marginTop: 2, marginBottom: 14 }} />
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
-            {entry.items.map((item) => (
+            {entries.map((entry, n) => (
+              <View key={entry.id} style={{ gap: 16, marginTop: n === 0 ? 0 : 10 }}>
+                <View>
+                  <Text style={{ fontFamily: "BebasNeue", fontSize: 32, color: c.text, letterSpacing: 0.5, marginTop: 2 }}>
+                    {entry.title}
+                  </Text>
+                  <View style={{ width: 36, height: 3, backgroundColor: c.red, borderRadius: 2, marginTop: 2 }} />
+                </View>
+                {entry.items.map((item) => (
               <View key={item.title} style={{ flexDirection: "row", gap: 12 }}>
                 <View
                   style={{
@@ -71,6 +76,8 @@ export default function WhatsNew({ userId, accountCreatedAt }: { userId: string;
                   <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }}>{item.title}</Text>
                   <Text style={{ color: c.textMuted, fontSize: 13.5, lineHeight: 19, marginTop: 2 }}>{item.body}</Text>
                 </View>
+              </View>
+                ))}
               </View>
             ))}
           </ScrollView>

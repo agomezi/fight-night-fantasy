@@ -1,6 +1,7 @@
 // What changed, shown once when the app opens after an update. Add a new
 // entry at the top with a new id for each release worth telling players
-// about; only the newest is shown, once per account on each phone.
+// about. The card shows every entry an account hasn't seen yet, once per
+// account on each phone.
 
 import type { Ionicons } from "@expo/vector-icons";
 
@@ -15,6 +16,28 @@ export type WhatsNewEntry = {
 };
 
 export const WHATS_NEW: WhatsNewEntry[] = [
+  {
+    id: "2026-10-global-edge",
+    date: "2026-10-19T12:00:00Z",
+    title: "A new global leaderboard",
+    items: [
+      {
+        icon: "podium",
+        title: "Ranked by edge",
+        body: "The global leaderboard now ranks by edge: how many points you score above the average player on the same fights. Beat the field fight after fight and you climb.",
+      },
+      {
+        icon: "albums",
+        title: "Pick the whole main card",
+        body: "A card counts once you've picked its whole main card. Prelims you add count too. Skipping never costs you points; it just doesn't count.",
+      },
+      {
+        icon: "shield-checkmark",
+        title: "A bad night won't sink you",
+        body: "When everyone gets a fight wrong, nobody loses edge on it. An average night leaves you right around zero.",
+      },
+    ],
+  },
   {
     id: "2026-10-league-rules",
     date: "2026-10-19T00:00:00Z",
@@ -44,15 +67,17 @@ export const WHATS_NEW: WhatsNewEntry[] = [
   },
 ];
 
-/** The entry to show, or null: the newest one, if this account hasn't seen it
- * and was around before it. */
+/** The entries to show, newest first: every one newer than the last this
+ * account closed, from after the account was made. Empty when there's
+ * nothing new. */
 export function whatsNewToShow(
   seenId: string | null,
   accountCreatedAt: string | null | undefined,
   entries: WhatsNewEntry[] = WHATS_NEW
-): WhatsNewEntry | null {
-  const latest = entries[0];
-  if (!latest || seenId === latest.id) return null;
-  if (accountCreatedAt && new Date(accountCreatedAt).getTime() >= new Date(latest.date).getTime()) return null;
-  return latest;
+): WhatsNewEntry[] {
+  const seenAt = entries.findIndex((e) => e.id === seenId);
+  const unseen = seenAt < 0 ? entries : entries.slice(0, seenAt);
+  if (!accountCreatedAt) return unseen;
+  const made = new Date(accountCreatedAt).getTime();
+  return unseen.filter((e) => new Date(e.date).getTime() > made);
 }

@@ -44,7 +44,7 @@ export default function LeaderboardRow({
         }}
       >
         <Text style={{ width: 36, color: c.text, fontSize: 15, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
-          {row.tied ? `T-${row.rank}` : row.rank}
+          {row.rank == null ? "–" : row.tied ? `T-${row.rank}` : row.rank}
         </Text>
         <View
           style={{
@@ -68,11 +68,22 @@ export default function LeaderboardRow({
           <Text style={{ color: c.textFaint, fontSize: 12, marginTop: 1 }}>
             {row.cards} card{row.cards === 1 ? "" : "s"}
             {row.accuracy != null ? ` · ${row.accuracy}% called` : ""}
+            {` · ${signed(row.points)} pts`}
           </Text>
         </View>
-        <Text style={{ color: c.text, fontSize: 17, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
-          {signed(row.points)}
-        </Text>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text
+            style={{
+              color: row.edge == null ? c.textFaint : row.edge > 0 ? c.green : row.edge < 0 ? c.red : c.text,
+              fontSize: 17,
+              fontWeight: "800",
+              fontVariant: ["tabular-nums"],
+            }}
+          >
+            {row.edge == null ? "—" : signed(row.edge)}
+          </Text>
+          <Text style={{ color: c.textFaint, fontSize: 9.5, fontWeight: "800", letterSpacing: 1 }}>EDGE</Text>
+        </View>
       </PressableScale>
     </Animated.View>
   );
