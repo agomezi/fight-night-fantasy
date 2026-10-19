@@ -7,6 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import BootSplash from "../components/BootSplash";
+import WhatsNew from "../components/WhatsNew";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ProfileProvider, useProfile } from "../context/ProfileContext";
 import { StandingProvider } from "../context/StandingContext";
@@ -83,6 +84,10 @@ function ThemedApp() {
         </Stack>
       )}
       <StatusBar style={c.statusBar} />
+      {/* What changed in this update, once the boot animation is out of the way. */}
+      {signedInWithName && !booting && session && (
+        <WhatsNew userId={session.user.id} accountCreatedAt={session.user.created_at} />
+      )}
       {booting && <BootSplash ready={ready} onDone={bootDone} />}
     </>
   );

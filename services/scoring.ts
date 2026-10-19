@@ -37,8 +37,22 @@ export const POINTS = {
 export const DEDUCTIONS = {
   fighter: 50,
   method: 30,
-  round: 15,
+  round: 5,
 } as const;
+
+/**
+ * A wrong round cost 15 until this date. Cards that started before it keep
+ * that, so re-scoring a finished card (the results sync does, for a week)
+ * never changes it.
+ */
+export const SOFT_ROUND_FROM = "2026-10-19T00:00:00Z";
+const OLD_ROUND_DEDUCTION = 15;
+
+function playsOldRound(cardStartsAt: string | Date | null | undefined): boolean {
+  if (cardStartsAt == null) return false;
+  const at = new Date(cardStartsAt).getTime();
+  return Number.isFinite(at) && at < new Date(SOFT_ROUND_FROM).getTime();
+}
 
 /**
  * Method and round still earn when the fighter is wrong — reading the fight
@@ -65,14 +79,15 @@ const DEDUCTION_SCALE: Record<Tier, number> = {
 
 /**
  * The deductions a tier plays with. Halves round down, so Casual is
- * -25 / -15 / -7 and no fractional points ever reach the UI.
+ * -25 / -15 / -2 and no fractional points ever reach the UI.
  */
-export function deductionsFor(tier: Tier) {
+export function deductionsFor(tier: Tier, cardStartsAt?: string | Date | null) {
   const scale = DEDUCTION_SCALE[tier];
+  const round = playsOldRound(cardStartsAt) ? OLD_ROUND_DEDUCTION : DEDUCTIONS.round;
   return {
     fighter: Math.floor(DEDUCTIONS.fighter * scale),
     method: Math.floor(DEDUCTIONS.method * scale),
-    round: Math.floor(DEDUCTIONS.round * scale),
+    round: Math.floor(round * scale),
   };
 }
 
@@ -149,6 +164,8 @@ export type ScoreContext = {
    * Odds move, so scoring must not look them up again.
    */
   underdogCorner?: Corner | null;
+  /** When the card started, for the deductions it plays. Today's when missing. */
+  cardStartsAt?: string | Date | null;
 };
 
 /* ------------------------------------------------------------------ *
@@ -236,7 +253,7 @@ export function scorePick(
   if (!pick) return emptyScore(state);
 
   const tier = context.tier ?? "pro";
-  const deductions = deductionsFor(tier);
+  const deductions = deductionsFor(tier, context.cardStartsAt);
   const correct = pick.corner === result.winner;
 
   // HALF-CREDIT RULING: a wrong fighter still earns for reading the fight,

@@ -8,10 +8,16 @@ export type LeagueTier = "casual" | "amateur" | "pro" | "hardcore";
  * left — leaving at the end of this season; former — a deleted account. */
 export type MemberStatus = "active" | "queued" | "left" | "former";
 
+/** How much of the card a Pro league requires picked. `topN` is the main
+ * event and the next N-1 bouts down the card. */
+export type PickRule = { scope: "main_event" | "main_card" | "whole_card" | "top_n"; topN: number | null };
+
 export type MyLeague = {
   id: string;
   name: string;
   tier: LeagueTier;
+  /** A Pro league's minimum picks for its next card; null for Casual and Amateur, whose range is fixed. */
+  rule: PickRule | null;
   inviteCode: string;
   isOwner: boolean;
   members: number;
@@ -32,6 +38,8 @@ export type LeagueStanding = {
   wins: number;
   losses: number;
   draws: number;
+  /** Wins because the other side didn't make the required picks; half a win in the ranking. */
+  forfeitWins: number;
   record: string;
   points: number;
   /** 0–100, or null before anything has been scored. */
@@ -81,7 +89,7 @@ export const TIER_BLURB: Record<Exclude<LeagueTier, "hardcore">, string> = {
   casual: "The main card, every bout of it. Half deductions, and your season total never drops below 0.",
   amateur:
     "The main card and the last 3 prelims, every bout of them. Full deductions with a floor at 0 — but an all-wrong pick at 0 leaves you owing 20.",
-  pro: "The whole card, the main event required. Full deductions, no floor. Every point counts both ways.",
+  pro: "The whole card counts, and the owner sets how much of it everyone has to pick: the main card unless they change it. Full deductions, no floor. Every point counts both ways.",
 };
 
 export function recordOf(wins: number, losses: number, draws: number): string {
@@ -110,11 +118,21 @@ type RawLeague = {
   points: number;
 };
 
-export function toMyLeagues(raw: RawLeague[]): MyLeague[] {
+export type RawPickRule = { league_id: string; scope: PickRule["scope"]; top_n: number | null };
+
+export function toMyLeagues(raw: RawLeague[], rules: RawPickRule[] = []): MyLeague[] {
+  const byLeague = new Map(rules.map((r) => [r.league_id, r]));
   return raw.map((r) => ({
     id: r.league_id,
     name: r.name,
     tier: r.tier,
+    rule:
+      r.tier === "pro" || r.tier === "hardcore"
+        ? (() => {
+            const x = byLeague.get(r.league_id);
+            return x ? { scope: x.scope, topN: x.top_n == null ? null : Number(x.top_n) } : { scope: "main_event", topN: null };
+          })()
+        : null,
     inviteCode: r.invite_code.toUpperCase(),
     isOwner: r.is_owner,
     members: Number(r.members),
@@ -139,6 +157,7 @@ type RawStanding = {
   is_me: boolean;
   is_owner: boolean;
   season_label: string;
+  forfeit_wins?: number;
 };
 
 export function toStandings(raw: RawStanding[]): LeagueStandings {
@@ -159,6 +178,7 @@ export function toStandings(raw: RawStanding[]): LeagueStandings {
       wins,
       losses,
       draws,
+      forfeitWins: Number(r.forfeit_wins ?? 0),
       record: recordOf(wins, losses, draws),
       points: Number(r.points),
       accuracy: Number(r.counted) > 0 ? Math.round((Number(r.correct) / Number(r.counted)) * 100) : null,
@@ -358,9 +378,29 @@ async function db() {
 }
 
 export async function loadMyLeagues(): Promise<MyLeague[]> {
-  const { data, error } = await (await db()).rpc("my_leagues");
+  const client = await db();
+  const [leagues, rules] = await Promise.all([client.rpc("my_leagues"), client.rpc("my_league_pick_rules")]);
+  if (leagues.error) throw new Error(leagues.error.message);
+  // Before the rules exist on the server, every Pro league reads as main event only.
+  return toMyLeagues((leagues.data ?? []) as RawLeague[], rules.error ? [] : ((rules.data ?? []) as RawPickRule[]));
+}
+
+/** "Main card", "Top 6 fights", … */
+export function pickRuleLabel(rule: PickRule): string {
+  if (rule.scope === "whole_card") return "Whole card";
+  if (rule.scope === "main_card") return "Main card";
+  if (rule.scope === "top_n") return `Top ${rule.topN} fights`;
+  return "Main event only";
+}
+
+/** The owner changes the minimum. It applies from the next card to start. */
+export async function setPickRule(leagueId: string, rule: PickRule): Promise<void> {
+  const { error } = await (await db()).rpc("set_league_pick_rule", {
+    league: leagueId,
+    scope: rule.scope,
+    top_n: rule.scope === "top_n" ? rule.topN : null,
+  });
   if (error) throw new Error(error.message);
-  return toMyLeagues((data ?? []) as RawLeague[]);
 }
 
 export async function loadStandings(leagueId: string): Promise<LeagueStandings> {
