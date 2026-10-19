@@ -6,20 +6,23 @@ const entries: WhatsNewEntry[] = [
 ];
 
 describe("whatsNewToShow", () => {
-  it("shows the newest entry to an account that hasn't closed it", () => {
-    expect(whatsNewToShow(null, "2026-09-01T00:00:00Z", entries)?.id).toBe("b");
-    expect(whatsNewToShow("a", "2026-09-01T00:00:00Z", entries)?.id).toBe("b");
+  const ids = (list: WhatsNewEntry[]) => list.map((e) => e.id);
+
+  it("shows every entry an account hasn't seen, newest first", () => {
+    expect(ids(whatsNewToShow(null, "2026-09-01T00:00:00Z", entries))).toEqual(["b", "a"]);
+    expect(ids(whatsNewToShow("a", "2026-09-01T00:00:00Z", entries))).toEqual(["b"]);
   });
 
-  it("shows it once", () => {
-    expect(whatsNewToShow("b", "2026-09-01T00:00:00Z", entries)).toBeNull();
+  it("shows them once", () => {
+    expect(whatsNewToShow("b", "2026-09-01T00:00:00Z", entries)).toEqual([]);
   });
 
-  it("skips accounts made after it, who never knew the old way", () => {
-    expect(whatsNewToShow(null, "2026-10-20T00:00:00Z", entries)).toBeNull();
+  it("skips entries from before the account was made", () => {
+    expect(ids(whatsNewToShow(null, "2026-10-05T00:00:00Z", entries))).toEqual(["b"]);
+    expect(whatsNewToShow(null, "2026-10-20T00:00:00Z", entries)).toEqual([]);
   });
 
   it("shows nothing with no entries", () => {
-    expect(whatsNewToShow(null, null, [])).toBeNull();
+    expect(whatsNewToShow(null, null, [])).toEqual([]);
   });
 });

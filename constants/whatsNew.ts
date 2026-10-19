@@ -1,6 +1,7 @@
 // What changed, shown once when the app opens after an update. Add a new
 // entry at the top with a new id for each release worth telling players
-// about; only the newest is shown, once per account on each phone.
+// about. The card shows every entry an account hasn't seen yet, once per
+// account on each phone.
 
 import type { Ionicons } from "@expo/vector-icons";
 
@@ -66,15 +67,17 @@ export const WHATS_NEW: WhatsNewEntry[] = [
   },
 ];
 
-/** The entry to show, or null: the newest one, if this account hasn't seen it
- * and was around before it. */
+/** The entries to show, newest first: every one newer than the last this
+ * account closed, from after the account was made. Empty when there's
+ * nothing new. */
 export function whatsNewToShow(
   seenId: string | null,
   accountCreatedAt: string | null | undefined,
   entries: WhatsNewEntry[] = WHATS_NEW
-): WhatsNewEntry | null {
-  const latest = entries[0];
-  if (!latest || seenId === latest.id) return null;
-  if (accountCreatedAt && new Date(accountCreatedAt).getTime() >= new Date(latest.date).getTime()) return null;
-  return latest;
+): WhatsNewEntry[] {
+  const seenAt = entries.findIndex((e) => e.id === seenId);
+  const unseen = seenAt < 0 ? entries : entries.slice(0, seenAt);
+  if (!accountCreatedAt) return unseen;
+  const made = new Date(accountCreatedAt).getTime();
+  return unseen.filter((e) => new Date(e.date).getTime() > made);
 }

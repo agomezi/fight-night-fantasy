@@ -44,7 +44,7 @@ export default function LeaderboardRow({
         }}
       >
         <Text style={{ width: 36, color: c.text, fontSize: 15, fontWeight: "800", fontVariant: ["tabular-nums"] }}>
-          {row.tied ? `T-${row.rank}` : row.rank}
+          {row.rank == null ? "–" : row.tied ? `T-${row.rank}` : row.rank}
         </Text>
         <View
           style={{
@@ -74,13 +74,13 @@ export default function LeaderboardRow({
         <View style={{ alignItems: "flex-end" }}>
           <Text
             style={{
-              color: row.edge > 0 ? c.green : row.edge < 0 ? c.red : c.text,
+              color: row.edge == null ? c.textFaint : row.edge > 0 ? c.green : row.edge < 0 ? c.red : c.text,
               fontSize: 17,
               fontWeight: "800",
               fontVariant: ["tabular-nums"],
             }}
           >
-            {signed(row.edge)}
+            {row.edge == null ? "—" : signed(row.edge)}
           </Text>
           <Text style={{ color: c.textFaint, fontSize: 9.5, fontWeight: "800", letterSpacing: 1 }}>EDGE</Text>
         </View>

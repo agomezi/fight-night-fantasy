@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(7);
 
 create function pg_temp.f(id text) returns jsonb language sql as $$
   select jsonb_build_object('ufcFighterId', id, 'name', 'Fighter ' || id, 'nickname', null)
@@ -47,11 +47,12 @@ $$;
 
 set local session_replication_role = replica;
 -- Alpha, Bravo and Charlie pick the whole main card; Alpha and Bravo the
--- prelim too. Foxtrot picks one fight, the e1 account two; Delta all three.
+-- prelim too. Foxtrot picks one fight; Delta all three. The e1 account,
+-- never named, picks the whole main card too, and scores big on it.
 select pg_temp.pick(n, array['laa', 'lab', 'lac']) from unnest(array['a', 'b', 'c', 'd']) n;
 select pg_temp.pick(n, array['lad']) from unnest(array['a', 'b']) n;
 select pg_temp.pick('f', array['laa']);
-select pg_temp.pick('e', array['laa', 'lab']);
+select pg_temp.pick('e', array['laa', 'lab', 'lac']);
 set local session_replication_role = origin;
 
 -- Fight a: 125, 50, -50, average 41.67. Fight b: 25, 50, 50, average 41.67.
@@ -61,7 +62,7 @@ select pg_temp.score('a', 'laa', 125), pg_temp.score('a', 'lab', 25), pg_temp.sc
 select pg_temp.score('b', 'laa', 50), pg_temp.score('b', 'lab', 50), pg_temp.score('b', 'lac', -50), pg_temp.score('b', 'lad', -50);
 select pg_temp.score('c', 'laa', -50), pg_temp.score('c', 'lab', 50), pg_temp.score('c', 'lac', -50);
 select pg_temp.score('f', 'laa', 125);
-select pg_temp.score('e', 'laa', 125), pg_temp.score('e', 'lab', 125);
+select pg_temp.score('e', 'laa', 125), pg_temp.score('e', 'lab', 125), pg_temp.score('e', 'lac', 125);
 
 -- Delta deletes their account.
 set local role authenticated;
@@ -71,15 +72,15 @@ select public.delete_account();
 select set_config('request.jwt.claims', json_build_object('sub', pg_temp.u('c'), 'role', 'authenticated')::text, true);
 
 -- Alpha +83.33 - 16.67 = +67; Bravo +8.33 + 8.33 = +17; Charlie -91.67 + 8.33 = -83.
+-- The unnamed account isn't in the averages, or these would all move.
 select results_eq(
   $$select rank, display_name, edge, points, cards, is_me from public.season_leaderboard()$$,
   $$values (1::bigint, 'Alpha', 67::bigint, 225::bigint, 1::bigint, false),
            (2::bigint, 'Bravo', 17::bigint, 0::bigint, 1::bigint, false),
-           (3::bigint, 'Charlie', -83::bigint, -50::bigint, 1::bigint, true)$$,
-  'ranked by edge: points above the average of everyone who picked the same fights'
+           (3::bigint, 'Charlie', -83::bigint, -50::bigint, 1::bigint, true),
+           (null::bigint, 'Foxtrot', null::bigint, 125::bigint, 0::bigint, false)$$,
+  'ranked by edge over the field of rankable players; one card short of the main card is listed unranked'
 );
-select ok(not exists (select 1 from public.season_leaderboard() where user_id = pg_temp.u('f')),
-  'a card without the whole main card doesn''t count, however well it went');
 select is((select sum(edge)::int from public.season_leaderboard()), 1,
   'edges balance out around the field, give or take rounding');
 select is((select distinct season_label from public.season_leaderboard()), 'PRE-SEASON', 'before season 1 it ranks the pre-season');

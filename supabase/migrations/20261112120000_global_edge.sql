@@ -12,11 +12,17 @@
 -- it, so one with almost no pickers can't swing anyone. Skipping is neither
 -- rewarded nor punished: a card you didn't commit to, or a fight you didn't
 -- pick, is simply 0. Points and accuracy still show, over every pick.
+--
+-- Only players who can be ranked make up the field, so accounts that are
+-- deleted, banned or never named can't move anyone's average. Players
+-- scored this season who aren't ranked yet are listed after everyone who
+-- is, with no rank.
 
 drop function public.season_leaderboard(integer);
 
 create function public.season_leaderboard(max_rows integer default 100)
 returns table (
+  -- Null for a player scored this season with no card counted yet.
   rank          bigint,
   user_id       uuid,
   display_name  text,
@@ -48,17 +54,30 @@ as $$
     select sb.id, sb.event_id, sb.version from season_bouts sb
     where sb.card_segment = 'main' or sb.card_segment is null
   ),
-  -- Cards each player picked the whole main card of.
+  -- Players who can be ranked.
+  eligible as (
+    select p.id as user_id
+    from public.profiles p
+    where p.deleted_at is null and p.display_name is not null
+      and (select ps.standing from public.player_standing(p.id) ps) is distinct from 'banned'
+      and exists (
+        select 1 from public.scores s join public.bouts b on b.id = s.bout_id
+        join public.events e on e.id = b.event_id
+        where s.user_id = p.id and e.season_id is not distinct from (select id from season)
+      )
+  ),
+  -- Cards each of them picked the whole main card of.
   committed as (
     select k.user_id, mc.event_id
     from main_card mc
     join public.picks k on k.bout_id = mc.id and k.bout_version = mc.version
+    join eligible el on el.user_id = k.user_id
     group by k.user_id, mc.event_id
     having count(*) = (select count(*) from main_card x where x.event_id = mc.event_id)
   ),
   -- Their scored picks on those cards.
   field as (
-    select s.user_id, s.bout_id, s.points
+    select s.user_id, s.bout_id, s.points, sb.event_id
     from public.scores s
     join season_bouts sb on sb.id = s.bout_id
     join committed c on c.user_id = s.user_id and c.event_id = sb.event_id
@@ -71,7 +90,9 @@ as $$
     having count(*) >= 3
   ),
   edges as (
-    select f.user_id, round(sum(f.points - ft.average))::bigint as edge
+    select f.user_id, round(sum(f.points - ft.average))::bigint as edge,
+           -- Cards played, not ones picked ahead of time.
+           count(distinct f.event_id) as cards
     from field f
     join fights ft on ft.bout_id = f.bout_id
     group by f.user_id
@@ -89,21 +110,29 @@ as $$
     group by s.user_id
   ),
   board as (
-    select e.user_id, e.edge,
+    select el.user_id, e.edge,
            coalesce(t.points, 0) as points, coalesce(t.correct, 0) as correct, coalesce(t.counted, 0) as counted,
-           (select count(*) from committed c where c.user_id = e.user_id) as cards
-    from edges e
-    left join totals t on t.user_id = e.user_id
+           coalesce(e.cards, 0) as cards
+    from eligible el
+    left join edges e on e.user_id = el.user_id
+    left join totals t on t.user_id = el.user_id
   ),
   standing as (
     select b.user_id, (select ps.standing from public.player_standing(b.user_id) ps) as standing
     from board b
   ),
   ranked as (
-    select rank() over (
+    select case when b.edge is not null then rank() over (
+             partition by b.edge is null
              order by b.edge desc,
                       case when b.counted = 0 then 0 else b.correct::numeric / b.counted end desc
-           ) as rank,
+           ) end as rank,
+           -- Ranked players first, then the rest by points.
+           row_number() over (
+             order by b.edge is null, b.edge desc,
+                      case when b.counted = 0 then 0 else b.correct::numeric / b.counted end desc,
+                      b.points desc
+           ) as pos,
            b.user_id,
            case
              when public.blocked_by_me(b.user_id) then 'Blocked player'
@@ -116,13 +145,12 @@ as $$
     from board b
     join public.profiles p on p.id = b.user_id
     join standing st on st.user_id = b.user_id
-    where p.deleted_at is null and p.display_name is not null and st.standing <> 'banned'
   )
   select r.rank, r.user_id, r.display_name, r.edge, r.points, r.correct, r.counted, r.cards, r.is_me,
          coalesce((select 'SEASON ' || number from season), 'PRE-SEASON')
   from ranked r
-  where r.rank <= greatest(max_rows, 1) or r.is_me
-  order by r.rank, r.display_name;
+  where r.pos <= greatest(max_rows, 1) or r.is_me
+  order by r.pos;
 $$;
 
 revoke execute on function public.season_leaderboard(integer) from public, anon;

@@ -34,6 +34,15 @@ describe("toLeaderboard", () => {
     expect(toLeaderboard([raw(1, "Alpha", 50, 1, 1)]).rows[0].edge).toBe(50);
   });
 
+  test("a player not ranked yet has no rank and no edge", () => {
+    const [ranked, unranked] = toLeaderboard([
+      { ...raw(1, "Bravo", 10, 1, 1), edge: 5 },
+      { ...raw(1, "Alpha", 50, 1, 1, true), rank: null, edge: null },
+    ]).rows;
+    expect([ranked.rank, ranked.tied]).toEqual([1, false]);
+    expect([unranked.rank, unranked.edge, unranked.tied]).toEqual([null, null, false]);
+  });
+
   test("an empty board is pre-season with no row for you", () => {
     expect(toLeaderboard([])).toEqual({ season: "PRE-SEASON", rows: [], me: null });
   });

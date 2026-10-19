@@ -167,7 +167,7 @@ export default function Profile() {
           <Animated.View entering={appear(2)} style={styles.statCard}>
             <Text style={styles.statLabel}>GLOBAL RANK</Text>
             <Text style={styles.statValue}>{globalMe ? rankLabel(globalMe.rank, globalMe.tied) : "—"}</Text>
-            <Text style={styles.statSub}>{globalMe ? season?.label ?? "THIS SEASON" : "UNRANKED"}</Text>
+            <Text style={styles.statSub}>{globalMe?.rank != null ? season?.label ?? "THIS SEASON" : "UNRANKED"}</Text>
           </Animated.View>
 
           <Animated.View entering={appear(3)} style={styles.statCard}>

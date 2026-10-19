@@ -40,8 +40,10 @@ export default function LeaderboardScreen() {
 
   // Your row sits in rank order when you're in the top 100, and at the foot
   // of the table, after a gap, when you're not.
-  const top = board?.rows.filter((r) => !r.isMe || r.rank <= 100) ?? [];
-  const meBelow = board?.me && board.me.rank > 100 ? board.me : null;
+  // Unranked players follow everyone ranked, so it goes by position.
+  const meAt = board?.rows.findIndex((r) => r.isMe) ?? -1;
+  const top = board?.rows.filter((r, i) => !r.isMe || i < 100) ?? [];
+  const meBelow = board?.me && meAt >= 100 ? board.me : null;
 
   return (
     <SafeAreaView style={[commonStyles.container, { backgroundColor: c.bg, padding: 0 }]} edges={["top", "left", "right"]}>
@@ -86,7 +88,7 @@ export default function LeaderboardScreen() {
                 onPress={() => setViewing(row.userId)}
               />
             ))}
-            {!board.me && (
+            {(!board.me || board.me.rank == null) && (
               <Text style={{ color: c.textMuted, fontSize: 13, textAlign: "center", paddingTop: 16 }}>
                 You&apos;re not on the board yet. Pick a whole main card and it counts.
               </Text>
