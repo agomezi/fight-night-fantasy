@@ -1,4 +1,4 @@
-import { lockInNeeds, requiredBouts, tierBouts, type TierBout } from "../tierPicks";
+import { fightNeeds, globalStatus, lockInNeeds, requiredBouts, tierBouts, type TierBout } from "../tierPicks";
 
 // Main event first: 2 main card, 4 prelims, 2 early prelims.
 const card: TierBout[] = [
@@ -81,5 +81,26 @@ describe("a Pro league's minimum picks", () => {
       () => true
     );
     expect(need).toEqual({ missing: ["m2", "p1", "p2", "p3"], league: "Strict" });
+  });
+});
+
+describe("what each fight counts toward", () => {
+  const leagues = [
+    { name: "Easy", tier: "casual" as const },
+    { name: "Strict", tier: "pro" as const, rule: { scope: "top_n" as const, topN: 4 } },
+  ];
+
+  test("names the leagues that require it, and marks the main card for global", () => {
+    const needs = fightNeeds(leagues, card);
+    expect(needs.m1).toEqual({ leagues: ["Easy", "Strict"], global: true });
+    expect(needs.p2).toEqual({ leagues: ["Strict"], global: false });
+    expect(needs.e1).toEqual({ leagues: [], global: false });
+  });
+
+  test("says whether the card will count on global", () => {
+    const open = () => true;
+    expect(globalStatus(card, (id) => id.startsWith("m"), open)).toEqual({ state: "counts" });
+    expect(globalStatus(card, (id) => id === "m1", open)).toEqual({ state: "short", left: 1 });
+    expect(globalStatus(card, (id) => id === "m1", (b) => b.id !== "m2")).toEqual({ state: "missed" });
   });
 });

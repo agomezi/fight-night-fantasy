@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, ScrollView, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   FadeIn,
@@ -17,6 +17,8 @@ import ResultRow from "../components/ResultRow";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useHistory } from "../hooks/useHistory";
+import { useAuth } from "../context/AuthContext";
+import { loadPinnedCalls, pinCall, unpinCall } from "../services/pins";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
 
@@ -40,6 +42,35 @@ export default function History() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const state = useHistory();
+  const { session } = useAuth();
+  const myId = session?.user.id;
+
+  // Correct calls on final results can be pinned to your profile.
+  const [pinned, setPinned] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!myId) return;
+    let current = true;
+    loadPinnedCalls(myId)
+      .then((v) => current && setPinned(new Set(v.map((p) => p.boutId))))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [myId]);
+  const togglePin = useCallback(
+    (boutId: string) => {
+      const was = pinned.has(boutId);
+      const next = new Set(pinned);
+      if (was) next.delete(boutId);
+      else next.add(boutId);
+      setPinned(next);
+      (was ? unpinCall(boutId) : pinCall(boutId)).catch((e) => {
+        setPinned(pinned);
+        Alert.alert(was ? "Couldn't unpin it" : "Couldn't pin it", e instanceof Error ? e.message : "Please try again.");
+      });
+    },
+    [pinned]
+  );
   const history = state.status === "ready" ? state.history : null;
   const past = history?.events ?? [];
   const season = history?.season;
@@ -316,6 +347,11 @@ export default function History() {
                               verdictNote={b.voidNote ? `${b.pick} · ${b.voidNote}` : b.pick}
                               settled={b.settled}
                               last={bi === e.bouts.length - 1}
+                              pin={
+                                b.verdict === "hit" && b.meta === "Final"
+                                  ? { pinned: pinned.has(b.id), onPress: () => togglePin(b.id) }
+                                  : undefined
+                              }
                             />
                           </View>
                         );

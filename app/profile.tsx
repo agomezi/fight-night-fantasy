@@ -9,6 +9,7 @@ import { appear } from "../constants/motion";
 import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
+import PinnedCalls from "../components/PinnedCalls";
 import ResultRow from "../components/ResultRow";
 import HeaderBar from "../components/HeaderBar";
 import { useAuth } from "../context/AuthContext";
@@ -23,6 +24,7 @@ import { loadLeaderboard, type LeaderboardRow } from "../services/leaderboard";
 import { readCache, writeCache } from "../services/screenCache";
 import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, type SeasonRecord } from "../services/leagues";
 import { loadCareer, type Career } from "../services/career";
+import { loadPinnedCalls, MAX_PINNED_CALLS, type PinnedCall } from "../services/pins";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -63,6 +65,20 @@ export default function Profile() {
         current = false;
       };
     }, [])
+  );
+
+  // Your pinned calls, which anyone who opens your card sees.
+  const [pins, setPins] = useState<PinnedCall[]>(() => readCache<PinnedCall[]>("pinned-calls") ?? []);
+  const myId = session?.user.id;
+  useFocusEffect(
+    useCallback(() => {
+      if (!myId) return;
+      let current = true;
+      loadPinnedCalls(myId).then((v) => current && setPins(writeCache("pinned-calls", v))).catch(() => {});
+      return () => {
+        current = false;
+      };
+    }, [myId])
   );
 
   const toggleLeague = (leagueId: string) => {
@@ -188,6 +204,25 @@ export default function Profile() {
             <AnimatedBar percent={accuracy ?? 0} height={4} style={{ marginTop: 10 }} />
           </Animated.View>
         </View>
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>PINNED CALLS</Text>
+          {pins.length > 0 && (
+            <Text style={styles.viewHistory}>
+              {pins.length}/{MAX_PINNED_CALLS}
+            </Text>
+          )}
+        </View>
+        {pins.length > 0 ? (
+          <PinnedCalls calls={pins} />
+        ) : (
+          <PressableScale onPress={() => router.push("/history")}>
+            <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19 }}>
+              Show off your best calls. Pin up to {MAX_PINNED_CALLS} correct picks from History, and anyone who opens your
+              card sees them.
+            </Text>
+          </PressableScale>
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>RECENT PICKS</Text>

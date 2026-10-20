@@ -14,6 +14,8 @@ import {
   type MemberProfile,
   type ReportReason,
 } from "../services/leagues";
+import { loadPinnedCalls, type PinnedCall } from "../services/pins";
+import PinnedCalls from "./PinnedCalls";
 import PressableScale from "./PressableScale";
 import { StatBox, StatBoxRow } from "./StatBox";
 import ScreenSkeleton from "./ScreenSkeleton";
@@ -45,6 +47,7 @@ export default function MemberProfileSheet({
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pins, setPins] = useState<PinnedCall[]>([]);
 
   useEffect(() => {
     if (!userId) return;
@@ -59,6 +62,10 @@ export default function MemberProfileSheet({
     loadMemberProfile(leagueId, userId)
       .then((p) => current && setProfile(p))
       .catch(() => current && setFailed(true));
+    setPins([]);
+    loadPinnedCalls(userId)
+      .then((v) => current && setPins(v))
+      .catch(() => {});
     return () => {
       current = false;
     };
@@ -358,6 +365,14 @@ export default function MemberProfileSheet({
         </View>
         {profile.accuracy == null && profile.favoriteDivision == null && (
           <Text style={[muted, { marginTop: 12, fontSize: 12.5 }]}>No scored picks yet. Stats fill in after a few cards.</Text>
+        )}
+        {pins.length > 0 && !profile.blocked && (
+          <View style={{ marginTop: 18 }}>
+            <Text style={{ color: c.textMuted, fontSize: 11, fontWeight: "800", letterSpacing: 1.4, marginBottom: 10 }}>
+              PINNED CALLS
+            </Text>
+            <PinnedCalls calls={pins} compact />
+          </View>
         )}
         <PressableScale onPress={onClose} style={{ paddingTop: 18, paddingBottom: 2, alignItems: "center" }}>
           <Text style={{ color: c.text2, fontSize: 15, fontWeight: "700" }}>Close</Text>

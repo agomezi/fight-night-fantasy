@@ -68,3 +68,48 @@ export function lockInNeeds<T extends TierBout>(
   }
   return { missing: [...missing], league };
 }
+
+export type FightNeed = {
+  /** The leagues that require this fight picked. */
+  leagues: string[];
+  /** On the main card, so it's part of what global needs. */
+  global: boolean;
+};
+
+/** What each fight counts toward, for the tags on the picks screen: which of
+ * your leagues require it, and whether global needs it (the whole main card
+ * counts a card on the global leaderboard). */
+export function fightNeeds<T extends TierBout>(
+  leagues: { name: string; tier: LeagueTier; rule?: PickRule | null }[],
+  card: T[]
+): Record<string, FightNeed> {
+  const needs: Record<string, FightNeed> = {};
+  card.forEach((b, i) => {
+    needs[b.id] = { leagues: [], global: i === 0 || b.segment === "main" || b.segment === null };
+  });
+  for (const l of leagues) {
+    for (const b of requiredBouts(l.tier, card, l.rule)) needs[b.id]?.leagues.push(l.name);
+  }
+  return needs;
+}
+
+export type GlobalStatus =
+  /** Every main card fight picked: the card counts on global. */
+  | { state: "counts" }
+  /** Main card fights still open and unpicked. */
+  | { state: "short"; left: number }
+  /** A main card fight locked unpicked: this card can't count on global. */
+  | { state: "missed" };
+
+/** Whether this card will count on the global leaderboard. */
+export function globalStatus<T extends TierBout>(
+  card: T[],
+  picked: (id: string) => boolean,
+  open: (bout: T) => boolean
+): GlobalStatus {
+  const main = card.filter((b, i) => i === 0 || b.segment === "main" || b.segment === null);
+  const unpicked = main.filter((b) => !picked(b.id));
+  if (unpicked.length === 0) return { state: "counts" };
+  if (unpicked.some((b) => !open(b))) return { state: "missed" };
+  return { state: "short", left: unpicked.length };
+}

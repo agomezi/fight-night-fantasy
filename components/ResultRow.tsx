@@ -3,6 +3,7 @@ import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
 import LiveDot from "./LiveDot";
+import PressableScale from "./PressableScale";
 import { useTheme } from "../context/ThemeContext";
 
 export type BoutSide = {
@@ -37,6 +38,7 @@ export default function ResultRow({
   live = false,
   index = 0,
   last = false,
+  pin,
 }: {
   red: BoutSide;
   blue: BoutSide;
@@ -54,6 +56,8 @@ export default function ResultRow({
   live?: boolean;
   index?: number;
   last?: boolean;
+  /** A pin button for a call that can go on your profile. */
+  pin?: { pinned: boolean; onPress: () => void };
 }) {
   const { c } = useTheme();
 
@@ -170,6 +174,16 @@ export default function ResultRow({
           >
             {points}
           </Text>
+        )}
+        {pin && (
+          <PressableScale
+            onPress={pin.onPress}
+            hitSlop={10}
+            style={{ marginTop: 6 }}
+            accessibilityLabel={pin.pinned ? "Unpin from your profile" : "Pin to your profile"}
+          >
+            <Ionicons name={pin.pinned ? "pin" : "pin-outline"} size={16} color={pin.pinned ? c.red : c.textFaint} />
+          </PressableScale>
         )}
       </View>
     </Animated.View>
