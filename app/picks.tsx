@@ -65,6 +65,8 @@ type Fight = {
   rounds: 3 | 5;
   segment: CardSegment | null;
   locksAt: Date;
+  /** Fighters changed after it locked: void, so nothing asks for it. */
+  changedAfterLock: boolean;
   a: Fighter;
   b: Fighter;
   /** League social proof; none until leagues exist. */
@@ -89,6 +91,7 @@ function toFight(bout: EventBout): Fight {
     rounds: bout.scheduledRounds === 5 ? 5 : 3,
     segment: bout.segment,
     locksAt: bout.locksAt,
+    changedAfterLock: !!bout.changedAfterLock,
     a: fighter(bout.red, "red"),
     b: fighter(bout.blue, "blue"),
   };
@@ -373,11 +376,14 @@ export default function Picks() {
   const leagueState = useLeague();
   const myLeagues = leagueState.status === "ready" ? leagueState.leagues : [];
   const leagueRules = myLeagues.map((l) => ({ name: l.name, tier: l.tier, rule: l.rule }));
-  const need = lockInNeeds(leagueRules, allFights, (id) => !!picks[id], (f) => !isLocked(f));
+  // A fight whose fighters changed after it locked is void: nothing asks for
+  // it, and the next one up becomes the main event, as on the server.
+  const countable = allFights.filter((f) => !f.changedAfterLock);
+  const need = lockInNeeds(leagueRules, countable, (id) => !!picks[id], (f) => !isLocked(f));
   // What each fight counts toward, and whether this card will count on
-  // global, which needs the whole main card.
-  const needs = fightNeeds(leagueRules, allFights);
-  const global = globalStatus(allFights, (id) => !!picks[id], (f) => !isLocked(f));
+  // global, which needs the whole main card, saved.
+  const needs = fightNeeds(leagueRules, countable);
+  const global = globalStatus(countable, (id) => !!picks[id], (f) => !isLocked(f));
 
   /** Under a fight still to pick: which leagues need it, or that global does. */
   const needTag = (fight: Fight) => {
@@ -547,11 +553,20 @@ export default function Picks() {
             <Ionicons
               name={global.state === "counts" ? "checkmark-circle" : global.state === "missed" ? "close-circle" : "podium-outline"}
               size={14}
-              color={global.state === "counts" ? c.green : c.textMuted}
+              color={global.state === "counts" && lockedIn ? c.green : c.textMuted}
             />
-            <Text style={{ flex: 1, color: global.state === "counts" ? c.green : c.textMuted, fontSize: 12.5, lineHeight: 17 }}>
+            <Text
+              style={{
+                flex: 1,
+                color: global.state === "counts" && lockedIn ? c.green : c.textMuted,
+                fontSize: 12.5,
+                lineHeight: 17,
+              }}
+            >
               {global.state === "counts"
-                ? "This card counts on the global leaderboard."
+                ? lockedIn
+                  ? "This card counts on the global leaderboard."
+                  : "This card will count on the global leaderboard once you lock in."
                 : global.state === "missed"
                   ? "A main card fight locked unpicked, so this card won't count on global."
                   : `Pick the whole main card to count on the global leaderboard · ${global.left} left`}

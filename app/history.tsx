@@ -18,7 +18,7 @@ import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useHistory } from "../hooks/useHistory";
 import { useAuth } from "../context/AuthContext";
-import { loadPinnedCalls, pinCall, unpinCall } from "../services/pins";
+import { loadPinnedCalls, MAX_PINNED_CALLS, pinCall, unpinCall } from "../services/pins";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
 
@@ -45,31 +45,41 @@ export default function History() {
   const { session } = useAuth();
   const myId = session?.user.id;
 
-  // Correct calls on final results can be pinned to your profile.
+  // Correct calls on final results can be pinned to your profile. One
+  // change per call at a time, so the server can't end up out of order; on
+  // a failure the list is read back rather than guessed.
   const [pinned, setPinned] = useState<Set<string>>(new Set());
-  useEffect(() => {
+  const busy = useRef(new Set<string>());
+  const reloadPins = useCallback(() => {
     if (!myId) return;
-    let current = true;
     loadPinnedCalls(myId)
-      .then((v) => current && setPinned(new Set(v.map((p) => p.boutId))))
+      .then((v) => setPinned(new Set(v.map((p) => p.boutId))))
       .catch(() => {});
-    return () => {
-      current = false;
-    };
   }, [myId]);
+  useEffect(reloadPins, [reloadPins]);
   const togglePin = useCallback(
     (boutId: string) => {
+      if (busy.current.has(boutId)) return;
       const was = pinned.has(boutId);
-      const next = new Set(pinned);
-      if (was) next.delete(boutId);
-      else next.add(boutId);
-      setPinned(next);
-      (was ? unpinCall(boutId) : pinCall(boutId)).catch((e) => {
-        setPinned(pinned);
-        Alert.alert(was ? "Couldn't unpin it" : "Couldn't pin it", e instanceof Error ? e.message : "Please try again.");
+      if (!was && pinned.size >= MAX_PINNED_CALLS) {
+        Alert.alert("You've pinned 3 calls", "Unpin one first, here or from your profile.");
+        return;
+      }
+      busy.current.add(boutId);
+      setPinned((prev) => {
+        const next = new Set(prev);
+        if (was) next.delete(boutId);
+        else next.add(boutId);
+        return next;
       });
+      (was ? unpinCall(boutId) : pinCall(boutId))
+        .catch((e) => {
+          Alert.alert(was ? "Couldn't unpin it" : "Couldn't pin it", e instanceof Error ? e.message : "Please try again.");
+          reloadPins();
+        })
+        .finally(() => busy.current.delete(boutId));
     },
-    [pinned]
+    [pinned, reloadPins]
   );
   const history = state.status === "ready" ? state.history : null;
   const past = history?.events ?? [];

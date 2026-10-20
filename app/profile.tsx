@@ -68,13 +68,13 @@ export default function Profile() {
   );
 
   // Your pinned calls, which anyone who opens your card sees.
-  const [pins, setPins] = useState<PinnedCall[]>(() => readCache<PinnedCall[]>("pinned-calls") ?? []);
   const myId = session?.user.id;
+  const [pins, setPins] = useState<PinnedCall[]>(() => (myId ? readCache<PinnedCall[]>(`pinned-calls:${myId}`) : null) ?? []);
   useFocusEffect(
     useCallback(() => {
       if (!myId) return;
       let current = true;
-      loadPinnedCalls(myId).then((v) => current && setPins(writeCache("pinned-calls", v))).catch(() => {});
+      loadPinnedCalls(myId).then((v) => current && setPins(writeCache(`pinned-calls:${myId}`, v))).catch(() => {});
       return () => {
         current = false;
       };
