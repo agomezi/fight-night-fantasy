@@ -38,7 +38,7 @@ import { useNextEvent } from "../hooks/useNextEvent";
 import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { clearDraft, loadDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
 import { AccountRestrictedError, loadPicks, PicksLockedError, savePicks } from "../services/picks";
-import { fightNeeds, globalStatus, lockInNeeds } from "../services/tierPicks";
+import { fightNeeds, globalStatus, lockInNeeds, requiredBouts } from "../services/tierPicks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -272,7 +272,9 @@ export default function Picks() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makePicksStyles);
-  const { fighter } = useLocalSearchParams<{ fighter?: string }>();
+  // `league` opens the card showing only the fights that league requires.
+  const { fighter, league: focusLeagueId } = useLocalSearchParams<{ fighter?: string; league?: string }>();
+  const [showAll, setShowAll] = useState(false);
   const { session } = useAuth();
   const next = useNextEvent();
   const event = next.status === "ready" ? next.event : null;
@@ -383,6 +385,11 @@ export default function Picks() {
   // What each fight counts toward, and whether this card will count on
   // global, which needs the whole main card, saved.
   const needs = fightNeeds(leagueRules, countable);
+  const focusLeague = !showAll && focusLeagueId ? myLeagues.find((l) => l.id === focusLeagueId) : undefined;
+  const focusIds = focusLeague
+    ? new Set(requiredBouts(focusLeague.tier, countable, focusLeague.rule).map((f) => f.id))
+    : null;
+  const shownUndercard = focusIds ? UNDERCARD.filter((f) => focusIds.has(f.id)) : UNDERCARD;
   const global = globalStatus(countable, (id) => !!picks[id], (f) => !isLocked(f));
 
   /** Under a fight still to pick: which leagues need it, or that global does. */
@@ -626,12 +633,24 @@ export default function Picks() {
           </Animated.View>
         )}
 
-        {UNDERCARD.map((fight, i) => {
+        {focusLeague && focusIds && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 14 }}>
+            <Text style={{ flex: 1, color: c.text2, fontSize: 12.5, lineHeight: 17 }}>
+              Showing the {focusIds.size} fight{focusIds.size === 1 ? "" : "s"} {focusLeague.name} needs. Your picks count for
+              your other leagues and global too.
+            </Text>
+            <PressableScale onPress={() => setShowAll(true)} hitSlop={8}>
+              <Text style={{ color: c.red, fontSize: 12, fontWeight: "800", letterSpacing: 0.8 }}>SHOW ALL</Text>
+            </PressableScale>
+          </View>
+        )}
+
+        {shownUndercard.map((fight, i) => {
           const picked = picks[fight.id];
           const isOpen = expanded[fight.id];
           // Label each part of the card where it starts. The main event sits
           // above, so the first label is for the rest of the main card.
-          const prev = i === 0 ? MAIN_EVENT : UNDERCARD[i - 1];
+          const prev = i === 0 ? MAIN_EVENT : shownUndercard[i - 1];
           const label = fight.segment && fight.segment !== prev?.segment
             ? SEGMENT_LABELS[fight.segment]
             : i === 0 && fight.segment === "main"

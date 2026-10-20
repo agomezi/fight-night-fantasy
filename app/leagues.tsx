@@ -14,6 +14,7 @@ import CardBackdrop from "../components/CardBackdrop";
 import MatchupCard from "../components/MatchupCard";
 import PressableScale from "../components/PressableScale";
 import ProgressRing from "../components/ProgressRing";
+import LeaguePicksCard from "../components/LeaguePicksCard";
 import SwipeableCards from "../components/SwipeableCards";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -318,6 +319,9 @@ export default function Leagues() {
           <Text style={styles.actionButtonText}>SETTINGS</Text>
         </PressableScale>
       </View>
+
+      {/* The fights this league needs from you on the next card. */}
+      <LeaguePicksCard league={league} />
 
       {/* Standings preview — data, so no box. */}
       <View style={{ marginTop: 22 }}>
