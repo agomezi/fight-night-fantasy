@@ -88,6 +88,17 @@ export default function LeaderboardScreen() {
                 onPress={() => setViewing(row.userId)}
               />
             ))}
+            {/* How far you are from the next place up. */}
+            {board.me?.rank != null && board.me.edge != null && board.me.rank > 1 && (() => {
+              const above = [...board.rows].reverse().find((r) => r.rank != null && r.rank < board.me!.rank! && r.edge != null);
+              if (!above || above.edge == null) return null;
+              const gap = above.edge - board.me!.edge! + 1;
+              return (
+                <Text style={{ color: c.text2, fontSize: 13, textAlign: "center", paddingTop: 16 }}>
+                  {gap} edge to pass {above.name} for #{above.rank}
+                </Text>
+              );
+            })()}
             {(!board.me || board.me.rank == null) && (
               <Text style={{ color: c.textMuted, fontSize: 13, textAlign: "center", paddingTop: 16 }}>
                 You&apos;re not on the board yet. Pick a whole main card and it counts.

@@ -61,6 +61,9 @@ export default function LeaderboardRow({
           <Text style={{ fontSize: 11, fontWeight: "800", color: c.textMuted }}>{getInitials(row.name)}</Text>
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
+          {row.rank === 1 && !row.tied && (
+            <Text style={{ color: c.gold, fontSize: 9.5, fontWeight: "800", letterSpacing: 1.2 }}>P4P #1</Text>
+          )}
           <Text style={{ color: c.text, fontSize: 15, fontWeight: "700" }} numberOfLines={1}>
             {row.name}
             {row.isMe && <Text style={{ color: c.red, fontSize: 11, fontWeight: "800" }}>  YOU</Text>}

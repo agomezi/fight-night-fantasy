@@ -1,7 +1,7 @@
 // What each push notification says. Pure and dependency-free, so the results
 // sync imports it under Deno and jest tests it here.
 
-export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation" | "matchup" | "standing";
+export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation" | "matchup" | "standing" | "awards";
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
@@ -194,6 +194,20 @@ function standing(p: StandingPayload): Message {
   };
 }
 
+/** An award drop was published. */
+export type AwardsPayload = { label: string; kind: "checkin" | "midseason" | "final"; dropId: string };
+
+function awards(p: AwardsPayload): Message {
+  return {
+    title: `${p.label}: the awards are in`,
+    body:
+      p.kind === "final"
+        ? "Your league has crowned its champ. See who won what."
+        : "Your league has an interim champ. See who won what, and where the season's heading.",
+    data: { screen: "leagues" },
+  };
+}
+
 function leagueJoin(p: LeagueJoinPayload): Message {
   return {
     title: `${p.member} joined ${p.league}`,
@@ -250,6 +264,7 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "moderation") return moderation(payload as ModerationPayload);
   if (kind === "matchup") return matchup(payload as MatchupPayload);
   if (kind === "standing") return standing(payload as StandingPayload);
+  if (kind === "awards") return awards(payload as AwardsPayload);
   if (kind === "final") return final(payload as FinalPayload);
   // A kind from a newer server than this build.
   return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };
