@@ -556,27 +556,25 @@ export default function Picks() {
 
         {/* Whether this card will count on the global leaderboard. */}
         {MAIN_EVENT && canEditPicks && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
+          // Tucked up under the subtitle, in the gap above the main event, on
+          // one line.
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: -16, marginBottom: 16 }}>
             <Ionicons
               name={global.state === "counts" ? "checkmark-circle" : global.state === "missed" ? "close-circle" : "podium-outline"}
-              size={14}
+              size={13}
               color={global.state === "counts" && lockedIn ? c.green : c.textMuted}
             />
             <Text
-              style={{
-                flex: 1,
-                color: global.state === "counts" && lockedIn ? c.green : c.textMuted,
-                fontSize: 12.5,
-                lineHeight: 17,
-              }}
+              style={{ flex: 1, color: global.state === "counts" && lockedIn ? c.green : c.textMuted, fontSize: 12.5 }}
+              numberOfLines={1}
             >
               {global.state === "counts"
                 ? lockedIn
-                  ? "This card counts on the global leaderboard."
-                  : "This card will count on the global leaderboard once you lock in."
+                  ? "Counts on the global leaderboard"
+                  : "Counts for global once you lock in"
                 : global.state === "missed"
-                  ? "A main card fight locked unpicked, so this card won't count on global."
-                  : `Pick the whole main card to count on the global leaderboard · ${global.left} left`}
+                  ? "Won't count for global: a main card fight locked"
+                  : `Global needs the whole main card · ${global.left} left`}
             </Text>
           </View>
         )}
