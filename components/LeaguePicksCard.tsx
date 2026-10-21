@@ -61,7 +61,7 @@ export default function LeaguePicksCard({ league }: { league: MyLeague }) {
           {(splitEventName(event.name).headline ?? splitEventName(event.name).title).toUpperCase()}
         </Text>
       </View>
-      <View style={{ backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, padding: 14 }}>
+      <View style={{ marginTop: 10, backgroundColor: c.card, borderRadius: 14, borderWidth: 1, borderColor: c.border, padding: 14 }}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
           <Ionicons
             name={done ? "checkmark-circle" : missedLocked ? "alert-circle" : "list"}
