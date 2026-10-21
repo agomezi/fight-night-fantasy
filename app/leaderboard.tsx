@@ -90,8 +90,10 @@ export default function LeaderboardScreen() {
             ))}
             {/* How far you are from the next place up. */}
             {board.me?.rank != null && board.me.edge != null && board.me.rank > 1 && (() => {
-              const above = [...board.rows].reverse().find((r) => r.rank != null && r.rank < board.me!.rank! && r.edge != null);
-              if (!above || above.edge == null) return null;
+              const meAt = board.rows.findIndex((r) => r.isMe);
+              const above = meAt > 0 ? board.rows.slice(0, meAt).reverse().find((r) => r.rank != null && r.rank < board.me!.rank! && r.edge != null) : undefined;
+              // Past the top 100 the row above isn't loaded; don't name the wrong one.
+              if (!above || above.edge == null || meAt >= 100) return null;
               const gap = above.edge - board.me!.edge! + 1;
               return (
                 <Text style={{ color: c.text2, fontSize: 13, textAlign: "center", paddingTop: 16 }}>

@@ -50,7 +50,7 @@ export const AWARDS: Record<AwardId, AwardInfo> = {
   method_man: { title: "Method Man", blurb: "Calls how it ends", icon: "hammer", stat: count("method right", "methods right") },
   iron_man: { title: "Iron Man", blurb: "Picks the most fights", icon: "barbell", stat: count("pick", "picks") },
   call_of_night: { title: "Call of the Night", blurb: "The best single call (underdog bonus included)", icon: "star", stat: (v) => `${signed(v)} pts` },
-  gun_shy: { title: "Gun Shy", blurb: "Picks the fewest fights by far", icon: "eye-off", stat: (v) => `${v} picks a card`, joke: true },
+  gun_shy: { title: "Gun Shy", blurb: "Picks the fewest fights by far", icon: "eye-off", stat: (v) => `${Math.round(v * 10) / 10} picks a card`, joke: true },
 };
 
 /** The order they're shown in: the title first, the joke last. */

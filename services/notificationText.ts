@@ -202,8 +202,8 @@ function awards(p: AwardsPayload): Message {
     title: `${p.label}: the awards are in`,
     body:
       p.kind === "final"
-        ? "Your league has crowned its champ. See who won what."
-        : "Your league has an interim champ. See who won what, and where the season's heading.",
+        ? "Your league's season awards are in. See who's champ and who won what."
+        : "Your league's awards are in. See who won what, and where the season's heading.",
     data: { screen: "leagues" },
   };
 }

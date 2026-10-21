@@ -102,7 +102,9 @@ begin
              and (case when k.picked_fighter_id = b.red_fighter_id then 'red' else 'blue' end) = b.underdog_corner::text
              as dog_pick,
            s.correct, s.points,
-           coalesce((s.breakdown->>'method')::int, 0) > 0 as method_right,
+           -- Called with the right fighter: a wrong fighter still earns a
+           -- little for the method, which isn't calling how it ends.
+           s.correct and coalesce((s.breakdown->>'method')::int, 0) > 0 as method_right,
            coalesce((s.breakdown->>'round')::int, 0) > 0 as round_right
     from public.picks k
     join public.bouts b on b.id = k.bout_id and k.bout_version = b.version and b.status = 'scheduled'
@@ -210,9 +212,10 @@ begin
   ))
   where ds.drop_id = d.id;
 
-  -- Leagues: the table and where it's heading. Projections go per matchup,
-  -- so an odd league's doubleheaders count, over an 11-card season, with a
-  -- forfeit win at half as the table has it.
+  -- Leagues: the table and where it's heading. Projections go over the
+  -- weeks each player was in the league (a late joiner's few weeks project
+  -- like anyone's), so an odd league's doubleheaders count, over an 11-card
+  -- season.
   update public.drop_stats ds set stats = ds.stats || jsonb_build_object(
     'rank', t.rank, 'wins', t.wins, 'losses', t.losses, 'draws', t.draws, 'forfeit_wins', t.forfeit_wins,
     'league_points', t.points,
@@ -226,7 +229,8 @@ begin
   from public.leagues l
   cross join lateral public.league_table(l.id) t
   cross join lateral (
-    select count(distinct s.week) as weeks from public.league_schedule(l.id, d.season_id) s where s.state = 'final'
+    select count(distinct s.week) as weeks from public.league_schedule(l.id, d.season_id) s
+    where s.state = 'final' and t.user_id in (s.user_a, s.user_b)
   ) w
   where ds.drop_id = d.id and ds.scope = l.id::text and t.user_id = ds.user_id;
 
@@ -296,7 +300,8 @@ begin
 end;
 $$;
 
--- Tells everyone with a place in the drop, once each. Publishing twice does nothing.
+-- Tells everyone in a league the drop covers, once each, however many
+-- leagues they're in. Publishing twice does nothing.
 create function public.publish_award_drop(drop uuid)
 returns integer
 language plpgsql
@@ -319,7 +324,7 @@ begin
          jsonb_build_object('label', d.label, 'kind', d.kind, 'dropId', d.id),
          false
   from public.drop_stats ds
-  where ds.drop_id = d.id
+  where ds.drop_id = d.id and ds.scope <> 'global'
   on conflict do nothing;
   get diagnostics n = row_count;
 

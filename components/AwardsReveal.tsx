@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo } from "react";
+import { holdModal } from "../services/modalGate";
 import { Dimensions, Modal, ScrollView, Share, Text, View } from "react-native";
 import Animated, {
   Easing,
@@ -58,6 +59,8 @@ export default function AwardsReveal({
   onClose: () => void;
 }) {
   const { c } = useTheme();
+  // Nothing else opens over it.
+  useEffect(() => holdModal(), []);
   const champs = drop.awards.filter((a) => a.award === "interim_champ" || a.award === "champ");
   const rest = drop.awards.filter((a) => a.award !== "interim_champ" && a.award !== "champ");
   const you = yourLine(drop, myId);

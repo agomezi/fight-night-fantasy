@@ -104,7 +104,7 @@ select is(pg_temp.winners('interim_champ'), (select array_agg(t.user_id) from pu
 -- Reading it
 -------------------------------------------------------------------------------
 
-select is(public.publish_award_drop((select id from dropped)), 4, 'publishing tells each player who played once, whatever their scopes');
+select is(public.publish_award_drop((select id from dropped)), 4, 'publishing tells each league player once, whatever their scopes');
 select is(public.publish_award_drop((select id from dropped)), 0, 'and only once');
 
 set local role authenticated;

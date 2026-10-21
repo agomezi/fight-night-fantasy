@@ -31,7 +31,8 @@ export default function LeagueAwards({ leagueId, leagueName }: { leagueId: strin
         const latest = await loadLatestDrop();
         if (!latest || !current) return;
         const d = await loadLeagueDrop(leagueId, latest.id).catch(() => null);
-        if (!d || !current) return;
+        // A league made after the drop, or with nobody qualifying, has nothing to celebrate.
+        if (!d || !current || (!d.awards.length && !d.table.length)) return;
         setDrop(d);
         const seen = await AsyncStorage.getItem(awardsSeenKey(myId, leagueId)).catch(() => null);
         if (current) setUnseen(seen !== d.drop.id);
