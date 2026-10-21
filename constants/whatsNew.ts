@@ -17,6 +17,28 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-pins-and-picks",
+    date: "2026-10-20T12:00:00Z",
+    title: "Pin your best calls",
+    items: [
+      {
+        icon: "pin",
+        title: "Pinned calls",
+        body: "Pin up to 3 of your best calls from History. They show on your profile and on your card when anyone taps your name.",
+      },
+      {
+        icon: "pricetag",
+        title: "Know what each fight counts for",
+        body: "On the picks screen, fights you still need show which league needs them, and main card fights show that they count for global.",
+      },
+      {
+        icon: "podium",
+        title: "Global, at a glance",
+        body: "A line under the card tells you whether it will count on the global leaderboard, and how many main card fights you have left.",
+      },
+    ],
+  },
+  {
     id: "2026-10-global-edge",
     date: "2026-10-19T12:00:00Z",
     title: "A new global leaderboard",

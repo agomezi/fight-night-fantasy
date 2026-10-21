@@ -71,6 +71,9 @@ export type EventBout = {
   blue: EventFighter;
   /** The corner the books make the underdog. Frozen when the bout locks. */
   underdog: "red" | "blue" | null;
+  /** Its fighters changed after it locked: void for everyone, so nothing
+   * (league minimums, global) asks for it. */
+  changedAfterLock?: boolean;
 };
 export type NextEvent = {
   id: string;
@@ -95,7 +98,7 @@ export const NEXT_EVENT_QUERY = `
   id, name, starts_at, locks_at, status, spotlight_fighter_id,
   bouts!bouts_event_id_fkey (
     id, fight_order, card_segment, scheduled_rounds, weight_class, version, status, locks_at,
-    underdog_corner,
+    underdog_corner, version_changed_at,
     red:fighters!bouts_red_fighter_id_fkey ( ${FIGHTER_COLUMNS} ),
     blue:fighters!bouts_blue_fighter_id_fkey ( ${FIGHTER_COLUMNS} )
   )`;
@@ -117,6 +120,7 @@ type Row = {
     status: "scheduled" | "cancelled";
     locks_at: string | null;
     underdog_corner: "red" | "blue" | null;
+    version_changed_at?: string | null;
     red: FighterRow;
     blue: FighterRow;
   }[];
@@ -144,6 +148,9 @@ export function toNextEvent(row: Row): NextEvent {
         red: toFighter(b.red),
         blue: toFighter(b.blue),
         underdog: b.underdog_corner,
+        changedAfterLock:
+          !!b.version_changed_at &&
+          new Date(b.version_changed_at).getTime() >= new Date(b.locks_at ?? row.locks_at).getTime(),
       })),
     spotlightFighterId: row.spotlight_fighter_id ?? null,
   };

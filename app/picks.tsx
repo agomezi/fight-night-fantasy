@@ -38,7 +38,7 @@ import { useNextEvent } from "../hooks/useNextEvent";
 import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName, startLabel, type CardSegment, type EventBout } from "../services/events";
 import { clearDraft, loadDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
 import { AccountRestrictedError, loadPicks, PicksLockedError, savePicks } from "../services/picks";
-import { lockInNeeds } from "../services/tierPicks";
+import { fightNeeds, globalStatus, lockInNeeds } from "../services/tierPicks";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -65,6 +65,8 @@ type Fight = {
   rounds: 3 | 5;
   segment: CardSegment | null;
   locksAt: Date;
+  /** Fighters changed after it locked: void, so nothing asks for it. */
+  changedAfterLock: boolean;
   a: Fighter;
   b: Fighter;
   /** League social proof; none until leagues exist. */
@@ -89,6 +91,7 @@ function toFight(bout: EventBout): Fight {
     rounds: bout.scheduledRounds === 5 ? 5 : 3,
     segment: bout.segment,
     locksAt: bout.locksAt,
+    changedAfterLock: !!bout.changedAfterLock,
     a: fighter(bout.red, "red"),
     b: fighter(bout.blue, "blue"),
   };
@@ -372,12 +375,39 @@ export default function Picks() {
   // that week's matchup, so the button holds out for them.
   const leagueState = useLeague();
   const myLeagues = leagueState.status === "ready" ? leagueState.leagues : [];
-  const need = lockInNeeds(
-    myLeagues.map((l) => ({ name: l.name, tier: l.tier, rule: l.rule })),
-    allFights,
-    (id) => !!picks[id],
-    (f) => !isLocked(f)
-  );
+  const leagueRules = myLeagues.map((l) => ({ name: l.name, tier: l.tier, rule: l.rule }));
+  // A fight whose fighters changed after it locked is void: nothing asks for
+  // it, and the next one up becomes the main event, as on the server.
+  const countable = allFights.filter((f) => !f.changedAfterLock);
+  const need = lockInNeeds(leagueRules, countable, (id) => !!picks[id], (f) => !isLocked(f));
+  // What each fight counts toward, and whether this card will count on
+  // global, which needs the whole main card, saved.
+  const needs = fightNeeds(leagueRules, countable);
+  const global = globalStatus(countable, (id) => !!picks[id], (f) => !isLocked(f));
+
+  /** Under a fight still to pick: which leagues need it, or that global does. */
+  const needTag = (fight: Fight) => {
+    if (picks[fight.id] || isLocked(fight)) return null;
+    const n = needs[fight.id];
+    if (!n || (!n.leagues.length && !n.global)) return null;
+    const names = n.leagues.length > 2 ? `${n.leagues.slice(0, 2).join(", ")} +${n.leagues.length - 2}` : n.leagues.join(", ");
+    return (
+      <Text
+        style={{
+          textAlign: "center",
+          fontSize: 9.5,
+          fontWeight: "800",
+          letterSpacing: 1,
+          color: n.leagues.length ? c.red : c.textFaint,
+          paddingBottom: 8,
+          marginTop: -4,
+        }}
+        numberOfLines={1}
+      >
+        {n.leagues.length ? `NEEDED FOR ${names.toUpperCase()}` : "COUNTS FOR GLOBAL"}
+      </Text>
+    );
+  };
   const mainPicked = !!MAIN_EVENT && !!picks[MAIN_EVENT.id];
   const canLockIn = mainPicked && need.missing.length === 0;
   const lockHint = mainPicked
@@ -517,6 +547,33 @@ export default function Picks() {
           </Text>
         )}
 
+        {/* Whether this card will count on the global leaderboard. */}
+        {MAIN_EVENT && canEditPicks && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8 }}>
+            <Ionicons
+              name={global.state === "counts" ? "checkmark-circle" : global.state === "missed" ? "close-circle" : "podium-outline"}
+              size={14}
+              color={global.state === "counts" && lockedIn ? c.green : c.textMuted}
+            />
+            <Text
+              style={{
+                flex: 1,
+                color: global.state === "counts" && lockedIn ? c.green : c.textMuted,
+                fontSize: 12.5,
+                lineHeight: 17,
+              }}
+            >
+              {global.state === "counts"
+                ? lockedIn
+                  ? "This card counts on the global leaderboard."
+                  : "This card will count on the global leaderboard once you lock in."
+                : global.state === "missed"
+                  ? "A main card fight locked unpicked, so this card won't count on global."
+                  : `Pick the whole main card to count on the global leaderboard · ${global.left} left`}
+            </Text>
+          </View>
+        )}
+
         {next.status !== "loading" && !MAIN_EVENT && (
           <EmptyState
             icon="calendar-outline"
@@ -542,6 +599,7 @@ export default function Picks() {
               </Text>
               <Chevron open={!!expanded[MAIN_EVENT.id]} />
             </PressableScale>
+            {needTag(MAIN_EVENT)}
 
             {expanded[MAIN_EVENT.id] && (
               <Animated.View
@@ -641,6 +699,7 @@ export default function Picks() {
                     <Avatar initials={fight.b.initials} photoUrl={fight.b.photoUrl} selected={picked === fight.b.id} dog={fight.b.dog} size={36} />
                   </View>
                 </PressableScale>
+                {needTag(fight)}
 
                 {isOpen && (
                   <Animated.View
