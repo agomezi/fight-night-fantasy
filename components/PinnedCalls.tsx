@@ -4,11 +4,21 @@ import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
 import { useTheme } from "../context/ThemeContext";
 import type { PinnedCall } from "../services/pins";
+import PressableScale from "./PressableScale";
 
 /** A player's pinned calls: what they called, on which fight, and what it
  * scored. On their profile and on the card others open. `compact` drops the
  * card around each, for inside a sheet. */
-export default function PinnedCalls({ calls, compact = false }: { calls: PinnedCall[]; compact?: boolean }) {
+export default function PinnedCalls({
+  calls,
+  compact = false,
+  onMore,
+}: {
+  calls: PinnedCall[];
+  compact?: boolean;
+  /** On your own profile: opens a pinned call's menu (unpin, move, share). */
+  onMore?: (call: PinnedCall) => void;
+}) {
   const { c } = useTheme();
   return (
     <View style={{ gap: compact ? 10 : 8 }}>
@@ -38,6 +48,16 @@ export default function PinnedCalls({ calls, compact = false }: { calls: PinnedC
             </Text>
           </View>
           <Text style={{ color: c.green, fontSize: 15, fontWeight: "800", fontVariant: ["tabular-nums"] }}>{call.points}</Text>
+          {onMore && (
+            <PressableScale
+              onPress={() => onMore(call)}
+              hitSlop={8}
+              accessibilityLabel="Options for this call"
+              style={{ width: 36, height: 36, alignItems: "center", justifyContent: "center", marginRight: -6 }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={18} color={c.text} />
+            </PressableScale>
+          )}
         </Animated.View>
       ))}
     </View>

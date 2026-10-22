@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   FadeIn,
@@ -18,7 +18,8 @@ import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useHistory } from "../hooks/useHistory";
 import { useAuth } from "../context/AuthContext";
-import { loadPinnedCalls, MAX_PINNED_CALLS, pinCall, unpinCall } from "../services/pins";
+import { loadPinnedCalls, MAX_PINNED_CALLS, pinCall, shareCallText, unpinCall } from "../services/pins";
+import ActionSheet, { type SheetAction } from "../components/ActionSheet";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
 
@@ -57,6 +58,8 @@ export default function History() {
       .catch(() => {});
   }, [myId]);
   useEffect(reloadPins, [reloadPins]);
+  // The call whose menu is open.
+  const [menu, setMenu] = useState<{ title: string; actions: SheetAction[] } | null>(null);
   const togglePin = useCallback(
     (boutId: string) => {
       if (busy.current.has(boutId)) return;
@@ -357,11 +360,46 @@ export default function History() {
                               verdictNote={b.voidNote ? `${b.pick} · ${b.voidNote}` : b.pick}
                               settled={b.settled}
                               last={bi === e.bouts.length - 1}
-                              pin={
-                                b.verdict === "hit" && b.meta === "Final"
-                                  ? { pinned: pinned.has(b.id), onPress: () => togglePin(b.id) }
-                                  : undefined
-                              }
+                              pinned={pinned.has(b.id)}
+                              onMore={() => {
+                                const canPin = b.verdict === "hit" && b.meta === "Final";
+                                const isPinned = pinned.has(b.id);
+                                const points = b.points ?? "";
+                                setMenu({
+                                  title: `${b.pick}${points ? ` · ${points}` : ""}`,
+                                  actions: [
+                                    {
+                                      label: isPinned ? "Unpin from your profile" : "Pin to your profile",
+                                      icon: isPinned ? "pin" : "pin-outline",
+                                      note: canPin ? `${pinned.size} of ${MAX_PINNED_CALLS} used` : "Correct calls only",
+                                      disabled: !canPin && !isPinned,
+                                      onPress: () => togglePin(b.id),
+                                    },
+                                    ...(b.settled
+                                      ? [
+                                          {
+                                            label: "Share this call",
+                                            icon: "share-outline" as const,
+                                            onPress: () =>
+                                              Share.share({
+                                                message: shareCallText({
+                                                  call: b.pick,
+                                                  points: points || "0",
+                                                  event: e.name,
+                                                  fight: `${b.red.name} vs ${b.blue.name}`,
+                                                }),
+                                              }).catch(() => {}),
+                                          },
+                                        ]
+                                      : []),
+                                    {
+                                      label: "See the full card",
+                                      icon: "list" as const,
+                                      onPress: () => router.push({ pathname: "/event/[id]", params: { id: e.id } }),
+                                    },
+                                  ],
+                                });
+                              }}
                             />
                           </View>
                         );
@@ -382,6 +420,7 @@ export default function History() {
       </ScrollView>
 
       <View style={{ height: insets.bottom }} />
+      <ActionSheet visible={!!menu} title={menu?.title} actions={menu?.actions ?? []} onClose={() => setMenu(null)} />
     </SafeAreaView>
   );
 }
