@@ -10,6 +10,7 @@ import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import PinnedCalls from "../components/PinnedCalls";
+import SuperlativesBlock from "../components/SuperlativesBlock";
 import ResultRow from "../components/ResultRow";
 import HeaderBar from "../components/HeaderBar";
 import { useAuth } from "../context/AuthContext";
@@ -25,6 +26,7 @@ import { readCache, writeCache } from "../services/screenCache";
 import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, type SeasonRecord } from "../services/leagues";
 import { loadCareer, type Career } from "../services/career";
 import { loadPinnedCalls, MAX_PINNED_CALLS, type PinnedCall } from "../services/pins";
+import { loadSuperlatives, type Superlatives } from "../services/awards";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -65,6 +67,19 @@ export default function Profile() {
         current = false;
       };
     }, [])
+  );
+
+  // Your superlatives from the latest award drop.
+  const [superlatives, setSuperlatives] = useState<Superlatives | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.user.id) return;
+      let current = true;
+      loadSuperlatives(session.user.id).then((v) => current && setSuperlatives(v)).catch(() => {});
+      return () => {
+        current = false;
+      };
+    }, [session?.user.id])
   );
 
   // Your pinned calls, which anyone who opens your card sees.
@@ -204,6 +219,15 @@ export default function Profile() {
             <AnimatedBar percent={accuracy ?? 0} height={4} style={{ marginTop: 10 }} />
           </Animated.View>
         </View>
+
+        {superlatives && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>SUPERLATIVES</Text>
+            </View>
+            <SuperlativesBlock data={superlatives} />
+          </>
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>PINNED CALLS</Text>

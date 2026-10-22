@@ -14,6 +14,7 @@ import CardBackdrop from "../components/CardBackdrop";
 import MatchupCard from "../components/MatchupCard";
 import PressableScale from "../components/PressableScale";
 import ProgressRing from "../components/ProgressRing";
+import LeagueAwards from "../components/LeagueAwards";
 import LeaguePicksCard from "../components/LeaguePicksCard";
 import SwipeableCards from "../components/SwipeableCards";
 import { appear } from "../constants/motion";
@@ -319,6 +320,9 @@ export default function Leagues() {
           <Text style={styles.actionButtonText}>SETTINGS</Text>
         </PressableScale>
       </View>
+
+      {/* The latest award drop, revealed once and then a tap away. */}
+      <LeagueAwards leagueId={league.id} leagueName={league.name} />
 
       {/* The fights this league needs from you on the next card. */}
       <LeaguePicksCard league={league} />

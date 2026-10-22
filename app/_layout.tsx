@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import BootSplash from "../components/BootSplash";
 import WhatsNew from "../components/WhatsNew";
+import { holdModal } from "../services/modalGate";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { ProfileProvider, useProfile } from "../context/ProfileContext";
 import { StandingProvider } from "../context/StandingContext";
@@ -25,6 +26,13 @@ function ThemedApp() {
   // The boot animation covers a cold start until it finishes its combo.
   const [booting, setBooting] = useState(true);
   const bootDone = useCallback(() => setBooting(false), []);
+  // No card opens until the boot animation is gone. The what's-new card,
+  // mounting as it goes, takes its own hold first (children's effects run
+  // before this one lets go).
+  const [bootHold] = useState(() => holdModal());
+  useEffect(() => {
+    if (!booting) bootHold();
+  }, [booting, bootHold]);
 
   // Keep this phone registered for a signed-in player who has allowed
   // notifications. Asking for permission happens in context, not here.

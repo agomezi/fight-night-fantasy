@@ -19,3 +19,6 @@ export const BOOT_SEEN_KEY = "fnf.boot.seen";
 
 // The newest "what's new" entry this account has closed on this phone.
 export const whatsNewSeenKey = (userId: string) => `fnf.whatsnew.seen.${userId}`;
+
+// The newest award drop this account has seen revealed, per league.
+export const awardsSeenKey = (userId: string, leagueId: string) => `fnf.awards.seen.${userId}.${leagueId}`;

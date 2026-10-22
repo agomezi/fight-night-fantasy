@@ -6,6 +6,7 @@ import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
 import { whatsNewSeenKey } from "../constants/storage";
 import { whatsNewToShow, type WhatsNewEntry } from "../constants/whatsNew";
+import { holdModal } from "../services/modalGate";
 import { useTheme } from "../context/ThemeContext";
 import PressableScale from "./PressableScale";
 
@@ -16,15 +17,23 @@ export default function WhatsNew({ userId, accountCreatedAt }: { userId: string;
   const { c } = useTheme();
   const [entries, setEntries] = useState<WhatsNewEntry[]>([]);
 
+  // Hold other cards (the awards reveal) back while deciding and while open.
+  const [release, setRelease] = useState<(() => void) | null>(null);
   useEffect(() => {
     let current = true;
+    const free = holdModal();
     AsyncStorage.getItem(whatsNewSeenKey(userId))
       .then((seen) => {
-        if (current) setEntries(whatsNewToShow(seen, accountCreatedAt));
+        if (!current) return;
+        const unseen = whatsNewToShow(seen, accountCreatedAt);
+        setEntries(unseen);
+        if (unseen.length) setRelease(() => free);
+        else free();
       })
-      .catch(() => {});
+      .catch(() => free());
     return () => {
       current = false;
+      free();
     };
   }, [userId, accountCreatedAt]);
 
@@ -34,6 +43,7 @@ export default function WhatsNew({ userId, accountCreatedAt }: { userId: string;
     // The newest is enough: everything older counts as seen with it.
     AsyncStorage.setItem(whatsNewSeenKey(userId), entries[0].id).catch(() => {});
     setEntries([]);
+    release?.();
   };
 
   return (

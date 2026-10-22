@@ -17,6 +17,28 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-awards",
+    date: "2026-10-22T12:00:00Z",
+    title: "Awards are coming",
+    items: [
+      {
+        icon: "trophy",
+        title: "League awards",
+        body: "At each review your league crowns an Interim Champ and hands out awards: The Finisher, Dog Merchant, Round Sniper and more.",
+      },
+      {
+        icon: "podium",
+        title: "P4P #1",
+        body: "The top of the global board is the P4P #1. Your row shows how much edge you need to pass the player above you.",
+      },
+      {
+        icon: "ribbon",
+        title: "Superlatives on your profile",
+        body: "Awards you win show on your profile and your card, with where you place in the rest.",
+      },
+    ],
+  },
+  {
     id: "2026-10-pins-and-picks",
     date: "2026-10-20T12:00:00Z",
     title: "Pin your best calls",
