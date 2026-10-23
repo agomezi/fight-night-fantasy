@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(56);
 
 -- Three fights, three days out.
 select public.sync_event_card(jsonb_build_object(
@@ -235,6 +235,14 @@ select is((select array_agg(distinct public.community_card_at(null, pg_temp.u(1)
            order by public.community_card_at(null, pg_temp.u(1), now() + make_interval(days => d))->>'type')
            from generate_series(3, 4) d)::text,
   '{crowd,top_performers}', 'between cards, crowd vs. reality and the top performers take turns');
+-- Older builds call community_card() and don't know this card, so they never
+-- get it. Three days after the card went final, Home is between cards.
+update public.community_finals set final_at = now() - interval '3 days' where event_id = pg_temp.ev();
+set local role authenticated;
+select pg_temp.act(1);
+select ok(public.home_community_card()->>'type' in ('crowd', 'top_performers'), 'the app gets the global card');
+select isnt(public.community_card()->>'type', 'crowd', 'older builds never get crowd vs. reality');
+reset role;
 update public.results set winner_fighter_id = (select red_fighter_id from public.bouts where id = pg_temp.bid(1))
 where bout_id = pg_temp.bid(1);
 update public.results set winner_fighter_id = (select red_fighter_id from public.bouts where id = pg_temp.bid(2))
@@ -249,6 +257,7 @@ select throws_ok($$select * from public.community_polls$$, '42501', null, 'playe
 reset role;
 set local role anon;
 select throws_ok($$select public.community_card()$$, '42501', null, 'signed-out callers get nothing');
+select throws_ok($$select public.home_community_card()$$, '42501', null, 'from either call');
 select throws_ok($$select public.league_community_card('00000000-0000-0000-0000-0000000000aa')$$, '42501', null,
   'or a league card');
 reset role;

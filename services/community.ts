@@ -249,8 +249,8 @@ async function db() {
   return (await import("./supabase")).supabase;
 }
 
-export async function loadCommunityCard(leagueId: string | null): Promise<RawCommunityCard> {
-  const { data, error } = await (await db()).rpc("community_card", { league: leagueId });
+export async function loadCommunityCard(): Promise<RawCommunityCard> {
+  const { data, error } = await (await db()).rpc("home_community_card");
   if (error) throw new Error(error.message);
   return (data ?? { type: "none" }) as RawCommunityCard;
 }

@@ -193,6 +193,33 @@ begin
 end;
 $$;
 
+-- What the app calls now.
+create function public.home_community_card()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.community_card_at(null, (select auth.uid()), now());
+$$;
+
+-- What older builds call. They don't know crowd vs. reality and would break on
+-- it, so they get the last card's best in its place.
+create or replace function public.community_card(league uuid default null)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when c->>'type' = 'crowd'
+              then coalesce(public.top_performers((select l.event_id from public.last_final_event(now()) l), (select auth.uid())),
+                            '{"type": "none"}'::jsonb)
+              else c end
+  from (select public.community_card_at(null, (select auth.uid()), now()) as c) x;
+$$;
+
 -------------------------------------------------------------------------------
 -- The league page
 -------------------------------------------------------------------------------
@@ -252,7 +279,8 @@ $$;
 
 revoke execute on function
   public.crowd_vs_reality(uuid, uuid), public.last_final_event(timestamptz),
-  public.league_community_card_at(uuid, uuid, timestamptz), public.league_community_card(uuid)
+  public.league_community_card_at(uuid, uuid, timestamptz), public.league_community_card(uuid),
+  public.home_community_card()
   from public, anon, authenticated;
 
-grant execute on function public.league_community_card(uuid) to authenticated;
+grant execute on function public.league_community_card(uuid), public.home_community_card() to authenticated;

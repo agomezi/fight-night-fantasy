@@ -296,7 +296,7 @@ export default function Home() {
     if (!userId) return () => {};
     let current = true;
     const seq = voteSeq.current;
-    loadCommunityCard(null)
+    loadCommunityCard()
       .then((card) => {
         if (!current || seq !== voteSeq.current) return;
         communityFetched.current = { key: fetchKey, at: Date.now() };
