@@ -9,6 +9,7 @@ import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
 const TOKEN_KEY = "push-token";
+const ZONE_KEY = "push-zone";
 
 // Show notifications that arrive while the app is open, too.
 Notifications.setNotificationHandler({
@@ -48,10 +49,29 @@ export async function enablePush(ask: boolean): Promise<PushPermission> {
       platform: Platform.OS === "ios" ? "ios" : "android",
     });
     if (!error) await AsyncStorage.setItem(TOKEN_KEY, token);
+    await saveTimeZone();
     return "granted";
   } catch {
     return "undetermined";
   }
+}
+
+/** The phone's time zone, so a push about a card's start time reads in it.
+ * Only written when it changed. Never throws. */
+async function saveTimeZone(): Promise<void> {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!zone) return;
+    const { supabase } = await import("./supabase");
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user.id;
+    if (!userId) return;
+    const key = `${ZONE_KEY}:${userId}`;
+    if ((await AsyncStorage.getItem(key)) === zone) return;
+    const { data: saved, error } = await supabase.from("profiles").update({ time_zone: zone }).eq("id", userId).select("id");
+    // Only remembered once it's actually stored, so a miss is retried.
+    if (!error && saved?.length) await AsyncStorage.setItem(key, zone);
+  } catch {}
 }
 
 /** Stops this phone getting the signed-in player's notifications. Called on
@@ -71,13 +91,14 @@ export type NotifyPrefs = {
   notify_results: boolean;
   notify_summary: boolean;
   notify_league_activity: boolean;
+  notify_card_news: boolean;
 };
 
 export async function loadNotifyPrefs(userId: string): Promise<NotifyPrefs> {
   const { supabase } = await import("./supabase");
   const { data, error } = await supabase
     .from("profiles")
-    .select("notify_reminders, notify_results, notify_summary, notify_league_activity")
+    .select("notify_reminders, notify_results, notify_summary, notify_league_activity, notify_card_news")
     .eq("id", userId)
     .single();
   if (error) throw new Error(error.message);

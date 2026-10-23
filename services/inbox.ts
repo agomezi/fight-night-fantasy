@@ -18,7 +18,7 @@ export type InboxItem = {
 
 export type RawInboxItem = { kind: NotificationKind; key: string; payload: unknown; sent_at: string; read: boolean };
 
-const SCREENS = new Set(["history", "picks", "edit-profile", "leagues"]);
+const SCREENS = new Set(["history", "picks", "edit-profile", "leagues", "profile"]);
 
 /** Where a notification's data points. Shared by push taps and the inbox. */
 export function notificationHref(data: unknown): Href | null {
