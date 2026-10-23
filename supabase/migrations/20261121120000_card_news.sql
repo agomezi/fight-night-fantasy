@@ -45,15 +45,42 @@ create trigger profiles_clean_time_zone before insert or update of time_zone on 
   for each row execute function public.clean_time_zone();
 
 -- Odds and schedule pushes wait out the night in the player's zone (Eastern
--- when we don't know it).
-create function public.push_deferred(kind text, time_zone text)
+-- when we don't know it), unless waiting until 9 AM would miss `deadline`:
+-- the lock it's about. Then it goes now.
+create function public.push_deferred(kind text, time_zone text, deadline timestamptz)
 returns boolean
+language plpgsql
+stable
+set search_path = ''
+as $$
+declare
+  zone  text := coalesce(time_zone, 'America/New_York');
+  local timestamp := now() at time zone zone;
+  nine  timestamptz;
+begin
+  if kind not in ('odds', 'schedule') or extract(hour from local) between 9 and 21 then
+    return false;
+  end if;
+  nine := (date_trunc('day', local) + case when extract(hour from local) >= 22 then interval '1 day' else interval '0' end
+           + interval '9 hours') at time zone zone;
+  return deadline is null or deadline > nine;
+end;
+$$;
+
+-- The lock a card-news push is about: the card's first lock for a schedule
+-- push, the bout's for an odds push.
+create function public.push_deadline(kind text, payload jsonb)
+returns timestamptz
 language sql
 stable
 set search_path = ''
 as $$
-  select kind in ('odds', 'schedule')
-     and extract(hour from now() at time zone coalesce(time_zone, 'America/New_York')) not between 9 and 21;
+  select case kind
+    when 'schedule' then (payload ->> 'firstAt')::timestamptz
+    when 'odds' then (
+      select coalesce(b.locks_at, e.locks_at) from public.bouts b join public.events e on e.id = b.event_id
+      where b.id = (payload ->> 'boutId')::uuid)
+  end;
 $$;
 
 alter table public.notifications_sent
@@ -79,7 +106,9 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  if new.version <> old.version
+  if tg_op = 'INSERT' then
+    new.last_underdog_corner := new.underdog_corner;
+  elsif new.version <> old.version
      or new.red_fighter_id <> old.red_fighter_id or new.blue_fighter_id <> old.blue_fighter_id then
     new.last_underdog_corner := new.underdog_corner;
   elsif new.underdog_corner is not null then
@@ -89,7 +118,7 @@ begin
 end;
 $$;
 
-create trigger bouts_hold_last_underdog before update on public.bouts
+create trigger bouts_hold_last_underdog before insert or update on public.bouts
   for each row execute function public.hold_last_underdog();
 
 -- Everyone with a pick on a bout whose underdog just flipped. Once per
@@ -127,6 +156,7 @@ begin
   join public.events e on e.id = n.event_id
   join public.picks k on k.bout_id = n.id and k.bout_version = n.version
   join public.profiles p on p.id = k.user_id and p.deleted_at is null
+    and (select ps.standing from public.player_standing(k.user_id) ps) not in ('banned', 'suspended')
   join public.fighters pf on pf.id = k.picked_fighter_id
   join public.fighters r on r.id = n.red_fighter_id
   join public.fighters bl on bl.id = n.blue_fighter_id
@@ -169,7 +199,7 @@ revoke all on public.schedule_notices from anon, authenticated, service_role;
 -- Cards from 2 hours to 4 days before their first lock. An unusual one is
 -- announced once; one already announced is announced again if its main card
 -- moves by 30 minutes or more. Returns how many rows it queued.
-create function public.queue_schedule_notifications()
+create function public.queue_schedule_notifications(at timestamptz default now())
 returns integer
 language plpgsql
 security definer
@@ -193,8 +223,8 @@ begin
     join public.bouts b on b.event_id = e.id and b.status = 'scheduled'
     where e.status = 'scheduled'
     group by e.id, e.name
-    having min(coalesce(b.locks_at, e.locks_at)) > now() + interval '2 hours'
-       and min(coalesce(b.locks_at, e.locks_at)) <= now() + interval '4 days'
+    having min(coalesce(b.locks_at, e.locks_at)) > at + interval '2 hours'
+       and min(coalesce(b.locks_at, e.locks_at)) <= at + interval '4 days'
   loop
     select s.main_at into prev from public.schedule_notices s where s.event_id = ev.id;
     et := ev.main_at at time zone 'America/New_York';
@@ -205,11 +235,15 @@ begin
       end if;
       said := case when extract(isodow from et) <> 6 then 'day' when et::time < time '18:30' then 'early' else 'late' end;
       note_key := ev.id || ':unusual';
-      insert into public.schedule_notices (event_id, main_at) values (ev.id, ev.main_at);
+      -- Another run got here first.
+      insert into public.schedule_notices (event_id, main_at, sent_at) values (ev.id, ev.main_at, at)
+      on conflict do nothing;
+      get diagnostics n = row_count;
+      continue when n = 0;
     elsif abs(extract(epoch from ev.main_at - prev)) >= 1800 then
       said := 'moved';
       note_key := ev.id || ':moved:' || extract(epoch from ev.main_at)::bigint;
-      update public.schedule_notices set main_at = ev.main_at, sent_at = now() where event_id = ev.id;
+      update public.schedule_notices set main_at = ev.main_at, sent_at = at where event_id = ev.id;
     else
       continue;
     end if;
@@ -241,11 +275,16 @@ security definer
 set search_path = ''
 as $$
 begin
-  perform public.queue_schedule_notifications();
+  -- A bad card can't hold back the pushes waiting to go out.
+  begin
+    perform public.queue_schedule_notifications();
+  exception when others then
+    raise warning 'schedule notices failed: %', sqlerrm;
+  end;
   if exists (
     select 1 from public.notifications_sent n
     join public.profiles p on p.id = n.user_id
-    where not n.pushed and not public.push_deferred(n.kind, p.time_zone)
+    where not n.pushed and not public.push_deferred(n.kind, p.time_zone, public.push_deadline(n.kind, n.payload))
   ) then
     perform public.invoke_activity_push();
   end if;
@@ -306,6 +345,7 @@ as $$
     from career c
     join public.profiles p on p.id = c.user_id and p.deleted_at is null
     where c.rank <> 'Prospect'
+      and (select ps.standing from public.player_standing(c.user_id) ps) not in ('banned', 'suspended')
   ),
   claimed as (
     insert into public.notifications_sent (user_id, kind, key, payload)
@@ -354,7 +394,7 @@ as $$
     update public.notifications_sent n set pushed = true
     from public.profiles p
     where not n.pushed and p.id = n.user_id
-      and not public.push_deferred(n.kind, p.time_zone)
+      and not public.push_deferred(n.kind, p.time_zone, public.push_deadline(n.kind, n.payload))
     returning n.user_id, n.kind, n.payload, n.sent_at
   )
   select c.user_id, c.kind,
@@ -410,8 +450,9 @@ $$;
 -------------------------------------------------------------------------------
 
 revoke execute on function
-  public.clean_time_zone(), public.push_deferred(text, text), public.hold_last_underdog(), public.queue_odds_flips(),
-  public.queue_schedule_notifications(), public.card_news_tick(), public.career_rank_for(integer),
+  public.clean_time_zone(), public.push_deferred(text, text, timestamptz), public.push_deadline(text, jsonb),
+  public.hold_last_underdog(), public.queue_odds_flips(),
+  public.queue_schedule_notifications(timestamptz), public.card_news_tick(), public.career_rank_for(integer),
   public.rank_key(text), public.claim_rank_notifications(uuid)
   from public, anon, authenticated;
 

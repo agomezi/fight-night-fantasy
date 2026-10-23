@@ -132,9 +132,10 @@ function signed(points: number): string {
   return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : "0";
 }
 
-/** "Alexander Volkanovski" -> "Volkanovski". */
+/** "Alexander Volkanovski" -> "Volkanovski", "Tony Ferguson Jr." -> "Ferguson". */
 function surname(name: string): string {
   const parts = name.trim().split(/\s+/);
+  while (parts.length > 1 && /^(jr|sr|ii|iii|iv)\.?$/i.test(parts[parts.length - 1])) parts.pop();
   return parts[parts.length - 1] ?? name;
 }
 
@@ -158,7 +159,7 @@ function odds(p: OddsPayload): Message {
   return p.pickedIsDog
     ? {
         title: `Odds flipped: ${who} is now the underdog`,
-        body: "Hold your pick through the lock and it's worth 1.5x.",
+        body: "If it's still that way when the fight locks, your pick is worth 1.5x.",
         data: { screen: "picks" },
       }
     : {
@@ -174,9 +175,14 @@ function schedule(p: SchedulePayload): Message {
   if (p.when === "moved") {
     return { title: `${card} moved`, body: `The main card now starts at ${main}. Picks lock as each part starts.`, data: { screen: "picks" } };
   }
+  // The day in the player's zone; one that's still Saturday there reads as an
+  // odd time instead.
+  const day = inZone(p.mainAt, p.tz, { weekday: "long" });
   const head =
     p.when === "day"
-      ? `${card} is on a ${inZone(p.mainAt, p.tz, { weekday: "long" })}`
+      ? day === "Saturday"
+        ? `${card} starts at an unusual time`
+        : `${card} is on a ${day}`
       : `${card} starts ${p.when === "early" ? "earlier" : "later"} than usual`;
   const times = p.hasPrelims ? `Prelims at ${clock(p.firstAt, p.tz)}, main card at ${main}.` : `Main card at ${main}.`;
   return { title: head, body: `${times} Get your picks in before then.`, data: { screen: "picks" } };

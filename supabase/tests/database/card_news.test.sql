@@ -6,10 +6,10 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(39);
+select plan(42);
 
--- A Saturday 8 PM Eastern main card, three days out or so: the next Saturday
--- at least two days away.
+-- A Saturday 8 PM Eastern main card. The schedule checks run as of two days
+-- before it, so the test doesn't depend on today's weekday.
 create function pg_temp.sat8() returns timestamptz language sql as $$
   select (date_trunc('week', ((now() at time zone 'America/New_York')::date + 2)::timestamp) + interval '5 days 20 hours')
          at time zone 'America/New_York'
@@ -135,23 +135,23 @@ update public.bouts set locks_at = pg_temp.sat8() - interval '2 hours' where id 
 
 -- Unusual start times --------------------------------------------------------
 
-select is(public.queue_schedule_notifications(), 0, 'a Saturday 8 PM main card is usual');
+select is(public.queue_schedule_notifications(pg_temp.sat8() - interval '2 days'), 0, 'a Saturday 8 PM main card is usual');
 
 -- The card moves to a Saturday 2 PM main card.
 update public.bouts set locks_at = locks_at - interval '6 hours' where event_id = pg_temp.ev();
 update public.events set locks_at = locks_at - interval '6 hours' where id = pg_temp.ev();
-select is(public.queue_schedule_notifications(), 3, 'an afternoon main card is told to everyone signed up');
+select is(public.queue_schedule_notifications(pg_temp.sat8() - interval '2 days'), 3, 'an afternoon main card is told to everyone signed up');
 select is((select payload ->> 'when' from public.notifications_sent where kind = 'schedule' limit 1), 'early', 'as earlier than usual');
 select is((select (payload ->> 'hasPrelims')::boolean from public.notifications_sent where kind = 'schedule' limit 1), true, 'with prelims first');
-select is(public.queue_schedule_notifications(), 0, 'once');
+select is(public.queue_schedule_notifications(pg_temp.sat8() - interval '2 days'), 0, 'once');
 
 update public.bouts set locks_at = locks_at + interval '1 hour' where event_id = pg_temp.ev();
 update public.events set locks_at = locks_at + interval '1 hour' where id = pg_temp.ev();
-select is(public.queue_schedule_notifications(), 3, 'a move of an hour is told again');
+select is(public.queue_schedule_notifications(pg_temp.sat8() - interval '2 days'), 3, 'a move of an hour is told again');
 select is((select count(*)::int from public.notifications_sent where kind = 'schedule' and payload ->> 'when' = 'moved'), 3, 'as moved');
 update public.bouts set locks_at = locks_at + interval '10 minutes' where event_id = pg_temp.ev();
 update public.events set locks_at = locks_at + interval '10 minutes' where id = pg_temp.ev();
-select is(public.queue_schedule_notifications(), 0, 'ten minutes isn''t');
+select is(public.queue_schedule_notifications(pg_temp.sat8() - interval '2 days'), 0, 'ten minutes isn''t');
 
 -- A banned player hears nothing new.
 set local session_replication_role = replica;
@@ -159,7 +159,7 @@ insert into public.moderation_actions (case_id, player, action) values (0, pg_te
 set local session_replication_role = origin;
 update public.bouts set locks_at = locks_at + interval '2 hours' where event_id = pg_temp.ev();
 update public.events set locks_at = locks_at + interval '2 hours' where id = pg_temp.ev();
-select is(public.queue_schedule_notifications(), 2, 'a banned player isn''t told');
+select is(public.queue_schedule_notifications(pg_temp.sat8() - interval '2 days'), 2, 'a banned player isn''t told');
 delete from public.moderation_actions where player = pg_temp.u(2);
 
 -- Sending ----------------------------------------------------------------------
@@ -185,6 +185,18 @@ select ok((select count(*) from claimed where user_id = pg_temp.u(3) and kind = 
 select is((select payload ->> 'tz' from claimed where user_id = pg_temp.u(3) and kind = 'schedule' limit 1),
   (select time_zone from public.profiles where id = pg_temp.u(3)), 'with the player''s zone for the times');
 select ok((select bool_and(wanted) from claimed where user_id = pg_temp.u(3) and kind in ('odds', 'schedule')), 'and are wanted');
+
+-- A push that would miss its lock by waiting goes now, even at 3 AM.
+insert into public.notifications_sent (user_id, kind, key, payload, pushed)
+values (pg_temp.u(1), 'schedule', 'soon', jsonb_build_object('firstAt', now() + interval '2 hours'), false);
+select is((select count(*)::int from public.claim_activity_notifications() where user_id = pg_temp.u(1)), 1,
+  'a push whose lock comes before morning isn''t held');
+-- One whose card is already under way is dropped.
+insert into public.notifications_sent (user_id, kind, key, payload, pushed)
+values (pg_temp.u(3), 'schedule', 'late', jsonb_build_object('firstAt', now() - interval '1 hour'), false);
+select is((select wanted from public.claim_activity_notifications() where user_id = pg_temp.u(3)), false,
+  'a schedule push after the card started is dropped');
+select lives_ok($$select public.card_news_tick()$$, 'the cron runs');
 
 update public.profiles set notify_card_news = false where id = pg_temp.u(3);
 insert into public.notifications_sent (user_id, kind, key, payload, pushed)

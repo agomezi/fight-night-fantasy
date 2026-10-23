@@ -68,8 +68,9 @@ async function saveTimeZone(): Promise<void> {
     if (!userId) return;
     const key = `${ZONE_KEY}:${userId}`;
     if ((await AsyncStorage.getItem(key)) === zone) return;
-    const { error } = await supabase.from("profiles").update({ time_zone: zone }).eq("id", userId);
-    if (!error) await AsyncStorage.setItem(key, zone);
+    const { data: saved, error } = await supabase.from("profiles").update({ time_zone: zone }).eq("id", userId).select("id");
+    // Only remembered once it's actually stored, so a miss is retried.
+    if (!error && saved?.length) await AsyncStorage.setItem(key, zone);
   } catch {}
 }
 

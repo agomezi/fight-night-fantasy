@@ -161,9 +161,15 @@ describe("notificationText", () => {
     it("tells a player their pick became the underdog", () => {
       expect(notificationText("odds", { ...flip, pickedIsDog: true })).toEqual({
         title: "Odds flipped: Volkanovski is now the underdog",
-        body: "Hold your pick through the lock and it's worth 1.5x.",
+        body: "If it's still that way when the fight locks, your pick is worth 1.5x.",
         data: { screen: "picks" },
       });
+    });
+
+    it("drops a suffix from the name", () => {
+      expect(notificationText("odds", { ...flip, picked: "Tony Ferguson Jr.", pickedIsDog: true }).title).toBe(
+        "Odds flipped: Ferguson is now the underdog"
+      );
     });
 
     it("or the favorite", () => {
@@ -191,6 +197,9 @@ describe("notificationText", () => {
 
     it("names the day for a card off Saturday, in the player's zone", () => {
       expect(notificationText("schedule", { ...card, when: "day", tz: "Australia/Sydney" }).title).toBe("UFC 333 is on a Sunday");
+      expect(notificationText("schedule", { ...card, when: "day", tz: "America/New_York" }).title).toBe(
+        "UFC 333 starts at an unusual time"
+      );
     });
 
     it("leaves out the prelims when there are none", () => {
