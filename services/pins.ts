@@ -72,3 +72,54 @@ export async function unpinCall(boutId: string): Promise<void> {
   const { error } = await (await db()).rpc("unpin_call", { bout: boutId });
   if (error) throw new Error(error.message);
 }
+
+/** A call you could pin, for the "Pin a call" sheet. */
+export type PinnableCall = PinnedCall & {
+  /** You backed the underdog. */
+  underdog: boolean;
+  pinned: boolean;
+  /** For sorting "Recent". */
+  eventDate: number;
+  /** For sorting "Best". */
+  pointsValue: number;
+};
+
+type RawPinnableCall = RawPinnedCall & { underdog: boolean; pinned: boolean };
+
+export function toPinnableCalls(raw: RawPinnableCall[]): PinnableCall[] {
+  const shaped = toPinnedCalls(raw);
+  return raw.map((r, i) => ({
+    ...shaped[i],
+    underdog: r.underdog,
+    pinned: r.pinned,
+    eventDate: new Date(r.event_date).getTime(),
+    pointsValue: Number(r.points),
+  }));
+}
+
+export type PinFilter = "best" | "recent" | "underdogs";
+
+/** The sheet's list for a filter: best scores first, newest first, or only
+ * underdogs you backed (best first). */
+export function filterPinnable(calls: PinnableCall[], filter: PinFilter): PinnableCall[] {
+  const list = filter === "underdogs" ? calls.filter((c) => c.underdog) : [...calls];
+  return filter === "recent"
+    ? list.sort((a, b) => b.eventDate - a.eventDate)
+    : list.sort((a, b) => b.pointsValue - a.pointsValue || b.eventDate - a.eventDate);
+}
+
+/** What Share sends for one call. */
+export function shareCallText(call: Pick<PinnedCall, "call" | "points" | "event" | "fight">): string {
+  return `My call: ${call.call} (${call.points} pts)\n${call.fight} · ${call.event}\n\nFight Night Fantasy`;
+}
+
+export async function loadPinnableCalls(): Promise<PinnableCall[]> {
+  const { data, error } = await (await db()).rpc("my_pinnable_calls");
+  if (error) throw new Error(error.message);
+  return toPinnableCalls((data ?? []) as RawPinnableCall[]);
+}
+
+export async function movePinToTop(boutId: string): Promise<void> {
+  const { error } = await (await db()).rpc("move_pin_to_top", { bout: boutId });
+  if (error) throw new Error(error.message);
+}

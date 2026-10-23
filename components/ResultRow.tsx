@@ -38,7 +38,8 @@ export default function ResultRow({
   live = false,
   index = 0,
   last = false,
-  pin,
+  onMore,
+  pinned = false,
 }: {
   red: BoutSide;
   blue: BoutSide;
@@ -56,8 +57,10 @@ export default function ResultRow({
   live?: boolean;
   index?: number;
   last?: boolean;
-  /** A pin button for a call that can go on your profile. */
-  pin?: { pinned: boolean; onPress: () => void };
+  /** Opens this call's menu (pin, share, the full card). */
+  onMore?: () => void;
+  /** It's pinned to your profile. */
+  pinned?: boolean;
 }) {
   const { c } = useTheme();
 
@@ -175,15 +178,29 @@ export default function ResultRow({
             {points}
           </Text>
         )}
-        {pin && (
-          <PressableScale
-            onPress={pin.onPress}
-            hitSlop={10}
-            style={{ marginTop: 6 }}
-            accessibilityLabel={pin.pinned ? "Unpin from your profile" : "Pin to your profile"}
-          >
-            <Ionicons name={pin.pinned ? "pin" : "pin-outline"} size={16} color={pin.pinned ? c.red : c.textFaint} />
-          </PressableScale>
+        {(onMore || pinned) && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
+            {pinned && <Ionicons name="pin" size={14} color={c.red} accessibilityLabel="Pinned to your profile" />}
+            {onMore && (
+              <PressableScale
+                onPress={onMore}
+                hitSlop={8}
+                accessibilityLabel="More for this call"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: c.border,
+                  backgroundColor: c.card,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="ellipsis-horizontal" size={16} color={c.text} />
+              </PressableScale>
+            )}
+          </View>
         )}
       </View>
     </Animated.View>
