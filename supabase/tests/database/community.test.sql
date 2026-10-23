@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(58);
 
 -- Three fights, three days out.
 select public.sync_event_card(jsonb_build_object(
@@ -242,6 +242,15 @@ set local role authenticated;
 select pg_temp.act(1);
 select ok(public.home_community_card()->>'type' in ('crowd', 'top_performers'), 'the app gets the global card');
 select isnt(public.community_card()->>'type', 'crowd', 'older builds never get crowd vs. reality');
+reset role;
+select is((select count(*)::int from generate_series(0, 5) d
+           where public.community_card_for(pg_temp.u(1), now() + make_interval(days => d), false)->>'type' = 'crowd'), 0,
+  'on any day');
+select is((select count(*)::int from generate_series(0, 5) d
+           where public.community_card_for(pg_temp.u(1), now() + make_interval(days => d), false)->>'type' = 'none'), 0,
+  'and get another card in its place');
+set local role authenticated;
+select pg_temp.act(1);
 reset role;
 update public.results set winner_fighter_id = (select red_fighter_id from public.bouts where id = pg_temp.bid(1))
 where bout_id = pg_temp.bid(1);

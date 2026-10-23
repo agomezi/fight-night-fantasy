@@ -43,7 +43,8 @@ as $$
   ),
   worst as (
     select f.* from fights f
-    where f.wrong * 2 > f.picks
+    -- A fight with a fraction of the card's picks can't win on a 3-of-3.
+    where f.wrong * 2 > f.picks and f.picks * 2 >= (select max(x.picks) from fights x)
     order by f.wrong::numeric / f.picks desc, f.picks desc, f.fight_order
     limit 1
   )
@@ -93,8 +94,9 @@ $$;
 -- Home
 -------------------------------------------------------------------------------
 
--- `league` is no longer used; it stays so older builds keep working.
-create or replace function public.community_card_at(league uuid, me uuid, at timestamptz)
+-- The card for `me` at `at`. Older builds don't know crowd vs. reality, so for
+-- them (`with_crowd` false) its slots go to the next card instead.
+create function public.community_card_for(me uuid, at timestamptz, with_crowd boolean)
 returns jsonb
 language plpgsql
 stable
@@ -166,7 +168,7 @@ begin
             and public.poll_outcome(p.id) is distinct from 'void'
         ) h
         where h.i = (day / 3) % h.n;
-      elsif last_ev is not null then
+      elsif with_crowd and last_ev is not null then
         card := public.crowd_vs_reality(last_ev, me);
         if card is not null then
           return card;
@@ -182,7 +184,8 @@ begin
   if last_ev is not null then
     foreach slot in array (case day % 2 when 0 then array['crowd', 'top'] else array['top', 'crowd'] end)
     loop
-      card := case slot when 'crowd' then public.crowd_vs_reality(last_ev, me) else public.top_performers(last_ev, me) end;
+      card := case when slot = 'top' then public.top_performers(last_ev, me)
+                   when with_crowd then public.crowd_vs_reality(last_ev, me) end;
       if card is not null then
         return card;
       end if;
@@ -193,6 +196,17 @@ begin
 end;
 $$;
 
+-- `league` is no longer used; tests call this to walk through a week.
+create or replace function public.community_card_at(league uuid, me uuid, at timestamptz)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.community_card_for(me, at, true);
+$$;
+
 -- What the app calls now.
 create function public.home_community_card()
 returns jsonb
@@ -201,11 +215,11 @@ stable
 security definer
 set search_path = ''
 as $$
-  select public.community_card_at(null, (select auth.uid()), now());
+  select public.community_card_for((select auth.uid()), now(), true);
 $$;
 
 -- What older builds call. They don't know crowd vs. reality and would break on
--- it, so they get the last card's best in its place.
+-- it, so they never get it.
 create or replace function public.community_card(league uuid default null)
 returns jsonb
 language sql
@@ -213,11 +227,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select case when c->>'type' = 'crowd'
-              then coalesce(public.top_performers((select l.event_id from public.last_final_event(now()) l), (select auth.uid())),
-                            '{"type": "none"}'::jsonb)
-              else c end
-  from (select public.community_card_at(null, (select auth.uid()), now()) as c) x;
+  select public.community_card_for((select auth.uid()), now(), false);
 $$;
 
 -------------------------------------------------------------------------------
@@ -280,6 +290,7 @@ $$;
 revoke execute on function
   public.crowd_vs_reality(uuid, uuid), public.last_final_event(timestamptz),
   public.league_community_card_at(uuid, uuid, timestamptz), public.league_community_card(uuid),
+  public.community_card_for(uuid, timestamptz, boolean),
   public.home_community_card()
   from public, anon, authenticated;
 

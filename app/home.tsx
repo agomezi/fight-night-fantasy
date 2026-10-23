@@ -281,7 +281,8 @@ export default function Home() {
   // The one Community card, about everyone on the app, chosen on the server by
   // where we are in fight week. Refetched on focus at most once a minute, or
   // when the player changes.
-  const communityKey = userId ? `community:${userId}` : null;
+  // v2: the card went global, so an older cached league card is dropped.
+  const communityKey = userId ? `community2:${userId}` : null;
   const [community, setCommunity] = useState<RawCommunityCard | null>(() => readCache(communityKey) ?? null);
   const [voting, setVoting] = useState(false);
   // Another account's card never shows, even for a moment.
