@@ -1,7 +1,7 @@
 // What changed, shown once when the app opens after an update. Add a new
 // entry at the top with a new id for each release worth telling players
-// about. The card shows every entry an account hasn't seen yet, once per
-// account on each phone.
+// about. The card shows the newest entries an account hasn't seen yet, once
+// per account on any phone, and points to Patch Notes for the rest.
 
 import type { Ionicons } from "@expo/vector-icons";
 
@@ -133,17 +133,23 @@ export const WHATS_NEW: WhatsNewEntry[] = [
   },
 ];
 
-/** The entries to show, newest first: every one newer than the last this
- * account closed, from after the account was made. Empty when there's
- * nothing new. */
+/** How many entries the card shows at most; older ones wait in Patch Notes. */
+export const WHATS_NEW_CAP = 2;
+
+/** The entries to show, newest first: the newest few (up to the cap) newer
+ * than the last this account closed, from after the account was made, and
+ * how many more unseen ones the cap left out. */
 export function whatsNewToShow(
-  seenId: string | null,
+  seenId: string | null | undefined,
   accountCreatedAt: string | null | undefined,
-  entries: WhatsNewEntry[] = WHATS_NEW
-): WhatsNewEntry[] {
+  entries: WhatsNewEntry[] = WHATS_NEW,
+  cap: number = WHATS_NEW_CAP
+): { show: WhatsNewEntry[]; missed: number } {
   const seenAt = entries.findIndex((e) => e.id === seenId);
-  const unseen = seenAt < 0 ? entries : entries.slice(0, seenAt);
-  if (!accountCreatedAt) return unseen;
-  const made = new Date(accountCreatedAt).getTime();
-  return unseen.filter((e) => new Date(e.date).getTime() > made);
+  let unseen = seenAt < 0 ? entries : entries.slice(0, seenAt);
+  if (accountCreatedAt) {
+    const made = new Date(accountCreatedAt).getTime();
+    unseen = unseen.filter((e) => new Date(e.date).getTime() > made);
+  }
+  return { show: unseen.slice(0, cap), missed: Math.max(0, unseen.length - cap) };
 }
