@@ -4,11 +4,11 @@ import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import {
   divisionLabel,
   fighterAge,
-  finishRate,
   heightLabel,
   initials,
   lastName,
   reachLabel,
+  winStyle,
   type SpotlightFighter,
 } from "../services/events";
 import { makeCommonStyles } from "../styles/common";
@@ -64,10 +64,7 @@ export default function FighterSpotlight({
   const height = heightLabel(fighter.heightIn);
   const details = [division, fighter.record, age == null ? null : `${age} YRS`, height].filter(Boolean).join(" · ");
   const ufc = fighter.ufc;
-  const finishes = finishRate(ufc);
-  const how = ufc
-    ? [ufc.koWins && `${ufc.koWins} by KO`, ufc.subWins && `${ufc.subWins} by submission`].filter(Boolean).join(", ")
-    : "";
+  const style = winStyle(ufc);
 
   return (
     <View>
@@ -127,18 +124,14 @@ export default function FighterSpotlight({
       </View>
 
       <Text style={{ fontSize: 13, color: c.text2, marginBottom: 16, lineHeight: 18 }}>
-        {finishes != null ? (
-          <Text style={{ fontWeight: "700" }}>
-            Finishes {finishes}% of UFC wins{how ? `: ${how}` : ""}.{" "}
-          </Text>
-        ) : null}
+        {style ? <Text style={{ fontWeight: "700" }}>{style.line} </Text> : null}
         {bout.order === 1 ? "Headlines" : "Fights"} against {opponent.name}
         {opponent.record ? ` (${opponent.record})` : ""}
         {dog ? ". The books have them as the underdog." : "."}
       </Text>
 
       <StatBoxRow inline>
-        <StatBox value={finishes == null ? "—" : `${finishes}%`} label="FINISH RATE" accent />
+        <StatBox value={style?.value ?? "—"} label={style?.label ?? "FINISH RATE"} accent />
         <StatBox value={ufc ? String(ufc.winStreak) : "—"} label="WIN STREAK" />
         <StatBox value={reachLabel(fighter.reachIn) ?? "—"} label="REACH" />
       </StatBoxRow>

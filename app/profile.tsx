@@ -12,7 +12,7 @@ import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import PinnedCalls from "../components/PinnedCalls";
-import SuperlativesBlock from "../components/SuperlativesBlock";
+import BadgesBlock from "../components/BadgesBlock";
 import ResultRow from "../components/ResultRow";
 import HeaderBar from "../components/HeaderBar";
 import { useAuth } from "../context/AuthContext";
@@ -28,7 +28,8 @@ import { readCache, writeCache } from "../services/screenCache";
 import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, type SeasonRecord } from "../services/leagues";
 import { loadCareer, type Career } from "../services/career";
 import { loadPinnedCalls, MAX_PINNED_CALLS, movePinToTop, shareCallText, unpinCall, type PinnedCall } from "../services/pins";
-import { loadSuperlatives, type Superlatives } from "../services/awards";
+import { loadBadges, type Badge } from "../services/awards";
+import { loadTakesRecord } from "../services/community";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -71,13 +72,26 @@ export default function Profile() {
     }, [])
   );
 
-  // Your superlatives from the latest award drop.
-  const [superlatives, setSuperlatives] = useState<Superlatives | null>(null);
+  // Awards you've locked in at the end of a season.
+  const [badges, setBadges] = useState<Badge[]>([]);
   useFocusEffect(
     useCallback(() => {
       if (!session?.user.id) return;
       let current = true;
-      loadSuperlatives(session.user.id).then((v) => current && setSuperlatives(v)).catch(() => {});
+      loadBadges(session.user.id).then((v) => current && setBadges(v)).catch(() => {});
+      return () => {
+        current = false;
+      };
+    }, [session?.user.id])
+  );
+
+  // Your record on Community takes, once any you voted on have settled.
+  const [takes, setTakes] = useState<{ wins: number; losses: number } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.user.id) return;
+      let current = true;
+      loadTakesRecord().then((v) => current && setTakes(v)).catch(() => {});
       return () => {
         current = false;
       };
@@ -219,7 +233,9 @@ export default function Profile() {
             {/* Nothing about your record until it has loaded. */}
             {career == null
               ? profile.title
-              : `${career.cards > 0 ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}` : "No fights yet"} · ${profile.title}`}
+              : `${career.cards > 0 ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}` : "No fights yet"}${
+                  takes && takes.wins + takes.losses > 0 ? ` · Takes ${takes.wins}-${takes.losses}` : ""
+                } · ${profile.title}`}
           </Text>
         </Animated.View>
 
@@ -263,12 +279,12 @@ export default function Profile() {
           </Animated.View>
         </View>
 
-        {superlatives && (
+        {badges.length > 0 && (
           <>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>SUPERLATIVES</Text>
+              <Text style={styles.sectionTitle}>BADGES</Text>
             </View>
-            <SuperlativesBlock data={superlatives} />
+            <BadgesBlock badges={badges} />
           </>
         )}
 

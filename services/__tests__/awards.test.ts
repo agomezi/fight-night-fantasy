@@ -1,4 +1,4 @@
-import { AWARDS, shareText, toLeagueDrop, topPlacings, yourLine, type Superlatives } from "../awards";
+import { AWARDS, shareText, toBadges, toLeagueDrop, yourLine } from "../awards";
 import { notificationText } from "../notificationText";
 
 const raw = {
@@ -30,14 +30,14 @@ describe("a league's award drop", () => {
   });
 
   test("says what you won, or your best placing, never the joke", () => {
-    expect(yourLine(drop, "u2")).toBe("You won Dog Merchant.");
+    expect(yourLine(drop, "u2")).toBe("You won Upset Artist.");
     expect(yourLine(drop, "u9")).toBe("Your best: 1st in Round Sniper.");
     expect(yourLine({ ...drop, myPlaces: {} }, "u9")).toBe("Pick a few more fights to get into the running.");
   });
 
   test("shares as text", () => {
     expect(shareText("Test1", drop)).toContain("Interim Champ: Ayden");
-    expect(shareText("Test1", drop)).toContain("Dog Merchant: Soggy (4 underdog wins)");
+    expect(shareText("Test1", drop)).toContain("Upset Artist: Soggy (4 underdog wins)");
   });
 
   test("has no drop before one is published", () => {
@@ -45,20 +45,19 @@ describe("a league's award drop", () => {
   });
 });
 
-test("a profile's top placings, best first, without the joke", () => {
-  const s: Superlatives = {
-    drop: { id: "d1", label: "Check-in", kind: "checkin" },
-    awards: [],
-    places: [
-      { scope: "Test1", places: { dog: 3, sniper: 1, gun_shy: 1 } },
-      { scope: "Global", places: { finisher: 2 } },
-    ],
-  };
-  expect(topPlacings(s).map((p) => `${p.place}:${p.award}:${p.scope}`)).toEqual([
-    "1:sniper:Test1",
-    "2:finisher:Global",
-    "3:dog:Test1",
+test("badges, newest season first, in award order", () => {
+  const badges = toBadges([
+    { award: "dog", season: 1, scope: "Test1", value: 4 },
+    { award: "gun_shy", season: 2, scope: "Test1", value: 1.5 },
+    { award: "champ", season: 2, scope: "Test1", value: null },
+    { award: "retired_award", season: 2, scope: "Global", value: null },
   ]);
+  expect(badges.map((b) => `${b.season}:${b.title}:${b.scope}`)).toEqual([
+    "S2:Champ:Test1",
+    "S2:Ring Rust:Test1",
+    "S1:Upset Artist:Test1",
+  ]);
+  expect(badges[1].joke).toBe(true);
 });
 
 test("the awards push opens Leagues", () => {

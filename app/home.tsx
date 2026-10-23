@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, ScrollView, Text, View } from "react-native";
 import Animated, {
   ZoomOut,
   interpolateColor,
@@ -20,7 +20,8 @@ import FighterPhoto from "../components/FighterPhoto";
 import FighterSpotlight from "../components/FighterSpotlight";
 import HeaderBar from "../components/HeaderBar";
 import LiveDot from "../components/LiveDot";
-import InfoCards from "../components/InfoCards";
+import InfoCards, { type Card as InfoCard } from "../components/InfoCards";
+import { communityCard } from "../components/CommunityCard";
 import { StatBox, StatBoxRow } from "../components/StatBox";
 import ProgressRing from "../components/ProgressRing";
 import Skeleton from "../components/Skeleton";
@@ -28,6 +29,14 @@ import SwipeableCards, { Card as CarouselCard } from "../components/SwipeableCar
 import { useHistory } from "../hooks/useHistory";
 import { useLeague } from "../hooks/useLeague";
 import { waitingLine } from "../services/leagues";
+import {
+  loadCommunityCard,
+  PollClosedError,
+  toCommunityView,
+  VoteRefusedError,
+  votePoll,
+  type RawCommunityCard,
+} from "../services/community";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, spotlightFighters, startLabel } from "../services/events";
 import { useAuth } from "../context/AuthContext";
@@ -170,59 +179,6 @@ function FighterChoice({
   );
 }
 
-/** Yes/No poll button that fills red as it's chosen. */
-function VoteButton({
-  label,
-  selected,
-  onPress,
-}: {
-  label: string;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const { c } = useTheme();
-  const progress = useToggleProgress(selected);
-
-  const boxStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(progress.value, [0, 1], [c.card, c.red]),
-    borderColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      [c.borderStrong, c.red],
-    ),
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    color: interpolateColor(progress.value, [0, 1], [c.text, "#FFFFFF"]),
-  }));
-
-  return (
-    <PressableScale
-      onPress={onPress}
-      haptic="medium"
-      style={[
-        {
-          flex: 1,
-          paddingVertical: 14,
-          borderRadius: 10,
-          alignItems: "center",
-          borderWidth: 1,
-        },
-        boxStyle,
-      ]}
-    >
-      <Animated.Text
-        style={[
-          { fontSize: 16, fontWeight: "700", letterSpacing: 2 },
-          textStyle,
-        ]}
-      >
-        {label}
-      </Animated.Text>
-    </PressableScale>
-  );
-}
-
 function ordinal(n: number) {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
@@ -234,7 +190,6 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { c, mode } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
-  const [hotTakeVote, setHotTakeVote] = useState<"yes" | "no" | null>(null);
   const [picksTab, setPicksTab] = useState<"quick" | "full">("quick");
   // The fighter id chosen in Quick Pick.
   const [quickPick, setQuickPick] = useState<string | null>(null);
@@ -322,6 +277,72 @@ export default function Home() {
   const ranked = standingRows.filter((s) => s.rank != null);
   const me = standingRows.find((s) => s.isMe);
   const myStanding = me && me.rank != null ? { ...me, rank: me.rank } : null;
+
+  // The one Community card, chosen on the server by where we are in fight
+  // week. Refetched on focus at most once a minute, or when the player or
+  // league changes.
+  const leagueId = myLeague?.id ?? null;
+  const communityKey = userId ? `community:${userId}` : null;
+  const [community, setCommunity] = useState<RawCommunityCard | null>(() => readCache(communityKey) ?? null);
+  const [voting, setVoting] = useState(false);
+  // Another account's card never shows, even for a moment.
+  useEffect(() => {
+    setCommunity(readCache<RawCommunityCard>(communityKey) ?? null);
+  }, [communityKey]);
+  const communityFetched = useRef({ key: "", at: 0 });
+  // Bumped by each vote, so a fetch begun before it can't undo it.
+  const voteSeq = useRef(0);
+  const fetchKey = `${userId ?? ""}:${leagueId ?? ""}`;
+  const refreshCommunity = useCallback(() => {
+    if (!userId) return () => {};
+    let current = true;
+    const seq = voteSeq.current;
+    loadCommunityCard(leagueId)
+      .then((card) => {
+        if (!current || seq !== voteSeq.current) return;
+        communityFetched.current = { key: fetchKey, at: Date.now() };
+        setCommunity(writeCache(communityKey, card));
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [userId, leagueId, communityKey, fetchKey]);
+  useFocusEffect(
+    useCallback(() => {
+      const last = communityFetched.current;
+      if (last.key === fetchKey && Date.now() - last.at < 60_000) return;
+      return refreshCommunity();
+    }, [fetchKey, refreshCommunity])
+  );
+  const vote = useCallback(
+    (option: string) => {
+      if (community?.type !== "poll" || voting) return;
+      const before = community;
+      const seq = ++voteSeq.current;
+      setVoting(true);
+      setCommunity({ ...before, poll: { ...before.poll, my_vote: option } });
+      votePoll(before.poll.id, option)
+        .then((poll) =>
+          setCommunity((now) =>
+            now?.type === "poll" && now.poll.id === poll.id ? writeCache(communityKey, { ...now, poll }) : now
+          )
+        )
+        .catch((e) => {
+          if (seq !== voteSeq.current) return;
+          setCommunity(before);
+          // Locked while the card sat open: show it as it stands now.
+          if (e instanceof PollClosedError) refreshCommunity();
+          else if (e instanceof VoteRefusedError) Alert.alert("Can't vote", e.message);
+        })
+        .finally(() => setVoting(false));
+    },
+    [community, voting, communityKey, refreshCommunity]
+  );
+  const communityView = useMemo(
+    () => communityCard(toCommunityView(community), c.red, voting, vote),
+    [community, c.red, voting, vote]
+  );
   // Nothing saved yet means the carousel shows the "start your card" prompt
   // instead of a progress ring.
   const picksStarted = Object.keys(saved).length;
@@ -1199,26 +1220,7 @@ export default function Home() {
         </View>
         <InfoCards
           cards={[
-            {
-              tag: "TODAY'S CALL",
-              tagColor: c.red,
-              title: mainEvent
-                ? `Does ${lastName(mainEvent.red.name)} finish ${lastName(mainEvent.blue.name)} inside 2 rounds?`.toUpperCase()
-                : "NEXT CARD'S CALL DROPS SOON",
-              subtitle: mainEvent ? `${eventName?.title} main event · ${weekday}` : "Check back once the card is announced",
-              footer: (
-                <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
-                  {(["yes", "no"] as const).map((option) => (
-                    <VoteButton
-                      key={option}
-                      label={option.toUpperCase()}
-                      selected={hotTakeVote === option}
-                      onPress={() => setHotTakeVote(option)}
-                    />
-                  ))}
-                </View>
-              ),
-            },
+            ...(communityView ? [communityView] : []),
             {
               tag: "FIGHTER SPOTLIGHT",
               tagColor: c.textMuted,
@@ -1231,7 +1233,7 @@ export default function Home() {
                 />
               ),
             },
-          ]}
+          ] satisfies InfoCard[]}
         />
       </ScrollView>
 

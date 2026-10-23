@@ -16,8 +16,8 @@ import {
 } from "../services/leagues";
 import { loadPinnedCalls, type PinnedCall } from "../services/pins";
 import PinnedCalls from "./PinnedCalls";
-import SuperlativesBlock from "./SuperlativesBlock";
-import { loadSuperlatives, type Superlatives } from "../services/awards";
+import BadgesBlock from "./BadgesBlock";
+import { loadBadges, type Badge } from "../services/awards";
 import PressableScale from "./PressableScale";
 import { StatBox, StatBoxRow } from "./StatBox";
 import ScreenSkeleton from "./ScreenSkeleton";
@@ -50,7 +50,7 @@ export default function MemberProfileSheet({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pins, setPins] = useState<PinnedCall[]>([]);
-  const [superlatives, setSuperlatives] = useState<Superlatives | null>(null);
+  const [badges, setBadges] = useState<Badge[]>([]);
 
   useEffect(() => {
     if (!userId) return;
@@ -69,9 +69,9 @@ export default function MemberProfileSheet({
     loadPinnedCalls(userId)
       .then((v) => current && setPins(v))
       .catch(() => {});
-    setSuperlatives(null);
-    loadSuperlatives(userId)
-      .then((v) => current && setSuperlatives(v))
+    setBadges([]);
+    loadBadges(userId)
+      .then((v) => current && setBadges(v))
       .catch(() => {});
     return () => {
       current = false;
@@ -373,12 +373,12 @@ export default function MemberProfileSheet({
         {profile.accuracy == null && profile.favoriteDivision == null && (
           <Text style={[muted, { marginTop: 12, fontSize: 12.5 }]}>No scored picks yet. Stats fill in after a few cards.</Text>
         )}
-        {superlatives && !profile.blocked && (
+        {badges.length > 0 && !profile.blocked && (
           <View style={{ marginTop: 18 }}>
             <Text style={{ color: c.textMuted, fontSize: 11, fontWeight: "800", letterSpacing: 1.4, marginBottom: 10 }}>
-              SUPERLATIVES
+              BADGES
             </Text>
-            <SuperlativesBlock data={superlatives} compact />
+            <BadgesBlock badges={badges} />
           </View>
         )}
         {pins.length > 0 && !profile.blocked && (
