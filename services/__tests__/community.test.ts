@@ -18,13 +18,14 @@ const poll = (extra: Partial<RawPoll> = {}): RawPoll => ({
 });
 
 describe("takes", () => {
-  test("before you vote there's no split, only the count", () => {
+  test("before you vote there's no split and no count", () => {
     const v = toPollView(poll({ votes: 41 }));
     expect(v.tag).toBe("MAIN EVENT TAKE");
     expect(v.question).toBe("DOES ALEX PEREIRA FINISH MAGOMED ANKALAEV INSIDE 2 ROUNDS?");
     expect(v.subtitle).toBe("Pereira vs. Ankalaev · vote before it locks");
     expect(v.options.map((o) => o.pct)).toEqual([null, null]);
-    expect(v.votes).toBe("41 VOTES");
+    expect(v.agree).toBeNull();
+    expect(v.agreeLine).toBeNull();
   });
 
   test("after you vote, the split", () => {
@@ -33,6 +34,14 @@ describe("takes", () => {
       { key: "yes", label: "YES", pct: 63, selected: true },
       { key: "no", label: "NO", pct: 38, selected: false },
     ]);
+    expect(v.agree).toBeCloseTo(0.63);
+    expect(v.agreeLine).toBe("63% OF PLAYERS AGREE");
+  });
+
+  test("the only vote is all agreement", () => {
+    const v = toPollView(poll({ votes: 1, my_vote: "yes", split: { yes: 1, no: 0 } }));
+    expect(v.agree).toBe(1);
+    expect(v.agreeLine).toBe("100% OF PLAYERS AGREE");
   });
 
   test("once settled: what the community said, what happened, and whether you called it", () => {
@@ -106,6 +115,43 @@ describe("cards", () => {
     });
   });
 
+  test("on the league's page, the tag drops the league's name", () => {
+    const view = toCommunityView(
+      {
+        type: "league", kind: "top_predictor", league_name: "Crew", event_name: "UFC 333: Pereira vs. Ankalaev", players: 5,
+        pick: { name: "Joe", is_me: false, points: 90 },
+      },
+      true
+    );
+    expect(view.type === "board" && view.board.tag).toBe("TOP PREDICTOR");
+  });
+
+  test("crowd vs. reality: the fight the crowd got most wrong", () => {
+    const view = toCommunityView({
+      type: "crowd", event_name: "UFC 333: Pereira vs. Ankalaev", crowd_fighter: "Alex Pereira", pct: 84,
+      winner: "Magomed Ankalaev", method: "KO", round: 2, right: 9, fights: 12, me: "against",
+    });
+    expect(view).toEqual({
+      type: "board",
+      board: {
+        tag: "CROWD VS. REALITY",
+        title: "84% PICKED PEREIRA",
+        subtitle: "Magomed Ankalaev won by KO in round 2.",
+        rows: [],
+        lines: ["You had ANKALAEV. Ball knowledge.", "The crowd went 9 for 12 on Pereira vs. Ankalaev."],
+      },
+    });
+  });
+
+  test("crowd vs. reality on a decision leaves out the round", () => {
+    const view = toCommunityView({
+      type: "crowd", event_name: "UFC 333: Pereira vs. Ankalaev", crowd_fighter: "Alex Pereira", pct: 60,
+      winner: "Magomed Ankalaev", method: "DEC", round: 5, right: 3, fights: 4, me: null,
+    });
+    expect(view.type === "board" && view.board.subtitle).toBe("Magomed Ankalaev won by decision.");
+    expect(view.type === "board" && view.board.lines).toEqual(["The crowd went 3 for 4 on Pereira vs. Ankalaev."]);
+  });
+
   test("nothing to show", () => {
     expect(toCommunityView(null)).toEqual({ type: "none" });
   });
@@ -116,7 +162,11 @@ describe("fighter spotlight", () => {
 
   test("a fighter who wins on the cards leads with that, not a 0% finish rate", () => {
     expect(winStyle(stats)).toEqual({ value: "100%", label: "DECISION MERCHANT", line: "Every UFC win on the scorecards (5)." });
-    expect(winStyle({ ...stats, koWins: 1, decWins: 4 })?.label).toBe("DECISION MERCHANT");
+  });
+
+  test("one finish is enough to keep the finish rate", () => {
+    expect(winStyle({ ...stats, wins: 28, koWins: 8, subWins: 1, decWins: 19 })?.label).toBe("FINISH RATE");
+    expect(winStyle({ ...stats, koWins: 1, decWins: 4 })?.label).toBe("FINISH RATE");
   });
 
   test("a finisher keeps the finish rate", () => {

@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(53);
 
 -- Three fights, three days out.
 select public.sync_event_card(jsonb_build_object(
@@ -177,10 +177,10 @@ delete from public.moderation_actions where player = pg_temp.u(2);
 set local role authenticated;
 select pg_temp.act(1);
 
--- Two days on, with no league and no card coming, the top performers stay up.
+-- Two days on, with no card coming, the last card stays up.
 reset role;
-select is((public.community_card_at(null, pg_temp.u(1), now() + interval '3 days'))->>'type', 'top_performers',
-  'between cards with no league, the last card''s best');
+select ok((public.community_card_at(null, pg_temp.u(1), now() + interval '3 days'))->>'type' in ('crowd', 'top_performers'),
+  'between cards, the last card''s best or what the crowd got wrong');
 set local role authenticated;
 
 -- League cards ---------------------------------------------------------------------
@@ -211,10 +211,35 @@ values (pg_temp.u(5), pg_temp.bid(1), null, 25, 0, '{}', false, true);
 -- Points: 02 600, 04 80, 03 60, 05 25, 01 10, so 03 is in the middle.
 select is((public.league_card('00000000-0000-0000-0000-0000000000aa', pg_temp.u(2), pg_temp.ev(), 'jobber'))->'pick'->>'name',
   'Taker3', 'the Jobber is the player dead in the middle');
-select is((public.community_card_at('00000000-0000-0000-0000-0000000000aa', pg_temp.u(2), now() + interval '3 days'))->>'type',
-  'league', 'between cards, a member gets a league card');
-select is((public.community_card_at('00000000-0000-0000-0000-0000000000aa', pg_temp.u(9), now() + interval '3 days'))->>'type',
-  'top_performers', 'someone not in the league doesn''t');
+select ok((public.community_card_at('00000000-0000-0000-0000-0000000000aa', pg_temp.u(2), now() + interval '3 days'))->>'type'
+  in ('crowd', 'top_performers'), 'between cards, Home is about everyone, even for a league member');
+select isnt(public.league_community_card_at('00000000-0000-0000-0000-0000000000aa', pg_temp.u(2), now() + interval '3 days'),
+  null, 'the league card is on the league''s page');
+select is((public.league_community_card_at('00000000-0000-0000-0000-0000000000aa', pg_temp.u(2), now() + interval '3 days'))->>'type',
+  'league', 'as a league card');
+select is(public.league_community_card_at('00000000-0000-0000-0000-0000000000aa', pg_temp.u(9), now() + interval '3 days'),
+  null, 'someone not in the league gets none');
+
+-- Crowd vs. reality ------------------------------------------------------------------
+
+-- Fight 1: four of five picked red, blue won on the cards. Fight 2: two of three
+-- picked red, blue won by submission. Fight 3: nobody picked it.
+select is(public.crowd_vs_reality(pg_temp.ev(), pg_temp.u(1)) - 'event_name',
+  '{"type": "crowd", "crowd_fighter": "Red Fighter 1", "pct": 80, "winner": "Blue Fighter 1", "method": "DEC",
+    "round": null, "right": 0, "fights": 2, "me": "crowd"}'::jsonb,
+  'the fight the crowd got most wrong, and that you went with them');
+select is(public.crowd_vs_reality(pg_temp.ev(), pg_temp.u(4))->>'me', 'against', 'or that you had the winner');
+select is(public.crowd_vs_reality(pg_temp.ev(), pg_temp.u(9))->'me', 'null'::jsonb, 'or nothing if you didn''t pick it');
+-- Days alternate between crowd vs. reality and the top performers.
+select is((select array_agg(distinct public.community_card_at(null, pg_temp.u(1), now() + make_interval(days => d))->>'type'
+           order by public.community_card_at(null, pg_temp.u(1), now() + make_interval(days => d))->>'type')
+           from generate_series(3, 4) d)::text,
+  '{crowd,top_performers}', 'between cards, crowd vs. reality and the top performers take turns');
+update public.results set winner_fighter_id = (select red_fighter_id from public.bouts where id = pg_temp.bid(1))
+where bout_id = pg_temp.bid(1);
+update public.results set winner_fighter_id = (select red_fighter_id from public.bouts where id = pg_temp.bid(2))
+where bout_id = pg_temp.bid(2);
+select is(public.crowd_vs_reality(pg_temp.ev(), pg_temp.u(1)), null, 'no card when the crowd got every fight right');
 set local role authenticated;
 select pg_temp.act(1);
 
@@ -224,6 +249,13 @@ select throws_ok($$select * from public.community_polls$$, '42501', null, 'playe
 reset role;
 set local role anon;
 select throws_ok($$select public.community_card()$$, '42501', null, 'signed-out callers get nothing');
+select throws_ok($$select public.league_community_card('00000000-0000-0000-0000-0000000000aa')$$, '42501', null,
+  'or a league card');
+reset role;
+set local role authenticated;
+select pg_temp.act(1);
+select throws_ok($$select public.crowd_vs_reality(pg_temp.ev(), pg_temp.u(1))$$, '42501', null,
+  'players only reach the cards through the app''s calls');
 
 select * from finish();
 rollback;

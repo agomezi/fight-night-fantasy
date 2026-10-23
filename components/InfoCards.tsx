@@ -24,6 +24,8 @@ export interface Card {
   mark?: React.ReactNode;
   delta?: number;
   footer?: React.ReactNode;
+  /** How far the base fills red, 0-1. */
+  fill?: number;
 }
 
 export function InfoCards({ cards }: { cards: Card[] }) {
@@ -40,6 +42,7 @@ export function InfoCards({ cards }: { cards: Card[] }) {
             serial={card.serial}
             media={card.media}
             mark={card.mark}
+            fill={card.fill}
             style={{ aspectRatio: card.aspectRatio }}
           >
           <View style={commonStyles.infoCardTitleRow}>

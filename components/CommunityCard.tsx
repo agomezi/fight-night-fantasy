@@ -71,7 +71,9 @@ function PollFooter({ poll, busy, onVote }: { poll: PollView; busy: boolean; onV
           />
         ))}
       </View>
-      <Text style={{ color: c.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1.5 }}>{poll.votes}</Text>
+      {poll.agreeLine ? (
+        <Text style={{ color: c.textMuted, fontSize: 11, fontWeight: "700", letterSpacing: 1.5 }}>{poll.agreeLine}</Text>
+      ) : null}
       {poll.consensus ? <Line text={poll.consensus} /> : null}
       {poll.outcome ? <Line text={[poll.outcome, poll.verdict].filter(Boolean).join(" ")} strong /> : null}
     </View>
@@ -111,6 +113,8 @@ export function communityCard(
       tagColor,
       title: view.poll.question,
       subtitle: view.poll.subtitle,
+      // The card's base fills red with the share who agree with you.
+      fill: view.poll.agree ?? 0,
       footer: <PollFooter poll={view.poll} busy={busy} onVote={onVote} />,
     };
   }
