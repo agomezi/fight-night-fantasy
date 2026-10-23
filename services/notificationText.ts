@@ -1,7 +1,18 @@
 // What each push notification says. Pure and dependency-free, so the results
 // sync imports it under Deno and jest tests it here.
 
-export type NotificationKind = "reminder" | "scored" | "final" | "league_join" | "moderation" | "matchup" | "standing" | "awards";
+export type NotificationKind =
+  | "reminder"
+  | "scored"
+  | "final"
+  | "league_join"
+  | "moderation"
+  | "matchup"
+  | "standing"
+  | "awards"
+  | "odds"
+  | "schedule"
+  | "rank";
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
@@ -66,6 +77,31 @@ export type ModerationPayload = {
   until?: string;
 };
 
+/** A fight you picked flipped underdog before it locked. */
+export type OddsPayload = {
+  event: string;
+  eventId?: string;
+  boutId?: string;
+  picked: string;
+  /** Whether your pick is now the underdog. */
+  pickedIsDog: boolean;
+  dog: string;
+  favorite: string;
+};
+/** A card starting at an unusual time, or one that moved. `tz` is the
+ * player's zone, added when the push is sent; the inbox uses the phone's. */
+export type SchedulePayload = {
+  event: string;
+  eventId?: string;
+  firstAt: string;
+  mainAt: string;
+  when: "early" | "late" | "day" | "moved";
+  hasPrelims: boolean;
+  tz?: string;
+};
+/** Your career rank went up. */
+export type RankPayload = { rank: string; event?: string };
+
 /** Where players write to appeal a decision. */
 export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
 
@@ -94,6 +130,60 @@ function title(event: string): string {
 
 function signed(points: number): string {
   return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : "0";
+}
+
+/** "Alexander Volkanovski" -> "Volkanovski". */
+function surname(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts[parts.length - 1] ?? name;
+}
+
+/** A time or weekday in `tz`, or the phone's zone without one. A zone this
+ * engine doesn't know reads as Eastern rather than failing the push. */
+function inZone(iso: string, tz: string | undefined, options: Intl.DateTimeFormatOptions): string {
+  const at = new Date(iso);
+  try {
+    return new Intl.DateTimeFormat("en-US", { ...options, timeZone: tz }).format(at);
+  } catch {
+    return new Intl.DateTimeFormat("en-US", { ...options, timeZone: "America/New_York" }).format(at);
+  }
+}
+
+function clock(iso: string, tz?: string): string {
+  return inZone(iso, tz, { hour: "numeric", minute: "2-digit" });
+}
+
+function odds(p: OddsPayload): Message {
+  const who = surname(p.picked);
+  return p.pickedIsDog
+    ? {
+        title: `Odds flipped: ${who} is now the underdog`,
+        body: "Hold your pick through the lock and it's worth 1.5x.",
+        data: { screen: "picks" },
+      }
+    : {
+        title: `Odds flipped: ${who} is now the favorite`,
+        body: "No underdog bonus on this pick unless it flips back before the lock.",
+        data: { screen: "picks" },
+      };
+}
+
+function schedule(p: SchedulePayload): Message {
+  const card = title(p.event);
+  const main = clock(p.mainAt, p.tz);
+  if (p.when === "moved") {
+    return { title: `${card} moved`, body: `The main card now starts at ${main}. Picks lock as each part starts.`, data: { screen: "picks" } };
+  }
+  const head =
+    p.when === "day"
+      ? `${card} is on a ${inZone(p.mainAt, p.tz, { weekday: "long" })}`
+      : `${card} starts ${p.when === "early" ? "earlier" : "later"} than usual`;
+  const times = p.hasPrelims ? `Prelims at ${clock(p.firstAt, p.tz)}, main card at ${main}.` : `Main card at ${main}.`;
+  return { title: head, body: `${times} Get your picks in before then.`, data: { screen: "picks" } };
+}
+
+function rank(p: RankPayload): Message {
+  return { title: `You're now a ${p.rank}`, body: "Your career rank went up. Keep stacking cards.", data: { screen: "profile" } };
 }
 
 function reminder(p: ReminderPayload): Message {
@@ -265,6 +355,9 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "matchup") return matchup(payload as MatchupPayload);
   if (kind === "standing") return standing(payload as StandingPayload);
   if (kind === "awards") return awards(payload as AwardsPayload);
+  if (kind === "odds") return odds(payload as OddsPayload);
+  if (kind === "schedule") return schedule(payload as SchedulePayload);
+  if (kind === "rank") return rank(payload as RankPayload);
   if (kind === "final") return final(payload as FinalPayload);
   // A kind from a newer server than this build.
   return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };

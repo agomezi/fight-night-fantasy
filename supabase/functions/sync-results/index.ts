@@ -112,6 +112,9 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   // the result pushes above.
   const { data: leads, error: leadError } = await db.rpc("claim_matchup_notifications", { event: eventId });
   const matchups = leadError ? { error: leadError.message } : await notify(db, (leads ?? []) as Claimed[]);
+  // Career rank-ups once the card is final, apart for the same reason.
+  const { data: ranked, error: rankError } = await db.rpc("claim_rank_notifications", { event: eventId });
+  const ranks = rankError ? { error: rankError.message } : await notify(db, (ranked ?? []) as Claimed[]);
 
   const hasProvisional = results.some(r => r.status === "provisional");
   const dueAt = new Date(Date.now() + nextPollIn(card, hasProvisional)).toISOString();
@@ -127,6 +130,7 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
     ...(settleError ? { settle: { error: settleError.message } } : {}),
     notifications,
     matchups,
+    ranks,
     nextPoll: dueAt,
     ...(issues.length ? { issues } : {}),
   };

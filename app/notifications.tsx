@@ -23,6 +23,9 @@ const KIND: Record<NotificationKind, { icon: keyof typeof Ionicons.glyphMap; tin
   matchup: { icon: "swap-vertical", tint: (c) => c.red },
   standing: { icon: "podium", tint: (c) => c.gold },
   awards: { icon: "trophy", tint: (c) => c.gold },
+  odds: { icon: "trending-up", tint: (c) => c.red },
+  schedule: { icon: "calendar", tint: (c) => c.blue },
+  rank: { icon: "medal", tint: (c) => c.gold },
 };
 
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; items: InboxItem[] };

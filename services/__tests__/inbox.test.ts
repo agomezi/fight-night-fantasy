@@ -11,6 +11,7 @@ describe("notificationHref", () => {
 
   it("keeps the card screens", () => {
     expect(notificationHref({ screen: "history" })).toBe("/history");
+    expect(notificationHref({ screen: "profile" })).toBe("/profile");
     expect(notificationHref({ screen: "picks" })).toBe("/picks");
   });
 

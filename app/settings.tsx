@@ -61,6 +61,7 @@ export default function Settings() {
     { key: "notify_results", label: "Fight results", sub: "Each fight you picked, as it's scored" },
     { key: "notify_summary", label: "Card recap", sub: "Your total once every result is official" },
     { key: "notify_league_activity", label: "League activity", sub: "When someone joins a league you own" },
+    { key: "notify_card_news", label: "Odds and start times", sub: "When a pick's underdog flips, or a card starts at an unusual time" },
   ];
 
   const switchColors = {

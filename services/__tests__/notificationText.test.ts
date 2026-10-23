@@ -154,4 +154,69 @@ describe("notificationText", () => {
       });
     });
   });
+
+  describe("card news", () => {
+    const flip = { event: "UFC 333: Volkanovski vs. Evloev", picked: "Alexander Volkanovski", dog: "Alexander Volkanovski", favorite: "Movsar Evloev" };
+
+    it("tells a player their pick became the underdog", () => {
+      expect(notificationText("odds", { ...flip, pickedIsDog: true })).toEqual({
+        title: "Odds flipped: Volkanovski is now the underdog",
+        body: "Hold your pick through the lock and it's worth 1.5x.",
+        data: { screen: "picks" },
+      });
+    });
+
+    it("or the favorite", () => {
+      expect(notificationText("odds", { ...flip, pickedIsDog: false }).title).toBe("Odds flipped: Volkanovski is now the favorite");
+    });
+
+    // Saturday Oct 24 2026: prelims 10 AM, main card 2 PM Eastern.
+    const card = {
+      event: "UFC 333: Volkanovski vs. Evloev",
+      firstAt: "2026-10-24T14:00:00Z",
+      mainAt: "2026-10-24T18:00:00Z",
+      hasPrelims: true,
+    };
+
+    it("gives an early card's times in the player's zone", () => {
+      expect(notificationText("schedule", { ...card, when: "early", tz: "America/New_York" })).toEqual({
+        title: "UFC 333 starts earlier than usual",
+        body: "Prelims at 10:00 AM, main card at 2:00 PM. Get your picks in before then.",
+        data: { screen: "picks" },
+      });
+      expect(notificationText("schedule", { ...card, when: "early", tz: "America/Los_Angeles" }).body).toBe(
+        "Prelims at 7:00 AM, main card at 11:00 AM. Get your picks in before then."
+      );
+    });
+
+    it("names the day for a card off Saturday, in the player's zone", () => {
+      expect(notificationText("schedule", { ...card, when: "day", tz: "Australia/Sydney" }).title).toBe("UFC 333 is on a Sunday");
+    });
+
+    it("leaves out the prelims when there are none", () => {
+      expect(notificationText("schedule", { ...card, firstAt: card.mainAt, hasPrelims: false, when: "late", tz: "America/New_York" }).body).toBe(
+        "Main card at 2:00 PM. Get your picks in before then."
+      );
+    });
+
+    it("says when a card moved", () => {
+      expect(notificationText("schedule", { ...card, when: "moved", tz: "America/New_York" })).toEqual({
+        title: "UFC 333 moved",
+        body: "The main card now starts at 2:00 PM. Picks lock as each part starts.",
+        data: { screen: "picks" },
+      });
+    });
+
+    it("reads a zone it doesn't know as Eastern", () => {
+      expect(notificationText("schedule", { ...card, when: "early", tz: "Not/AZone" }).body).toContain("main card at 2:00 PM");
+    });
+
+    it("announces a rank-up and opens the profile", () => {
+      expect(notificationText("rank", { rank: "Contender", event: "UFC 333: Volkanovski vs. Evloev" })).toEqual({
+        title: "You're now a Contender",
+        body: "Your career rank went up. Keep stacking cards.",
+        data: { screen: "profile" },
+      });
+    });
+  });
 });
