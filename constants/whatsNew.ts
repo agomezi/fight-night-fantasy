@@ -133,6 +133,34 @@ export const WHATS_NEW: WhatsNewEntry[] = [
   },
 ];
 
+/** The newer of two seen ids: whichever sits higher in the list. An id
+ * this build doesn't know counts as nothing. */
+export function newerSeen(
+  a: string | null | undefined,
+  b: string | null | undefined,
+  entries: WhatsNewEntry[] = WHATS_NEW
+): string | null {
+  const at = (id: string | null | undefined) => (id ? entries.findIndex((e) => e.id === id) : -1);
+  const ia = at(a);
+  const ib = at(b);
+  if (ia < 0) return ib < 0 ? null : b!;
+  if (ib < 0) return a!;
+  return ia <= ib ? a! : b!;
+}
+
+/** The seen id to save on the account, or null to leave it: only ever moves
+ * it forward. An id this build doesn't know came from a newer build, so it's
+ * left alone. */
+export function seenToSave(
+  account: string | null | undefined,
+  next: string | null | undefined,
+  entries: WhatsNewEntry[] = WHATS_NEW
+): string | null {
+  if (account && !entries.some((e) => e.id === account)) return null;
+  const save = newerSeen(account, next, entries);
+  return save && save !== account ? save : null;
+}
+
 /** How many entries the card shows at most; older ones wait in Patch Notes. */
 export const WHATS_NEW_CAP = 2;
 

@@ -1,4 +1,4 @@
-import { whatsNewToShow, type WhatsNewEntry } from "../../constants/whatsNew";
+import { newerSeen, seenToSave, whatsNewToShow, type WhatsNewEntry } from "../../constants/whatsNew";
 
 const entries: WhatsNewEntry[] = [
   { id: "d", date: "2026-10-22T00:00:00Z", title: "D", items: [] },
@@ -35,5 +35,35 @@ describe("whatsNewToShow", () => {
 
   it("shows nothing with no entries", () => {
     expect(whatsNewToShow(null, null, [])).toEqual({ show: [], missed: 0 });
+  });
+});
+
+describe("newerSeen", () => {
+  it("picks whichever is higher in the list", () => {
+    expect(newerSeen("b", "d", entries)).toBe("d");
+    expect(newerSeen("d", "b", entries)).toBe("d");
+  });
+
+  it("ignores ids it doesn't know", () => {
+    expect(newerSeen("zzz", "b", entries)).toBe("b");
+    expect(newerSeen(null, undefined, entries)).toBeNull();
+    expect(newerSeen("zzz", null, entries)).toBeNull();
+  });
+});
+
+describe("seenToSave", () => {
+  it("moves the account forward", () => {
+    expect(seenToSave(null, "b", entries)).toBe("b");
+    expect(seenToSave("b", "d", entries)).toBe("d");
+  });
+
+  it("never moves it back or rewrites the same id", () => {
+    expect(seenToSave("d", "b", entries)).toBeNull();
+    expect(seenToSave("d", "d", entries)).toBeNull();
+    expect(seenToSave("b", null, entries)).toBeNull();
+  });
+
+  it("leaves an id from a newer build alone", () => {
+    expect(seenToSave("from-a-newer-build", "d", entries)).toBeNull();
   });
 });
