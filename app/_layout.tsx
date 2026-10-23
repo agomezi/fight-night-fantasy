@@ -95,7 +95,11 @@ function ThemedApp() {
       <StatusBar style={c.statusBar} />
       {/* What changed in this update, once the boot animation is out of the way. */}
       {signedInWithName && !booting && session && (
-        <WhatsNew userId={session.user.id} accountCreatedAt={session.user.created_at} />
+        <WhatsNew
+          userId={session.user.id}
+          accountCreatedAt={session.user.created_at}
+          accountSeenId={session.user.user_metadata?.whats_new_seen}
+        />
       )}
       {booting && <BootSplash ready={ready} onDone={bootDone} />}
     </>
