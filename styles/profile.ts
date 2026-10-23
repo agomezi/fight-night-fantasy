@@ -35,10 +35,11 @@ export const makeProfileStyles = (c: Palette) =>
       marginTop: 14,
       textAlign: "center",
     },
+    // Its color comes from the screen: solid red until the career loads, then
+    // a faint red track that fills toward the next rank.
     usernameBar: {
       height: 3,
       borderRadius: 2,
-      backgroundColor: c.red,
       marginHorizontal: "16%",
       marginTop: 4,
     },
@@ -48,10 +49,6 @@ export const makeProfileStyles = (c: Palette) =>
       fontWeight: "700",
       letterSpacing: 1.5,
       marginTop: 12,
-    },
-    rankProgress: {
-      width: 140,
-      marginTop: 10,
     },
     seasonList: {
       paddingHorizontal: 16,

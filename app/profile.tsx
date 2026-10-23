@@ -220,15 +220,19 @@ export default function Profile() {
           </View>
           <View>
             <Text style={styles.username}>{profile.username}</Text>
-            <View style={styles.usernameBar} />
+            {/* Fills toward the next rank, without saying what it is. Full at Legend. */}
+            {career ? (
+              <AnimatedBar
+                percent={career.progress * 100}
+                height={3}
+                trackColor={`${c.red}40`}
+                style={styles.usernameBar}
+              />
+            ) : (
+              <View style={[styles.usernameBar, { backgroundColor: c.red }]} />
+            )}
           </View>
           <Text style={styles.levelText}>{career ? career.rank.toUpperCase() : "—"}</Text>
-          {/* How close the next rank is, without saying what it is. */}
-          {career?.nextRank != null && (
-            <View style={styles.rankProgress}>
-              <AnimatedBar percent={career.progress * 100} height={3} style={{ alignSelf: "stretch" }} />
-            </View>
-          )}
           <Text style={styles.memberLine}>
             {/* Nothing about your record until it has loaded. */}
             {career == null
