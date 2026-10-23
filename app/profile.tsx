@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, ScrollView, Share, Text, View } from "react-native";
+import ActionSheet, { type SheetAction } from "../components/ActionSheet";
+import PinPicker from "../components/PinPicker";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import PressableScale from "../components/PressableScale";
@@ -25,7 +27,7 @@ import { loadLeaderboard, type LeaderboardRow } from "../services/leaderboard";
 import { readCache, writeCache } from "../services/screenCache";
 import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, type SeasonRecord } from "../services/leagues";
 import { loadCareer, type Career } from "../services/career";
-import { loadPinnedCalls, MAX_PINNED_CALLS, type PinnedCall } from "../services/pins";
+import { loadPinnedCalls, MAX_PINNED_CALLS, movePinToTop, shareCallText, unpinCall, type PinnedCall } from "../services/pins";
 import { loadBadges, type Badge } from "../services/awards";
 import { loadTakesRecord } from "../services/community";
 
@@ -109,6 +111,47 @@ export default function Profile() {
       };
     }, [myId])
   );
+
+  const reloadPins = useCallback(() => {
+    if (!myId) return;
+    loadPinnedCalls(myId).then((v) => setPins(writeCache(`pinned-calls:${myId}`, v))).catch(() => {});
+  }, [myId]);
+  const [picking, setPicking] = useState(false);
+  const [pinMenu, setPinMenu] = useState<{ title: string; actions: SheetAction[] } | null>(null);
+  const openPinMenu = (call: PinnedCall) =>
+    setPinMenu({
+      title: `${call.call} · ${call.points}`,
+      actions: [
+        {
+          label: "Unpin",
+          icon: "close-circle-outline",
+          destructive: true,
+          onPress: () => {
+            setPins((p) => p.filter((x) => x.boutId !== call.boutId));
+            unpinCall(call.boutId)
+              .catch((e) => Alert.alert("Couldn't unpin it", e instanceof Error ? e.message : "Please try again."))
+              .finally(reloadPins);
+          },
+        },
+        ...(pins[0]?.boutId === call.boutId
+          ? []
+          : [
+              {
+                label: "Move to top",
+                icon: "arrow-up" as const,
+                onPress: () => {
+                  setPins((p) => [call, ...p.filter((x) => x.boutId !== call.boutId)]);
+                  movePinToTop(call.boutId).catch(() => {}).finally(reloadPins);
+                },
+              },
+            ]),
+        {
+          label: "Share this call",
+          icon: "share-outline",
+          onPress: () => Share.share({ message: shareCallText(call) }).catch(() => {}),
+        },
+      ],
+    });
 
   const toggleLeague = (leagueId: string) => {
     const opening = openLeague !== leagueId;
@@ -253,16 +296,32 @@ export default function Profile() {
             </Text>
           )}
         </View>
-        {pins.length > 0 ? (
-          <PinnedCalls calls={pins} />
-        ) : (
-          <PressableScale onPress={() => router.push("/history")}>
-            <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19 }}>
-              Show off your best calls. Pin up to {MAX_PINNED_CALLS} correct picks from History, and anyone who opens your
-              card sees them.
-            </Text>
+        {pins.length > 0 && <PinnedCalls calls={pins} onMore={openPinMenu} />}
+        {pins.length < MAX_PINNED_CALLS && (
+          <PressableScale
+            onPress={() => setPicking(true)}
+            style={{
+              marginTop: pins.length ? 8 : 0,
+              height: 60,
+              borderRadius: 14,
+              borderWidth: 1.5,
+              borderStyle: "dashed",
+              borderColor: c.borderStrong,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <Ionicons name="add" size={20} color={c.red} />
+            <Text style={{ color: c.text2, fontSize: 14, fontWeight: "700" }}>Pin a call</Text>
           </PressableScale>
         )}
+        <Text style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>
+          {pins.length < MAX_PINNED_CALLS
+            ? "Anyone who opens your card sees these. Pick from calls you got right."
+            : `All ${MAX_PINNED_CALLS} spots used. Unpin one to pin something new.`}
+        </Text>
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>RECENT PICKS</Text>
@@ -410,7 +469,9 @@ export default function Profile() {
       </ScrollView>
 
       <View style={{ paddingBottom: insets.bottom }}>
-        <BottomNav active="profile" />
+        <ActionSheet visible={!!pinMenu} title={pinMenu?.title} actions={pinMenu?.actions ?? []} onClose={() => setPinMenu(null)} />
+      <PinPicker visible={picking} pinnedCount={pins.length} onClose={() => setPicking(false)} onPinned={reloadPins} />
+      <BottomNav active="profile" />
       </View>
     </SafeAreaView>
   );
