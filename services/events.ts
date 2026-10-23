@@ -57,6 +57,26 @@ export function finishRate(ufc: UfcStats | null): number | null {
   if (!ufc || ufc.wins === 0) return null;
   return Math.round((100 * (ufc.koWins + ufc.subWins)) / ufc.wins);
 }
+
+/**
+ * How a fighter wins, led by whichever way they mostly do. A fighter who wins
+ * on the cards reads as a 0% finisher otherwise, which undersells them.
+ */
+export function winStyle(ufc: UfcStats | null): { value: string; label: string; line: string } | null {
+  const finishes = finishRate(ufc);
+  if (!ufc || finishes == null) return null;
+  const finished = ufc.koWins + ufc.subWins;
+  if (ufc.decWins > finished) {
+    const pct = Math.round((100 * ufc.decWins) / ufc.wins);
+    const line =
+      ufc.decWins === ufc.wins
+        ? `Every UFC win on the scorecards (${ufc.wins}).`
+        : `Wins on the scorecards: ${ufc.decWins} of ${ufc.wins} UFC wins by decision.`;
+    return { value: `${pct}%`, label: "DECISION MERCHANT", line };
+  }
+  const how = [ufc.koWins && `${ufc.koWins} by KO`, ufc.subWins && `${ufc.subWins} by submission`].filter(Boolean).join(", ");
+  return { value: `${finishes}%`, label: "FINISH RATE", line: `Finishes ${finishes}% of UFC wins${how ? `: ${how}` : ""}.` };
+}
 export type EventBout = {
   id: string;
   order: number;

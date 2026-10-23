@@ -17,6 +17,28 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-community",
+    date: "2026-10-23T12:00:00Z",
+    title: "Community takes",
+    items: [
+      {
+        icon: "chatbubbles",
+        title: "Takes that count",
+        body: "Vote yes or no on a take about the card. You see the split once you vote, and it settles once the result is in.",
+      },
+      {
+        icon: "podium",
+        title: "Top performers and league cards",
+        body: "After a card, see its best scorers and the boldest call that landed. Between cards, your league's top predictor, its craftiest pick, and whoever finished last.",
+      },
+      {
+        icon: "checkmark-done",
+        title: "Your takes record",
+        body: "Every take you call right or wrong goes on your profile.",
+      },
+    ],
+  },
+  {
     id: "2026-10-awards",
     date: "2026-10-22T12:00:00Z",
     title: "Awards are coming",
@@ -24,7 +46,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "trophy",
         title: "League awards",
-        body: "At each review your league crowns an Interim Champ and hands out awards: The Finisher, Dog Merchant, Round Sniper and more.",
+        body: "At each review your league crowns an Interim Champ and hands out awards: The Finisher, Upset Artist, Round Sniper and more.",
       },
       {
         icon: "podium",
@@ -33,8 +55,8 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
       {
         icon: "ribbon",
-        title: "Superlatives on your profile",
-        body: "Awards you win show on your profile and your card, with where you place in the rest.",
+        title: "Season badges",
+        body: "Mid-season awards are announced in your league. Awards won at the end of a season lock in as badges on your profile.",
       },
     ],
   },

@@ -1,5 +1,6 @@
 // Award drops: superlatives handed out at a review of the season so far. Each
-// league crowns its own; global crowns the P4P #1. The owner runs and
+// league crowns its own; global crowns the P4P #1. Half-season drops are
+// announced; a season's final drop locks its awards in as profile badges. The owner runs and
 // publishes a drop from the SQL editor (see the award_drops migration). The
 // shaping is pure so it can be tested without a database.
 
@@ -19,6 +20,7 @@ export type AwardId =
   | "method_man"
   | "iron_man"
   | "call_of_night"
+  | "pro_can"
   | "gun_shy";
 
 type AwardInfo = {
@@ -41,16 +43,23 @@ export const AWARDS: Record<AwardId, AwardInfo> = {
   champ: { title: "Champ", blurb: "#1 in the league at season's end", icon: "trophy", stat: () => "" },
   p4p: { title: "P4P #1", blurb: "The best edge on the global board", icon: "podium", stat: (v) => `${signed(v)} edge` },
   finisher: { title: "The Finisher", blurb: "Almost never calls a decision", icon: "flash", stat: (v) => `${pct(v)} finish calls` },
-  judge: { title: "The Judge", blurb: "Sees it going the distance", icon: "document-text", stat: (v) => `${pct(v)} decision calls` },
-  chalk: { title: "Chalk Eater", blurb: "Backs the favourite", icon: "shield", stat: (v) => `${pct(v)} favourites` },
-  dog: { title: "Dog Merchant", blurb: "Lives on underdogs", icon: "paw", stat: count("underdog win", "underdog wins") },
+  judge: { title: "Decision Merchant", blurb: "Sees it going the distance", icon: "document-text", stat: (v) => `${pct(v)} decision calls` },
+  chalk: { title: "Fence Sitter", blurb: "Backs the favourite", icon: "shield", stat: (v) => `${pct(v)} favourites` },
+  dog: { title: "Upset Artist", blurb: "Lives on underdogs", icon: "trending-up", stat: count("underdog win", "underdog wins") },
   sniper: { title: "Round Sniper", blurb: "Calls the round", icon: "locate", stat: (v) => `${pct(v)} of rounds right` },
-  ice_cold: { title: "Ice Cold", blurb: "A whole card without a miss", icon: "snow", stat: count("perfect card", "perfect cards") },
-  sharpshooter: { title: "Sharpshooter", blurb: "Gets the most picks right", icon: "ribbon", stat: (v) => `${pct(v)} right` },
+  ice_cold: { title: "Prophet", blurb: "A whole card without a miss", icon: "eye", stat: count("perfect card", "perfect cards") },
+  sharpshooter: { title: "Cornerman", blurb: "Gets the most picks right", icon: "ribbon", stat: (v) => `${pct(v)} right` },
   method_man: { title: "Method Man", blurb: "Calls how it ends", icon: "hammer", stat: count("method right", "methods right") },
-  iron_man: { title: "Iron Man", blurb: "Picks the most fights", icon: "barbell", stat: count("pick", "picks") },
+  iron_man: { title: "Journeyman", blurb: "Picks the most fights", icon: "walk", stat: count("pick", "picks") },
   call_of_night: { title: "Call of the Night", blurb: "The best single call (underdog bonus included)", icon: "star", stat: (v) => `${signed(v)} pts` },
-  gun_shy: { title: "Gun Shy", blurb: "Picks the fewest fights by far", icon: "eye-off", stat: (v) => `${Math.round(v * 10) / 10} picks a card`, joke: true },
+  pro_can: {
+    title: "Professional Can",
+    blurb: "Last in the league on card after card",
+    icon: "trash-bin",
+    stat: count("card in last", "cards in last"),
+    joke: true,
+  },
+  gun_shy: { title: "Ring Rust", blurb: "Picks the fewest fights by far", icon: "hourglass", stat: (v) => `${Math.round(v * 10) / 10} picks a card`, joke: true },
 };
 
 /** The order they're shown in: the title first, the joke last. */
@@ -68,6 +77,7 @@ export const AWARD_ORDER: AwardId[] = [
   "call_of_night",
   "ice_cold",
   "iron_man",
+  "pro_can",
   "gun_shy",
 ];
 
@@ -184,24 +194,27 @@ export function shareText(leagueName: string, d: LeagueDrop): string {
   return [`${leagueName} · ${d.drop.label} awards 🏆`, "", ...lines, "", "Fight Night Fantasy"].join("\n");
 }
 
-export type Superlatives = {
-  drop: DropInfo;
-  awards: { award: AwardId; scope: string; value: number | null }[];
-  /** Each scope's places, 1 = first. */
-  places: { scope: string; places: Partial<Record<AwardId, number>> }[];
-};
+/** An award won at a season's final drop, kept on the profile for good. */
+export type Badge = { award: AwardId; title: string; icon: AwardInfo["icon"]; joke: boolean; scope: string; season: string };
 
-/** A player's top placings across scopes, for the profile: best first, awards
- * they won marked. */
-export function topPlacings(s: Superlatives, max = 4): { award: AwardId; scope: string; place: number }[] {
-  return s.places
-    .flatMap((p) =>
-      (Object.entries(p.places ?? {}) as [AwardId, number][])
-        .filter(([id]) => id in AWARDS && !AWARDS[id].joke)
-        .map(([award, place]) => ({ award, scope: p.scope, place: Number(place) }))
-    )
-    .sort((a, b) => a.place - b.place || AWARD_ORDER.indexOf(a.award) - AWARD_ORDER.indexOf(b.award))
-    .slice(0, max);
+type RawBadge = { award: string; season: number; scope: string; value: number | null };
+
+/** Newest season first, then in award order; unknown awards are left out. */
+export function toBadges(raw: RawBadge[]): Badge[] {
+  return raw
+    .filter((b): b is RawBadge & { award: AwardId } => b.award in AWARDS)
+    .map((b) => ({
+      award: b.award,
+      title: AWARDS[b.award].title,
+      icon: AWARDS[b.award].icon,
+      joke: !!AWARDS[b.award].joke,
+      scope: b.scope,
+      season: `S${b.season}`,
+    }))
+    .sort(
+      (x, y) =>
+        Number(y.season.slice(1)) - Number(x.season.slice(1)) || AWARD_ORDER.indexOf(x.award) - AWARD_ORDER.indexOf(y.award)
+    );
 }
 
 async function db() {
@@ -221,8 +234,8 @@ export async function loadLeagueDrop(leagueId: string, dropId?: string): Promise
   return toLeagueDrop((data ?? null) as RawLeagueDrop | null);
 }
 
-export async function loadSuperlatives(userId: string): Promise<Superlatives | null> {
-  const { data, error } = await (await db()).rpc("player_superlatives", { member: userId });
-  if (error) return null;
-  return (data ?? null) as Superlatives | null;
+export async function loadBadges(userId: string): Promise<Badge[]> {
+  const { data, error } = await (await db()).rpc("player_badges", { member: userId });
+  if (error) return []; // Before the server has badges, there are none.
+  return toBadges((data ?? []) as RawBadge[]);
 }

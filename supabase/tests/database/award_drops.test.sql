@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(23);
 
 -- Two final cards of five main card fights each.
 create function pg_temp.card(ev text, days int) returns jsonb language sql as $$
@@ -95,6 +95,7 @@ select is(pg_temp.winners('ice_cold'), array[pg_temp.u(1)], 'ice cold goes a who
 select is(pg_temp.winners('iron_man'), array[pg_temp.u(1), pg_temp.u(2)], 'iron man picks the most, ties sharing it');
 select is(pg_temp.winners('call_of_night'), array[pg_temp.u(1)], 'the call of the night scored the most');
 select is(pg_temp.winners('gun_shy'), array[pg_temp.u(4)], 'gun shy picks far fewer fights than everyone');
+select is(pg_temp.winners('pro_can'), array[pg_temp.u(2)], 'the professional can finishes last on card after card');
 select ok(not (pg_temp.u(4) = any (coalesce(pg_temp.winners('sharpshooter'), '{}'))),
   'nobody wins a real award on fewer than 8 picks');
 select is(pg_temp.winners('interim_champ'), (select array_agg(t.user_id) from public.league_table(pg_temp.lg()) t where t.rank = 1),
