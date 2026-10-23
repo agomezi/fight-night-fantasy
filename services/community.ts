@@ -1,5 +1,6 @@
-// The one Community card on Home. The server picks which card it is by where
-// we are in fight week; this shapes it into what the card says. The shaping is
+// The one Community card on Home, about everyone on the app, and the league
+// card on each league's page. The server picks which card it is by where we
+// are in fight week; this shapes it into what the card says. The shaping is
 // pure so it can be tested without a database.
 
 import { lastName, splitEventName } from "./events";
@@ -41,6 +42,20 @@ export type RawCommunityCard =
       recap: RawPoll | null;
     }
   | {
+      type: "crowd";
+      event_name: string;
+      /** The fighter most players picked, who lost. */
+      crowd_fighter: string;
+      pct: number;
+      winner: string;
+      method: "KO" | "SUB" | "DEC" | null;
+      round: number | null;
+      /** Fights where most players picked the winner, of those with enough picks. */
+      right: number;
+      fights: number;
+      me: "crowd" | "against" | null;
+    }
+  | {
       type: "league";
       kind: "top_predictor" | "losers" | "craftiest" | "jobber";
       league_name: string;
@@ -59,8 +74,10 @@ export type PollView = {
   subtitle: string;
   open: boolean;
   options: PollOption[];
-  /** "41 VOTES" */
-  votes: string;
+  /** The share who voted the way you did, 0-1, or null before you vote. */
+  agree: number | null;
+  /** "62% OF PLAYERS AGREE" */
+  agreeLine: string | null;
   /** "75% picked PEREIRA" */
   consensus: string | null;
   /** "The community said YES 62%. It was NO." */
@@ -88,10 +105,6 @@ function shortEvent(name: string): string {
   return headline ?? title;
 }
 
-function votesLabel(n: number): string {
-  return n === 0 ? "NO VOTES YET" : n === 1 ? "1 VOTE" : `${n} VOTES`;
-}
-
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
@@ -111,6 +124,7 @@ export function toPollView(raw: RawPoll, live = false): PollView {
   const total = raw.split ? raw.options.reduce((n, o) => n + (raw.split?.[o] ?? 0), 0) : 0;
   const top = leader(raw.split, raw.options);
   const settled = raw.outcome != null;
+  const mine = raw.my_vote && raw.split && total > 0 ? Math.round((100 * (raw.split[raw.my_vote] ?? 0)) / total) : null;
   return {
     id: raw.id,
     tag: live ? "LIVE TAKE" : raw.kind === "main_event" ? "MAIN EVENT TAKE" : "HOT TAKE",
@@ -123,7 +137,8 @@ export function toPollView(raw: RawPoll, live = false): PollView {
       pct: raw.split && total > 0 ? Math.round((100 * (raw.split[o] ?? 0)) / total) : raw.split ? 0 : null,
       selected: raw.my_vote === o,
     })),
-    votes: votesLabel(raw.votes),
+    agree: mine == null ? null : mine / 100,
+    agreeLine: mine == null ? null : `${mine}% OF PLAYERS AGREE`,
     consensus: raw.consensus ? `${raw.consensus.pct}% picked ${lastName(raw.consensus.fighter).toUpperCase()}` : null,
     outcome: !settled
       ? null
@@ -140,7 +155,7 @@ function callLine(c: RawCall): string {
   return pickLabel(c, c.fighter);
 }
 
-export function toCommunityView(raw: RawCommunityCard | null): CommunityView {
+export function toCommunityView(raw: RawCommunityCard | null, onLeaguePage = false): CommunityView {
   if (!raw || raw.type === "none") return { type: "none" };
   if (raw.type === "poll") return { type: "poll", poll: toPollView(raw.poll, raw.phase === "live") };
 
@@ -166,6 +181,28 @@ export function toCommunityView(raw: RawCommunityCard | null): CommunityView {
         title: shortEvent(raw.event_name).toUpperCase(),
         subtitle: "The card's best scorers",
         rows: raw.players.map((p) => ({ place: p.place, name: p.name, points: signed(p.points), isMe: p.is_me })),
+        lines,
+      },
+    };
+  }
+
+  if (raw.type === "crowd") {
+    const how = raw.method === "DEC" ? "by decision" : raw.method === "SUB" ? "by submission" : raw.method === "KO" ? "by KO" : null;
+    const lines = [
+      raw.me === "against"
+        ? `You had ${lastName(raw.winner).toUpperCase()}. Ball knowledge.`
+        : raw.me === "crowd"
+          ? "You went with the crowd on this one."
+          : null,
+      `The crowd went ${raw.right} for ${raw.fights} on ${shortEvent(raw.event_name)}.`,
+    ].filter((l): l is string => l != null);
+    return {
+      type: "board",
+      board: {
+        tag: "CROWD VS. REALITY",
+        title: `${raw.pct}% PICKED ${lastName(raw.crowd_fighter).toUpperCase()}`,
+        subtitle: `${raw.winner} won${how ? ` ${how}` : ""}${raw.round && raw.method !== "DEC" ? ` in round ${raw.round}` : ""}.`,
+        rows: [],
         lines,
       },
     };
@@ -203,7 +240,8 @@ export function toCommunityView(raw: RawCommunityCard | null): CommunityView {
   };
   return {
     type: "board",
-    board: { tag: `${raw.league_name.toUpperCase()} · ${copy[raw.kind].tag}`, title: who.toUpperCase(), subtitle: copy[raw.kind].subtitle, rows: [], lines: [] },
+    // On the league's own page the league's name goes without saying.
+    board: { tag: onLeaguePage ? copy[raw.kind].tag : `${raw.league_name.toUpperCase()} · ${copy[raw.kind].tag}`, title: who.toUpperCase(), subtitle: copy[raw.kind].subtitle, rows: [], lines: [] },
   };
 }
 
@@ -211,10 +249,17 @@ async function db() {
   return (await import("./supabase")).supabase;
 }
 
-export async function loadCommunityCard(leagueId: string | null): Promise<RawCommunityCard> {
-  const { data, error } = await (await db()).rpc("community_card", { league: leagueId });
+export async function loadCommunityCard(): Promise<RawCommunityCard> {
+  const { data, error } = await (await db()).rpc("home_community_card");
   if (error) throw new Error(error.message);
   return (data ?? { type: "none" }) as RawCommunityCard;
+}
+
+/** The league's card for its own page: a recap of its last card, or null. */
+export async function loadLeagueCommunityCard(leagueId: string): Promise<RawCommunityCard | null> {
+  const { data, error } = await (await db()).rpc("league_community_card", { league: leagueId });
+  if (error) throw new Error(error.message);
+  return (data ?? null) as RawCommunityCard | null;
 }
 
 export class PollClosedError extends Error {}

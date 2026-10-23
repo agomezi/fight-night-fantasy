@@ -59,14 +59,14 @@ export function finishRate(ufc: UfcStats | null): number | null {
 }
 
 /**
- * How a fighter wins, led by whichever way they mostly do. A fighter who wins
- * on the cards reads as a 0% finisher otherwise, which undersells them.
+ * How a fighter wins: the finish rate, unless every win went to the cards,
+ * where a 0% finish rate would undersell them.
  */
 export function winStyle(ufc: UfcStats | null): { value: string; label: string; line: string } | null {
   const finishes = finishRate(ufc);
   if (!ufc || finishes == null) return null;
   const finished = ufc.koWins + ufc.subWins;
-  if (ufc.decWins > finished) {
+  if (finished === 0 && ufc.decWins > 0) {
     const pct = Math.round((100 * ufc.decWins) / ufc.wins);
     const line =
       ufc.decWins === ufc.wins

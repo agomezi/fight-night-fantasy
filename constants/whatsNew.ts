@@ -28,8 +28,8 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       },
       {
         icon: "podium",
-        title: "Top performers and league cards",
-        body: "After a card, see its best scorers and the boldest call that landed. Between cards, your league's top predictor, its craftiest pick, and whoever finished last.",
+        title: "Top performers and crowd vs. reality",
+        body: "After a card, see its best scorers, the boldest call that landed, and the fight the crowd got most wrong. Your league's page shows its top predictor, its craftiest pick, and whoever finished last.",
       },
       {
         icon: "checkmark-done",

@@ -1,5 +1,6 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { StyleProp, Text, View, ViewStyle } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useTheme } from "../context/ThemeContext";
 
 /*
@@ -33,6 +34,7 @@ export default function FightCard({
   children,
   style,
   minHeight,
+  fill,
 }: {
   label: string;
   /** Tints the label only — the frame carries no colour of its own. */
@@ -46,9 +48,16 @@ export default function FightCard({
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   minHeight?: number;
+  /** How far the heavy base fills red, 0-1: a meter built into the card. */
+  fill?: number;
 }) {
   const { c } = useTheme();
   const NOTCH = 26;
+  const filled = useSharedValue(0);
+  useEffect(() => {
+    filled.value = withTiming(Math.max(0, Math.min(1, fill ?? 0)), { duration: 500 });
+  }, [fill, filled]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${filled.value * 100}%` }));
 
   return (
     <View
@@ -130,6 +139,17 @@ export default function FightCard({
       >
         {children}
       </View>
+
+      {/* The base as a meter: clipped to the card's rounded bottom, under the
+          torn corner. */}
+      {fill != null && (
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", left: 0, right: 0, bottom: -3, height: 15, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, overflow: "hidden" }}
+        >
+          <Animated.View style={[{ position: "absolute", left: 0, bottom: 0, height: 3, backgroundColor: c.red }, fillStyle]} />
+        </View>
+      )}
 
       {/* torn corner — the one asymmetry in the shape */}
       <View

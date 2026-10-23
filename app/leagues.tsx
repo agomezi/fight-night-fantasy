@@ -21,6 +21,7 @@ import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useLeague } from "../hooks/useLeague";
 import { readCache, writeCache } from "../services/screenCache";
+import { loadLeagueCommunityCard, toCommunityView, type RawCommunityCard } from "../services/community";
 import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import {
   currentWeek,
@@ -61,6 +62,25 @@ export default function Leagues() {
       };
     }, [])
   );
+
+  // The league's recap of its last card (Top Predictor, Can Man, Craftiest
+  // Pick or Jobber), a different one each day.
+  const leagueId = state.status === "ready" ? state.league?.id ?? null : null;
+  const [recap, setRecap] = useState<{ leagueId: string; card: RawCommunityCard | null } | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!leagueId) return;
+      let current = true;
+      loadLeagueCommunityCard(leagueId)
+        .then((card) => current && setRecap({ leagueId, card }))
+        .catch(() => {});
+      return () => {
+        current = false;
+      };
+    }, [leagueId])
+  );
+  // Never another league's, while switching.
+  const recapView = toCommunityView(recap?.leagueId === leagueId ? recap.card : null, true);
 
   const globalCard = board && board.rows.length > 0 && (
     <Animated.View entering={appear(3)} style={styles.card}>
@@ -307,6 +327,17 @@ export default function Leagues() {
               </View>
             ),
           },
+          // Then the league's recap of its last card.
+          ...(recapView.type === "board"
+            ? [
+                {
+                  tag: recapView.board.tag,
+                  tagColor: c.red,
+                  title: recapView.board.title,
+                  subtitle: recapView.board.subtitle,
+                },
+              ]
+            : []),
         ]}
       />
 

@@ -278,11 +278,11 @@ export default function Home() {
   const me = standingRows.find((s) => s.isMe);
   const myStanding = me && me.rank != null ? { ...me, rank: me.rank } : null;
 
-  // The one Community card, chosen on the server by where we are in fight
-  // week. Refetched on focus at most once a minute, or when the player or
-  // league changes.
-  const leagueId = myLeague?.id ?? null;
-  const communityKey = userId ? `community:${userId}` : null;
+  // The one Community card, about everyone on the app, chosen on the server by
+  // where we are in fight week. Refetched on focus at most once a minute, or
+  // when the player changes.
+  // v2: the card went global, so an older cached league card is dropped.
+  const communityKey = userId ? `community2:${userId}` : null;
   const [community, setCommunity] = useState<RawCommunityCard | null>(() => readCache(communityKey) ?? null);
   const [voting, setVoting] = useState(false);
   // Another account's card never shows, even for a moment.
@@ -292,12 +292,12 @@ export default function Home() {
   const communityFetched = useRef({ key: "", at: 0 });
   // Bumped by each vote, so a fetch begun before it can't undo it.
   const voteSeq = useRef(0);
-  const fetchKey = `${userId ?? ""}:${leagueId ?? ""}`;
+  const fetchKey = userId ?? "";
   const refreshCommunity = useCallback(() => {
     if (!userId) return () => {};
     let current = true;
     const seq = voteSeq.current;
-    loadCommunityCard(leagueId)
+    loadCommunityCard()
       .then((card) => {
         if (!current || seq !== voteSeq.current) return;
         communityFetched.current = { key: fetchKey, at: Date.now() };
@@ -307,7 +307,7 @@ export default function Home() {
     return () => {
       current = false;
     };
-  }, [userId, leagueId, communityKey, fetchKey]);
+  }, [userId, communityKey, fetchKey]);
   useFocusEffect(
     useCallback(() => {
       const last = communityFetched.current;
