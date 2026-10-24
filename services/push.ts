@@ -92,13 +92,14 @@ export type NotifyPrefs = {
   notify_summary: boolean;
   notify_league_activity: boolean;
   notify_card_news: boolean;
+  notify_polls: boolean;
 };
 
 export async function loadNotifyPrefs(userId: string): Promise<NotifyPrefs> {
   const { supabase } = await import("./supabase");
   const { data, error } = await supabase
     .from("profiles")
-    .select("notify_reminders, notify_results, notify_summary, notify_league_activity, notify_card_news")
+    .select("notify_reminders, notify_results, notify_summary, notify_league_activity, notify_card_news, notify_polls")
     .eq("id", userId)
     .single();
   if (error) throw new Error(error.message);
