@@ -103,25 +103,48 @@ end;
 $$;
 
 -- Called by the results sync's activity run, apart from the other pushes so
--- neither can hold up the other. Dropped if the player turned them off since,
--- the row is more than a day old, or the take has closed.
-create function public.claim_poll_notifications()
+-- neither can hold up the other. Each row is checked again as it goes out: a
+-- push that is no longer right (the player turned them off, voted, was
+-- sidelined or is now asleep, or Home has moved on to another card) is
+-- deleted unsent rather than kept, so it neither sits in the inbox nor counts
+-- toward the 3 days, and a later run can queue the player afresh.
+create function public.claim_poll_notifications(at timestamptz default now())
 returns table (user_id uuid, kind text, payload jsonb, tokens text[], wanted boolean)
 language sql
 security definer
 set search_path = ''
 as $$
-  with claimed as (
-    update public.notifications_sent n set pushed = true
+  with out_ as (
+    select x.user_id from public.sidelined_players() x
+  ),
+  pending as (
+    select n.user_id, n.key,
+      p.deleted_at is null and p.notify_polls
+        and n.sent_at > at - interval '1 day'
+        and n.key = public.home_poll_at(at)::text
+        and extract(hour from at at time zone coalesce(p.time_zone, 'America/New_York')) between 9 and 21
+        and not exists (select 1 from public.poll_votes v where v.poll_id::text = n.key and v.user_id = n.user_id)
+        and not exists (select 1 from out_ o where o.user_id = n.user_id) as ok
+    from public.notifications_sent n
+    join public.profiles p on p.id = n.user_id
     where n.kind = 'poll' and not n.pushed
-    returning n.user_id, n.kind, n.payload, n.sent_at
+    for update of n
+  ),
+  dropped as (
+    delete from public.notifications_sent n
+    using pending x
+    where n.user_id = x.user_id and n.kind = 'poll' and n.key = x.key and not x.ok
+  ),
+  claimed as (
+    update public.notifications_sent n set pushed = true
+    from pending x
+    where n.user_id = x.user_id and n.kind = 'poll' and n.key = x.key and x.ok
+    returning n.user_id, n.kind, n.payload
   )
   select c.user_id, c.kind, c.payload,
     array(select t.token from public.push_tokens t where t.user_id = c.user_id),
-    p.notify_polls and c.sent_at > now() - interval '1 day' and (c.payload ->> 'closesAt')::timestamptz > now()
-  from claimed c
-  join public.profiles p on p.id = c.user_id
-  where p.deleted_at is null;
+    true
+  from claimed c;
 $$;
 
 -- As in card news, but poll rows are left for claim_poll_notifications, so
@@ -361,9 +384,9 @@ $$;
 
 revoke execute on function
   public.home_poll_at(timestamptz), public.queue_poll_notifications(timestamptz), public.poll_push_tick(),
-  public.claim_poll_notifications()
+  public.claim_poll_notifications(timestamptz)
   from public, anon, authenticated;
-grant execute on function public.claim_poll_notifications() to service_role;
+grant execute on function public.claim_poll_notifications(timestamptz) to service_role;
 
 revoke execute on function public.inbox_items_v2(integer), public.inbox_unread_count_v2(),
   public.league_matchup_picks(uuid, uuid, uuid, uuid)

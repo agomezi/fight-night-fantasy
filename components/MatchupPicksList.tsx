@@ -61,7 +61,7 @@ export default function MatchupPicksList({
   if (!picks || !picks.rows.length) return null;
 
   const aLockedIn = "aLockedIn" in picks ? picks.aLockedIn : true;
-  const lockedIn = [aLockedIn && a.name, picks.theirLockedIn && b.name].filter(Boolean);
+  const lockedIn = [aLockedIn && a, picks.theirLockedIn && b].filter((x): x is Matchup["a"] => !!x);
   const status = !picks.someHidden
     ? null
     : !around
@@ -71,7 +71,7 @@ export default function MatchupPicksList({
       : lockedIn.length === 2
         ? "Both are locked in. Picks show as each part of the card starts."
         : lockedIn.length === 1
-          ? `${lockedIn[0]} is locked in, ${lockedIn[0] === a.name ? b.name : a.name} isn't yet. Picks show as each part of the card starts.`
+          ? `${lockedIn[0].name} is locked in, ${lockedIn[0].userId === a.userId ? b.name : a.name} isn't yet. Picks show as each part of the card starts.`
           : "Neither is locked in yet. Picks show as each part of the card starts.";
   const allIn = around ? lockedIn.length === 2 : picks.theirLockedIn;
 

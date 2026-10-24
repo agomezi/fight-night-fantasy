@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(29);
 
 -- A card three days out, so Home shows one of its takes.
 select public.sync_event_card(jsonb_build_object(
@@ -108,15 +108,46 @@ select ok((select bool_and(not n.pushed) from public.notifications_sent n
 
 insert into public.push_tokens (user_id, token) values (pg_temp.u(5), 'ExponentPushToken[pq5]');
 select is((select jsonb_agg(jsonb_build_object('to', right(c.user_id::text, 2), 'wanted', c.wanted, 'tokens', c.tokens))
-           from public.claim_poll_notifications() c where c.user_id = pg_temp.u(5)),
+           from public.claim_poll_notifications(pg_temp.noon()) c where c.user_id = pg_temp.u(5)),
   '[{"to": "05", "wanted": true, "tokens": ["ExponentPushToken[pq5]"]}]'::jsonb, 'the poll claim sends it');
-select is((select count(*)::int from public.claim_poll_notifications()), 0, 'once');
+select is((select count(*)::int from public.claim_poll_notifications(pg_temp.noon())), 0, 'once');
 
--- A player who turns them off before it goes out isn't sent it.
+-- Checked again as it goes out. Each of these is dropped unsent, and deleted
+-- so it neither shows in the inbox nor counts toward the 3 days.
+create function pg_temp.requeue(take text) returns void language sql as $$
+  insert into public.notifications_sent (user_id, kind, key, payload, pushed, sent_at)
+  values (pg_temp.u(5), 'poll', take, '{"question": "Again?"}', false, pg_temp.noon())
+  on conflict (user_id, kind, key) do update set pushed = false
+$$;
+create function pg_temp.dropped(take text) returns boolean language plpgsql as $$
+declare
+  sent boolean;
+begin
+  sent := exists (select 1 from public.claim_poll_notifications(pg_temp.noon()) c where c.user_id = pg_temp.u(5));
+  return not sent
+     and not exists (select 1 from public.notifications_sent n where n.user_id = pg_temp.u(5) and n.kind = 'poll' and n.key = take);
+end;
+$$;
+
 update public.profiles set notify_polls = false where id = pg_temp.u(5);
-update public.notifications_sent set pushed = false where user_id = pg_temp.u(5) and kind = 'poll' and key <> 'an-earlier-take';
-select is((select bool_or(c.wanted) from public.claim_poll_notifications() c where c.user_id = pg_temp.u(5)), false,
-  'a player who turned them off since isn''t sent it');
+select pg_temp.requeue(public.home_poll_at(pg_temp.noon())::text);
+select ok(pg_temp.dropped(public.home_poll_at(pg_temp.noon())::text), 'a player who turned them off since isn''t sent it');
+update public.profiles set notify_polls = true where id = pg_temp.u(5);
+
+select pg_temp.requeue('00000000-0000-0000-0000-00000000dead');
+select ok(pg_temp.dropped('00000000-0000-0000-0000-00000000dead'), 'nor is a take Home no longer shows');
+
+update public.profiles set time_zone = 'Asia/Tokyo' where id = pg_temp.u(5);
+select pg_temp.requeue(public.home_poll_at(pg_temp.noon())::text);
+select ok(pg_temp.dropped(public.home_poll_at(pg_temp.noon())::text), 'nor one that would land in the night');
+update public.profiles set time_zone = null where id = pg_temp.u(5);
+
+set local session_replication_role = replica;
+insert into public.moderation_actions (case_id, player, action, expires_at)
+values (0, pg_temp.u(5), 'suspend', now() + interval '1 day');
+set local session_replication_role = origin;
+select pg_temp.requeue(public.home_poll_at(pg_temp.noon())::text);
+select ok(pg_temp.dropped(public.home_poll_at(pg_temp.noon())::text), 'nor one to a player suspended since');
 
 -------------------------------------------------------------------------------
 -- The inbox, and who can call what
@@ -136,7 +167,7 @@ select is((select array_agg(i.kind) from public.inbox_items(50) i), array['final
 select ok(exists (select 1 from public.inbox_items_v2(50) i where i.kind = 'poll'), 'this build''s inbox shows poll pushes');
 select is((select count(*)::int from public.inbox_items(50) i where i.kind = 'poll'), 0, 'the last build''s inbox doesn''t');
 select is((select count(*)::int from public.my_notifications(50) i where i.kind = 'poll'), 0, 'nor do older builds''');
-select is(public.inbox_unread_count_v2() - public.inbox_unread_count(), 2, 'nor do they count them as unread');
+select is(public.inbox_unread_count_v2() - public.inbox_unread_count(), 1, 'nor do they count them as unread');
 select is(public.unread_notification_count(), 1, 'nor do older builds');
 
 select throws_ok($$select * from public.claim_poll_notifications()$$, '42501', null, 'players can''t claim pushes');
