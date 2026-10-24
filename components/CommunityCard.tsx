@@ -6,7 +6,8 @@ import type { BoardView, CommunityView, PollView } from "../services/community";
 import type { Card } from "./InfoCards";
 import PressableScale from "./PressableScale";
 
-/** Poll button that fills red as it's chosen, with its share once the split shows. */
+/** Poll button that fills red as it's chosen. A yes/no split shows under
+ * the buttons; with more options each button carries its own share. */
 function VoteButton({
   label,
   pct,
@@ -64,7 +65,7 @@ function PollFooter({ poll, busy, onVote }: { poll: PollView; busy: boolean; onV
           <VoteButton
             key={o.key}
             label={o.label}
-            pct={o.pct}
+            pct={poll.options.length > 2 ? o.pct : null}
             selected={o.selected}
             disabled={!poll.open || busy}
             onPress={() => onVote(o.key)}

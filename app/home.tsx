@@ -34,7 +34,7 @@ import {
   PollClosedError,
   toCommunityView,
   VoteRefusedError,
-  votePoll,
+  voteWithRetry,
   type RawCommunityCard,
 } from "../services/community";
 import { useNextEvent } from "../hooks/useNextEvent";
@@ -322,7 +322,7 @@ export default function Home() {
       const seq = ++voteSeq.current;
       setVoting(true);
       setCommunity({ ...before, poll: { ...before.poll, my_vote: option } });
-      votePoll(before.poll.id, option)
+      voteWithRetry(before.poll.id, option)
         .then((poll) =>
           setCommunity((now) =>
             now?.type === "poll" && now.poll.id === poll.id ? writeCache(communityKey, { ...now, poll }) : now
@@ -334,8 +334,14 @@ export default function Home() {
           // Locked while the card sat open: show it as it stands now.
           if (e instanceof PollClosedError) refreshCommunity();
           else if (e instanceof VoteRefusedError) Alert.alert("Can't vote", e.message);
+          else Alert.alert("Couldn't save your vote", "Check your connection and try again.");
         })
-        .finally(() => setVoting(false));
+        .finally(() => {
+          // A refresh that started while the vote was in flight may have read
+          // the card before the vote landed: drop it.
+          voteSeq.current += 1;
+          setVoting(false);
+        });
     },
     [community, voting, communityKey, refreshCommunity]
   );
@@ -569,7 +575,7 @@ export default function Home() {
               </Text>
               <Text style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>
                 {myStanding
-                  ? `${myStanding.record} · ${myStanding.points.toLocaleString()} pts`
+                  ? myStanding.record
                   : waitingLine(myLeague, leagueState.standings, leagueState.weeks) ||
                     "Your rank shows here once the league has played a card."}
               </Text>
@@ -752,8 +758,7 @@ export default function Home() {
                                 fontVariant: ["tabular-nums"],
                               }}
                             >
-                              {n.points > myStanding.points ? "+" : ""}
-                              {Math.round(n.points - myStanding.points)}
+                              {n.record}
                             </Text>
                           </View>
                         ))}
@@ -785,7 +790,31 @@ export default function Home() {
                         </>
                       ),
                     }
-                  : {
+                  : leagueState.status !== "ready"
+                    ? {
+                        // Not loaded yet, or the load failed: never "Create or
+                        // join" for someone who may well be in a league.
+                        serial: "LEAGUES",
+                        tag: "YOUR LEAGUE",
+                        tagColor: "#E8A020",
+                        title: leagueState.status === "loading" ? "\u00a0" : "Couldn't load",
+                        titleSize: 32,
+                        footer:
+                          leagueState.status === "loading" ? (
+                            <View style={{ gap: 10 }}>
+                              <Skeleton width="70%" height={12} />
+                              <Skeleton height={44} radius={10} />
+                            </View>
+                          ) : (
+                            <PressableScale
+                              onPress={leagueState.reload}
+                              style={{ borderWidth: 1, borderColor: c.borderStrong, borderRadius: 10, paddingVertical: 12, alignItems: "center" }}
+                            >
+                              <Text style={{ color: c.text, fontSize: 12, fontWeight: "800", letterSpacing: 1 }}>TRY AGAIN</Text>
+                            </PressableScale>
+                          ),
+                      }
+                    : {
                     serial: "NO LEAGUE",
                     // No mark on the empty card. A mark is sized to sit beside
                     // a short numeral; the prompt runs to prose and a button,

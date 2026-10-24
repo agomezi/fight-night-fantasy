@@ -1,4 +1,4 @@
-import { toCommunityView, toPollView, type RawPoll } from "../community";
+import { PollClosedError, toCommunityView, toPollView, voteWithRetry, type RawPoll } from "../community";
 import { winStyle } from "../events";
 
 const poll = (extra: Partial<RawPoll> = {}): RawPoll => ({
@@ -173,5 +173,27 @@ describe("fighter spotlight", () => {
     expect(winStyle({ ...stats, koWins: 3, subWins: 1, decWins: 1 })).toEqual({
       value: "80%", label: "FINISH RATE", line: "Finishes 80% of UFC wins: 3 by KO, 1 by submission.",
     });
+  });
+});
+
+describe("voteWithRetry", () => {
+  const poll = { id: "p1" } as RawPoll;
+
+  test("tries once more when the first try fails", async () => {
+    const vote = jest.fn().mockRejectedValueOnce(new Error("Network request failed")).mockResolvedValueOnce(poll);
+    await expect(voteWithRetry("p1", "yes", vote, 0)).resolves.toBe(poll);
+    expect(vote).toHaveBeenCalledTimes(2);
+  });
+
+  test("gives up after the second failure", async () => {
+    const vote = jest.fn().mockRejectedValue(new Error("Network request failed"));
+    await expect(voteWithRetry("p1", "yes", vote, 0)).rejects.toThrow("Network request failed");
+    expect(vote).toHaveBeenCalledTimes(2);
+  });
+
+  test("never retries a closed poll", async () => {
+    const vote = jest.fn().mockRejectedValue(new PollClosedError("This take has closed."));
+    await expect(voteWithRetry("p1", "yes", vote, 0)).rejects.toBeInstanceOf(PollClosedError);
+    expect(vote).toHaveBeenCalledTimes(1);
   });
 });

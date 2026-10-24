@@ -8,13 +8,28 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(41);
 
 delete from public.blocked_name_terms;
 insert into public.blocked_name_terms (term, match) values
   ('badword', 'contains'),  -- no innocent use: blocked anywhere
   ('zap', 'word'),          -- short: only as a whole word
-  ('modbot', 'name');       -- reserved: only as the whole name
+  ('modbot', 'name'),       -- reserved: only as the whole name
+  ('zorp', 'group'),        -- an identity term: blocked only next to a hostile one
+  ('smash', 'hostile');     -- a word that is only hateful next to an identity term
+
+-- A group term next to a hostile one is blocked, in either order and in
+-- disguise. A group term is also blocked as a whole word, like `word`; inside
+-- an ordinary word, or a hostile term alone, is fine.
+select ok(public.display_name_blocked(n), n || ' is blocked as a pair') from unnest(array[
+  'ZorpSmasher', 'smash_z0rp', 'xxZ_o_r_p_SMAAASHxx', 'Zorpsmash99'
+]) n;
+select ok(public.display_name_blocked(n), n || ' is blocked as a word') from unnest(array[
+  'Zorp', 'Zorp_Fan', 'king_z0rp'
+]) n;
+select ok(not public.display_name_blocked(n), n || ' is allowed alone') from unnest(array[
+  'SmashBro', 'Zorplet', 'Smash_Fan'
+]) n;
 
 -- Blocked, including the usual disguises.
 select ok(public.display_name_blocked(n), n || ' is blocked') from unnest(array[
@@ -72,6 +87,22 @@ select is(public.replace_blocked_names('[{"term": "newterm", "match": "contains"
   'replacing the list reports how many names it cleared');
 select results_eq($$select term, match from public.blocked_name_terms$$, $$values ('newterm', 'contains')$$,
   'the old list is gone and the new one is in');
+select lives_ok(
+  $$select public.replace_blocked_names('[{"term": "zorp", "match": "group"}, {"term": "smash", "match": "hostile"}]')$$,
+  'the loader takes the pair modes'
+);
+
+-- The dry run lists who a new list would catch and keeps the current list.
+select results_eq(
+  $$select kind, name from public.preview_blocked_names('[{"term": "elite", "match": "contains"}]')$$,
+  $$values ('player', 'Elite_Striker')$$,
+  'the dry run lists the names a new list would catch'
+);
+select results_eq($$select term from public.blocked_name_terms order by term$$, $$values ('smash'), ('zorp')$$,
+  'the dry run leaves the current list in place');
+set local role authenticated;
+select throws_ok($$select * from public.preview_blocked_names('[]')$$, '42501', null, 'players cannot run the dry run');
+reset role;
 
 select * from finish();
 rollback;

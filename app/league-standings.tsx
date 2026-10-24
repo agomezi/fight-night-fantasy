@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
@@ -9,8 +9,9 @@ import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import { EmptyScorecard } from "../components/Scorecard";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { useLeague } from "../hooks/useLeague";
-import { inviteMessage, TIER_LABEL } from "../services/leagues";
+import { inviteMessage, matchupStreaks, TIER_LABEL } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 import ScreenSkeleton from "../components/ScreenSkeleton";
@@ -29,6 +30,8 @@ export default function LeagueStandings() {
   const standings = state.status === "ready" ? state.standings : null;
   const rows = standings?.rows ?? [];
   const unranked = rows.filter((r) => r.rank == null);
+  const streaks = useMemo(() => (state.status === "ready" ? matchupStreaks(state.weeks) : {}), [state]);
+  const animate = useEntranceOnce(state.status === "ready");
 
   const invite = () => {
     if (league) Share.share({ message: inviteMessage(league) }).catch(() => {});
@@ -61,7 +64,7 @@ export default function LeagueStandings() {
               : "No league joined"}
         </Text>
         <Text style={styles.screenNote}>
-          Ranked on W-L record, then points, then accuracy, then head-to-head.
+          Ranked by record. Ties go to most points, then accuracy, then head-to-head.
         </Text>
 
         {state.status === "loading" && <ScreenSkeleton variant="list" rows={8} />}
@@ -83,11 +86,19 @@ export default function LeagueStandings() {
               <>
                 <View style={styles.columnHeader}>
                   <Text style={[styles.columnLabel, { width: 42, textAlign: "center" }]}>RNK</Text>
-                  <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER · W-L</Text>
-                  <Text style={styles.columnLabel}>PTS</Text>
+                  <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER</Text>
+                  <Text style={styles.columnLabel}>W-L</Text>
                 </View>
                 {rows.map((row, i) => (
-                  <LeagueStandingRow key={row.userId} row={row} index={i} move={state.moves[row.userId]} onPress={() => setViewing(row.userId)} />
+                  <LeagueStandingRow
+                    key={row.userId}
+                    row={row}
+                    index={i}
+                    move={state.moves[row.userId]}
+                    streak={streaks[row.userId]}
+                    animate={animate}
+                    onPress={() => setViewing(row.userId)}
+                  />
                 ))}
               </>
             )}
