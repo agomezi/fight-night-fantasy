@@ -323,25 +323,24 @@ export default function Home() {
       setVoting(true);
       setCommunity({ ...before, poll: { ...before.poll, my_vote: option } });
       voteWithRetry(before.poll.id, option)
-        .then((poll) =>
+        .then((poll) => {
+          // A refresh that started while the vote was in flight may have read
+          // the card before the vote landed: drop it.
+          voteSeq.current += 1;
           setCommunity((now) =>
             now?.type === "poll" && now.poll.id === poll.id ? writeCache(communityKey, { ...now, poll }) : now
-          )
-        )
+          );
+        })
         .catch((e) => {
           if (seq !== voteSeq.current) return;
+          voteSeq.current += 1;
           setCommunity(before);
-          // Locked while the card sat open: show it as it stands now.
+          // Locked or gone while the card sat open: show it as it stands now.
           if (e instanceof PollClosedError) refreshCommunity();
           else if (e instanceof VoteRefusedError) Alert.alert("Can't vote", e.message);
           else Alert.alert("Couldn't save your vote", "Check your connection and try again.");
         })
-        .finally(() => {
-          // A refresh that started while the vote was in flight may have read
-          // the card before the vote landed: drop it.
-          voteSeq.current += 1;
-          setVoting(false);
-        });
+        .finally(() => setVoting(false));
     },
     [community, voting, communityKey, refreshCommunity]
   );

@@ -30,7 +30,8 @@ export default function LeagueStandings() {
   const standings = state.status === "ready" ? state.standings : null;
   const rows = standings?.rows ?? [];
   const unranked = rows.filter((r) => r.rank == null);
-  const streaks = useMemo(() => (state.status === "ready" ? matchupStreaks(state.weeks) : {}), [state]);
+  const weeks = state.status === "ready" ? state.weeks : null;
+  const streaks = useMemo(() => (weeks ? matchupStreaks(weeks) : {}), [weeks]);
   const animate = useEntranceOnce(state.status === "ready");
 
   const invite = () => {

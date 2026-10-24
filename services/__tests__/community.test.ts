@@ -1,4 +1,4 @@
-import { PollClosedError, toCommunityView, toPollView, voteWithRetry, type RawPoll } from "../community";
+import { PollClosedError, toCommunityView, toPollView, VoteRefusedError, voteWithRetry, type RawPoll } from "../community";
 import { winStyle } from "../events";
 
 const poll = (extra: Partial<RawPoll> = {}): RawPoll => ({
@@ -189,6 +189,12 @@ describe("voteWithRetry", () => {
     const vote = jest.fn().mockRejectedValue(new Error("Network request failed"));
     await expect(voteWithRetry("p1", "yes", vote, 0)).rejects.toThrow("Network request failed");
     expect(vote).toHaveBeenCalledTimes(2);
+  });
+
+  test("never retries a refusal", async () => {
+    const vote = jest.fn().mockRejectedValue(new VoteRefusedError("Sign in to vote."));
+    await expect(voteWithRetry("p1", "yes", vote, 0)).rejects.toBeInstanceOf(VoteRefusedError);
+    expect(vote).toHaveBeenCalledTimes(1);
   });
 
   test("never retries a closed poll", async () => {

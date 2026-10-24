@@ -8,7 +8,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(42);
 
 delete from public.blocked_name_terms;
 insert into public.blocked_name_terms (term, match) values
@@ -100,6 +100,12 @@ select results_eq(
 );
 select results_eq($$select term from public.blocked_name_terms order by term$$, $$values ('smash'), ('zorp')$$,
   'the dry run leaves the current list in place');
+insert into public.leagues (name, owner_id) values ('Elite Crew', '00000000-0000-0000-0000-0000000000e1');
+select results_eq(
+  $$select kind, name from public.preview_blocked_names('[{"term": "elite", "match": "contains"}]')$$,
+  $$values ('league', 'Elite Crew'), ('player', 'Elite_Striker')$$,
+  'the dry run lists league names too'
+);
 set local role authenticated;
 select throws_ok($$select * from public.preview_blocked_names('[]')$$, '42501', null, 'players cannot run the dry run');
 reset role;

@@ -57,7 +57,8 @@ export default function Leagues() {
   const [board, setBoard] = useState<Leaderboard | null>(() => readCache<Leaderboard>("leaderboard:5") ?? null);
   const animateBoard = useEntranceOnce(!!board);
   const animateStandings = useEntranceOnce(state.status === "ready");
-  const streaks = useMemo(() => (state.status === "ready" ? matchupStreaks(state.weeks) : {}), [state]);
+  const readyWeeks = state.status === "ready" ? state.weeks : null;
+  const streaks = useMemo(() => (readyWeeks ? matchupStreaks(readyWeeks) : {}), [readyWeeks]);
   useFocusEffect(
     useCallback(() => {
       let current = true;
