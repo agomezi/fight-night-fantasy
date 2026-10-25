@@ -62,7 +62,7 @@ describe("scoreEvent", () => {
         pick({ user_id: "round", finish: "round", finish_round: 3, method: null }),
       ]
     );
-    expect(Object.fromEntries(rows.map(r => [r.user_id, r.points]))).toEqual({ dec: 100, any: 50, round: 45 });
+    expect(Object.fromEntries(rows.map(r => [r.user_id, r.points]))).toEqual({ dec: 100, any: 50, round: 40 });
   });
 
   test("writes no row while a bout has no result", () => {
@@ -103,8 +103,8 @@ describe("scoreEvent", () => {
 
   test("plays full deductions for global scores and halves them for Casual", () => {
     const [row] = scoreEvent([bout()], [result()], [pick({ picked_fighter_id: "blue", finish_round: 3, method: "SUB" })]);
-    expect(row.points).toBe(-85);
-    expect(row.casual_points).toBe(-42);
+    expect(row.points).toBe(-90);
+    expect(row.casual_points).toBe(-45);
   });
 
   test("scales Casual's wrong-fighter earnings with its deductions", () => {
@@ -121,7 +121,9 @@ describe("scoreEvent", () => {
 test("scores a card by the round deduction it was played under", () => {
   const roundWrong = pick({ finish: "round", finish_round: 3, method: "KO" });
   const [old] = scoreEvent([bout()], [result()], [roundWrong], "2026-10-17T22:00:00Z");
-  const [fresh] = scoreEvent([bout()], [result()], [roundWrong], "2026-10-25T00:00:00Z");
+  const [soft] = scoreEvent([bout()], [result()], [roundWrong], "2026-10-24T14:00:00Z");
+  const [fresh] = scoreEvent([bout()], [result()], [roundWrong], "2026-10-31T21:00:00Z");
   expect(old.breakdown.round).toBe(-15);
-  expect(fresh.breakdown.round).toBe(-5);
+  expect(soft.breakdown.round).toBe(-5);
+  expect(fresh.breakdown.round).toBe(-10);
 });

@@ -58,7 +58,7 @@ export default function LeagueStandingRow({
           </Text>
           <Text style={styles.playerTeam}>
             {[
-              row.rank != null ? row.record + (row.forfeitWins ? ` (${row.forfeitWins} by forfeit)` : "") : null,
+              row.rank != null ? row.record : null,
               accuracy,
               note,
             ]
