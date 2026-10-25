@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import CardMark from "../../components/CardMark";
 import FightCard from "../../components/FightCard";
+import FightStatsSheet from "../../components/FightStatsSheet";
 import LiveDot from "../../components/LiveDot";
 import PressableScale from "../../components/PressableScale";
 import ResultRow from "../../components/ResultRow";
@@ -14,12 +16,14 @@ import { useTheme, useThemedStyles } from "../../context/ThemeContext";
 import { useEventDetail } from "../../hooks/useEventDetail";
 import type { BoutLine } from "../../services/eventDetail";
 import { countdown, startLabel } from "../../services/events";
+import { hasStats, loadStatsBouts } from "../../services/fightStats";
 import { makeCommonStyles } from "../../styles/common";
 
 /*
  * One card, live. Every bout in the order it's fought from the top of the
  * bill down, the fight in the cage marked LIVE, each result with its round
  * and time, and your call against it. Refreshes itself while the card is on.
+ * A fought bout opens its stats.
  */
 
 const META: Record<BoutLine["state"], string> = {
@@ -45,6 +49,22 @@ export default function EventScreen() {
   const commonStyles = useThemedStyles(makeCommonStyles);
   const state = useEventDetail(id);
   const detail = state.status === "ready" ? state.detail : null;
+  const [statsFor, setStatsFor] = useState<string | null>(null);
+  // Which bouts have stats to open, read again with each refresh of the card.
+  const [withStats, setWithStats] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!detail) return;
+    let current = true;
+    loadStatsBouts(detail.id)
+      .then((ids) => current && setWithStats(ids))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [detail]);
+  // Looked up on every refresh, so the open sheet follows the bout from live
+  // to its result.
+  const statsBout = detail?.sections.flatMap((s) => s.bouts).find((b) => b.id === statsFor) ?? null;
 
   const statusLabel = !detail
     ? ""
@@ -152,6 +172,7 @@ export default function EventScreen() {
                       verdict={b.verdict ?? "none"}
                       verdictNote={b.pick ? (b.verdict === "void" ? `${b.pick} · VOID` : b.pick) : undefined}
                       last={bi === section.bouts.length - 1}
+                      onStats={hasStats(b, withStats.has(b.id)) ? () => setStatsFor(b.id) : undefined}
                     />
                   );
                 })}
@@ -161,6 +182,7 @@ export default function EventScreen() {
         )}
       </ScrollView>
       <View style={{ height: insets.bottom }} />
+      <FightStatsSheet bout={statsBout} onClose={() => setStatsFor(null)} />
     </SafeAreaView>
   );
 }

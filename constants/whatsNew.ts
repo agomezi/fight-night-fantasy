@@ -17,6 +17,23 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-live-stats",
+    date: "2026-10-25T12:00:00Z",
+    title: "Live fight stats",
+    items: [
+      {
+        icon: "stats-chart",
+        title: "Tale of the tape",
+        body: "Tap a live or finished fight on the card to see sig. strikes, takedowns, knockdowns and control time side by side, for the whole fight or round by round.",
+      },
+      {
+        icon: "pulse",
+        title: "Live, then official",
+        body: "The numbers update while the fight is on and turn official once the UFC confirms them. Your pick sits right above them.",
+      },
+    ],
+  },
+  {
     id: "2026-10-community",
     date: "2026-10-23T12:00:00Z",
     title: "Community takes",
