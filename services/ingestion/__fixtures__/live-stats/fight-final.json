@@ -1,0 +1,186 @@
+{
+  "LiveFightDetail": {
+    "Event": {
+      "LiveFightId": null,
+      "LiveRoundNumber": null,
+      "LiveRoundElapsedTime": null
+    },
+    "FightId": 90001,
+    "Status": "Final",
+    "OfficialStats": true,
+    "Fighters": [
+      {
+        "FighterId": 91001,
+        "Corner": "Red"
+      },
+      {
+        "FighterId": 91002,
+        "Corner": "Blue"
+      }
+    ],
+    "FightStats": [
+      {
+        "FighterId": 91001,
+        "Knockdowns": 0,
+        "SubmissionsAttempted": 0,
+        "Reversals": 0,
+        "ControlTime": "0:08",
+        "SigStrikesLanded": 14,
+        "SigStrikesAttempted": 53,
+        "TotalStrikesLanded": 20,
+        "TotalStrikesAttempted": 59,
+        "TakedownsLanded": 0,
+        "TakedownsAttempted": 0,
+        "SigHeadStrikesLanded": 6,
+        "SigHeadStrikesAttempted": 45,
+        "SigBodyStrikesLanded": 4,
+        "SigBodyStrikesAttempted": 4,
+        "SigLegStrikesLanded": 4,
+        "SigLegStrikesAttempted": 4,
+        "SigDistanceStrikesLanded": 10,
+        "SigDistanceStrikesAttempted": 49,
+        "SigClinchStrikesLanded": 4,
+        "SigClinchStrikesAttempted": 4,
+        "SigGroundStrikesLanded": 0,
+        "SigGroundStrikesAttempted": 0
+      },
+      {
+        "FighterId": 91002,
+        "Knockdowns": 1,
+        "SubmissionsAttempted": 0,
+        "Reversals": 0,
+        "ControlTime": "1:25",
+        "SigStrikesLanded": 37,
+        "SigStrikesAttempted": 50,
+        "TotalStrikesLanded": 38,
+        "TotalStrikesAttempted": 51,
+        "TakedownsLanded": 0,
+        "TakedownsAttempted": 0,
+        "SigHeadStrikesLanded": 15,
+        "SigHeadStrikesAttempted": 24,
+        "SigBodyStrikesLanded": 20,
+        "SigBodyStrikesAttempted": 24,
+        "SigLegStrikesLanded": 2,
+        "SigLegStrikesAttempted": 2,
+        "SigDistanceStrikesLanded": 21,
+        "SigDistanceStrikesAttempted": 34,
+        "SigClinchStrikesLanded": 15,
+        "SigClinchStrikesAttempted": 15,
+        "SigGroundStrikesLanded": 1,
+        "SigGroundStrikesAttempted": 1
+      }
+    ],
+    "RoundStats": [
+      {
+        "FighterId": 91001,
+        "Rounds": [
+          {
+            "RoundNumber": 1,
+            "Knockdowns": 0,
+            "SubmissionsAttempted": 0,
+            "Reversals": 0,
+            "ControlTime": "0:00",
+            "SigStrikesLanded": 9,
+            "SigStrikesAttempted": 37,
+            "TotalStrikesLanded": 9,
+            "TotalStrikesAttempted": 37,
+            "TakedownsLanded": 0,
+            "TakedownsAttempted": 0,
+            "SigHeadStrikesLanded": 5,
+            "SigHeadStrikesAttempted": 33,
+            "SigBodyStrikesLanded": 1,
+            "SigBodyStrikesAttempted": 1,
+            "SigLegStrikesLanded": 3,
+            "SigLegStrikesAttempted": 3,
+            "SigDistanceStrikesLanded": 9,
+            "SigDistanceStrikesAttempted": 37,
+            "SigClinchStrikesLanded": 0,
+            "SigClinchStrikesAttempted": 0,
+            "SigGroundStrikesLanded": 0,
+            "SigGroundStrikesAttempted": 0
+          },
+          {
+            "RoundNumber": 2,
+            "Knockdowns": 0,
+            "SubmissionsAttempted": 0,
+            "Reversals": 0,
+            "ControlTime": "0:08",
+            "SigStrikesLanded": 5,
+            "SigStrikesAttempted": 16,
+            "TotalStrikesLanded": 11,
+            "TotalStrikesAttempted": 22,
+            "TakedownsLanded": 0,
+            "TakedownsAttempted": 0,
+            "SigHeadStrikesLanded": 1,
+            "SigHeadStrikesAttempted": 12,
+            "SigBodyStrikesLanded": 3,
+            "SigBodyStrikesAttempted": 3,
+            "SigLegStrikesLanded": 1,
+            "SigLegStrikesAttempted": 1,
+            "SigDistanceStrikesLanded": 1,
+            "SigDistanceStrikesAttempted": 12,
+            "SigClinchStrikesLanded": 4,
+            "SigClinchStrikesAttempted": 4,
+            "SigGroundStrikesLanded": 0,
+            "SigGroundStrikesAttempted": 0
+          }
+        ]
+      },
+      {
+        "FighterId": 91002,
+        "Rounds": [
+          {
+            "RoundNumber": 1,
+            "Knockdowns": 0,
+            "SubmissionsAttempted": 0,
+            "Reversals": 0,
+            "ControlTime": "0:00",
+            "SigStrikesLanded": 15,
+            "SigStrikesAttempted": 25,
+            "TotalStrikesLanded": 15,
+            "TotalStrikesAttempted": 25,
+            "TakedownsLanded": 0,
+            "TakedownsAttempted": 0,
+            "SigHeadStrikesLanded": 9,
+            "SigHeadStrikesAttempted": 16,
+            "SigBodyStrikesLanded": 4,
+            "SigBodyStrikesAttempted": 7,
+            "SigLegStrikesLanded": 2,
+            "SigLegStrikesAttempted": 2,
+            "SigDistanceStrikesLanded": 15,
+            "SigDistanceStrikesAttempted": 25,
+            "SigClinchStrikesLanded": 0,
+            "SigClinchStrikesAttempted": 0,
+            "SigGroundStrikesLanded": 0,
+            "SigGroundStrikesAttempted": 0
+          },
+          {
+            "RoundNumber": 2,
+            "Knockdowns": 1,
+            "SubmissionsAttempted": 0,
+            "Reversals": 0,
+            "ControlTime": "1:25",
+            "SigStrikesLanded": 22,
+            "SigStrikesAttempted": 25,
+            "TotalStrikesLanded": 23,
+            "TotalStrikesAttempted": 26,
+            "TakedownsLanded": 0,
+            "TakedownsAttempted": 0,
+            "SigHeadStrikesLanded": 6,
+            "SigHeadStrikesAttempted": 8,
+            "SigBodyStrikesLanded": 16,
+            "SigBodyStrikesAttempted": 17,
+            "SigLegStrikesLanded": 0,
+            "SigLegStrikesAttempted": 0,
+            "SigDistanceStrikesLanded": 6,
+            "SigDistanceStrikesAttempted": 9,
+            "SigClinchStrikesLanded": 15,
+            "SigClinchStrikesAttempted": 15,
+            "SigGroundStrikesLanded": 1,
+            "SigGroundStrikesAttempted": 1
+          }
+        ]
+      }
+    ]
+  }
+}

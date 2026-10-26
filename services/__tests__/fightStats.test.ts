@@ -1,7 +1,7 @@
 import { clock, hasStats, heroFor, statRows, statusLabel, type BoutStats } from "../fightStats";
 import { parseFightStats } from "../ingestion/fightStats";
 
-const parsed = parseFightStats(require("../ingestion/__fixtures__/live-stats/fight-13002-final.json"))!;
+const parsed = parseFightStats(require("../ingestion/__fixtures__/live-stats/fight-final.json"))!;
 const stats: BoutStats = { ...parsed, live: false, round: null, clock: null, updatedAt: "2026-10-18T03:00:00Z" };
 
 describe("statRows", () => {

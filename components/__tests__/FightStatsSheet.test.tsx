@@ -31,7 +31,7 @@ jest.mock("../../context/ThemeContext", () => {
 jest.mock("../../hooks/useFightStats", () => ({ useFightStats: jest.fn() }));
 
 const hook = useFightStats as jest.MockedFunction<typeof useFightStats>;
-const parsed = parseFightStats(require("../../services/ingestion/__fixtures__/live-stats/fight-13002-final.json"))!;
+const parsed = parseFightStats(require("../../services/ingestion/__fixtures__/live-stats/fight-final.json"))!;
 const final: BoutStats = { ...parsed, live: false, round: null, clock: null, updatedAt: "2026-10-18T03:00:00Z" };
 
 const bout: BoutLine = {
