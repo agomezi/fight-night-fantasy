@@ -17,6 +17,18 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-round-ten",
+    date: "2026-10-25T12:00:00Z",
+    title: "Round calls cost more",
+    items: [
+      {
+        icon: "timer",
+        title: "A wrong round costs 10",
+        body: "From the Oct 31 card on, a wrong round costs 10 points instead of 5 (5 in Casual). Cards already played keep their scores.",
+      },
+    ],
+  },
+  {
     id: "2026-10-live-stats",
     date: "2026-10-25T12:00:00Z",
     title: "Live fight stats",

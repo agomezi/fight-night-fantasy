@@ -38,7 +38,6 @@ export default function LeagueStandingRow({
   const styles = useThemedStyles(makeLeaguesStyles);
   const note = STATUS_NOTE[row.status];
   const ranked = row.rank != null;
-  const subline = [ranked && row.forfeitWins ? `${row.forfeitWins} by forfeit` : null, note].filter(Boolean).join(" · ");
   const streakColor = streak?.startsWith("W") ? c.green : streak?.startsWith("L") ? c.red : c.textFaint;
 
   return (
@@ -66,7 +65,7 @@ export default function LeagueStandingRow({
           <Text style={[styles.playerName, row.isMe && styles.playerNameMe]} numberOfLines={1}>
             {row.name}
           </Text>
-          {subline ? <Text style={styles.playerTeam}>{subline}</Text> : null}
+          {note ? <Text style={styles.playerTeam}>{note}</Text> : null}
         </View>
 
         <View>

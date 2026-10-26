@@ -81,7 +81,7 @@ function pickFor(bout: BoutRow, row: PickRow): LanePick {
  * stored beside the full ones; every other tier scores a bout the same and
  * differs only in the season ledger, which league standings replay.
  */
-/** `cardStartsAt` picks the deductions the card plays: see SOFT_ROUND_FROM. */
+/** `cardStartsAt` picks the deductions the card plays: see SOFT_ROUND_FROM and ROUND_TEN_FROM. */
 export function scoreEvent(
   bouts: BoutRow[],
   results: ResultRow[],
