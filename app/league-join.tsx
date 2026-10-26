@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import LeagueRulesSheet from "../components/LeagueRulesSheet";
 import PressableScale from "../components/PressableScale";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { selectedLeagueKey } from "../constants/storage";
@@ -18,6 +19,7 @@ import {
   TIER_LABEL,
   type LeagueTier,
 } from "../services/leagues";
+import { previewLeague, rulesSheet, TIER_MINIMUM_LINE, type RulesSheet } from "../services/leagueOnboarding";
 import { suspendedReason } from "../services/standing";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
@@ -42,13 +44,18 @@ export default function LeagueJoin() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The league's rules, read before joining it.
+  const [sheet, setSheet] = useState<RulesSheet | null>(null);
 
   // A suspended player can't create or join, so say why instead of failing.
   const blocked = suspendedReason(useStanding());
   const ready = !blocked && (mode === "create" ? name.trim().length > 0 : code.trim().length >= 8);
 
-  const submit = async () => {
-    if (!ready || busy) return;
+  // Two taps in one frame would join twice.
+  const inFlight = useRef(false);
+  const finish = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -59,11 +66,39 @@ export default function LeagueJoin() {
           await AsyncStorage.setItem(selectedLeagueKey(userId), id);
         } catch {}
       }
+      setSheet(null);
       router.replace("/leagues");
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
+      inFlight.current = false;
     }
+  };
+
+  // Joining shows the league's rules first, unless you're already in it.
+  const submit = async () => {
+    if (!ready || busy) return;
+    if (mode === "create") return finish();
+    setBusy(true);
+    setError(null);
+    let preview;
+    try {
+      preview = await previewLeague(code);
+    } catch {
+      // A server without the preview still lets you join.
+      return finish();
+    }
+    setBusy(false);
+    if (!preview) {
+      setError("No league has that code.");
+      return;
+    }
+    if (preview.alreadyMember) return finish();
+    if (preview.isFull) {
+      setError("That league is full.");
+      return;
+    }
+    setSheet(rulesSheet(preview, true));
   };
 
   const label = {
@@ -163,7 +198,8 @@ export default function LeagueJoin() {
                   </View>
                 </PressableScale>
               ))}
-              <Text style={{ color: c.textFaint, fontSize: 12, lineHeight: 18, marginTop: 4 }}>
+              <Text style={{ color: c.text2, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>{TIER_MINIMUM_LINE[tier]}</Text>
+              <Text style={{ color: c.textFaint, fontSize: 12, lineHeight: 18, marginTop: 2 }}>
                 The tier is set for good once the league is made.
               </Text>
             </>
@@ -224,6 +260,17 @@ export default function LeagueJoin() {
         </ScrollView>
       </KeyboardAvoidingView>
       <View style={{ height: insets.bottom }} />
+      <LeagueRulesSheet
+        sheet={sheet}
+        actionLabel="GOT IT · JOIN LEAGUE"
+        busy={busy}
+        error={error}
+        onConfirm={finish}
+        onClose={() => {
+          setSheet(null);
+          setError(null);
+        }}
+      />
     </SafeAreaView>
   );
 }

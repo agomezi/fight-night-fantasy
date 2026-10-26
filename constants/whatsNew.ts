@@ -17,6 +17,23 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-league-onboarding",
+    date: "2026-10-25T18:00:00Z",
+    title: "League rules up front",
+    items: [
+      {
+        icon: "book",
+        title: "Read the rules before you join",
+        body: "Joining with a code now shows the league's rules first: its size, doubleheaders, and the minimum picks. Tap Rules on the league page to see them again.",
+      },
+      {
+        icon: "checkbox",
+        title: "A checklist for owners",
+        body: "New leagues get a short checklist before the first card: invite enough players, choose the minimum picks, and what an odd number of players means.",
+      },
+    ],
+  },
+  {
     id: "2026-10-round-ten",
     date: "2026-10-25T12:00:00Z",
     title: "Round calls cost more",
