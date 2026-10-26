@@ -17,6 +17,23 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-matchup-picks",
+    date: "2026-10-25T12:00:00Z",
+    title: "Scout the whole league",
+    items: [
+      {
+        icon: "eye",
+        title: "Every matchup's picks",
+        body: "On the head-to-head screen, tap VS on any matchup in your league to see both sides' picks. They show as each part of the card starts, the same as your opponent's.",
+      },
+      {
+        icon: "chatbubbles",
+        title: "New question alerts",
+        body: "Get a heads-up when a new community question goes up, every few days at most. Turn it off in Settings.",
+      },
+    ],
+  },
+  {
     id: "2026-10-records",
     date: "2026-10-24T12:00:00Z",
     title: "Standings are about your record",

@@ -18,7 +18,7 @@ export type InboxItem = {
 
 export type RawInboxItem = { kind: NotificationKind; key: string; payload: unknown; sent_at: string; read: boolean };
 
-const SCREENS = new Set(["history", "picks", "edit-profile", "leagues", "profile"]);
+const SCREENS = new Set(["history", "picks", "edit-profile", "leagues", "profile", "home"]);
 
 /** Where a notification's data points. Shared by push taps and the inbox. */
 export function notificationHref(data: unknown): Href | null {
@@ -78,13 +78,13 @@ async function db() {
 }
 
 export async function loadInbox(maxRows = 50): Promise<InboxItem[]> {
-  const { data, error } = await (await db()).rpc("inbox_items", { max_rows: maxRows });
+  const { data, error } = await (await db()).rpc("inbox_items_v2", { max_rows: maxRows });
   if (error) throw new Error(error.message);
   return toInbox((data ?? []) as RawInboxItem[]);
 }
 
 export async function loadUnreadCount(): Promise<number> {
-  const { data, error } = await (await db()).rpc("inbox_unread_count");
+  const { data, error } = await (await db()).rpc("inbox_unread_count_v2");
   if (error) throw new Error(error.message);
   return (data as number | null) ?? 0;
 }

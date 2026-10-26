@@ -5,8 +5,8 @@
 //   { "eventId": "…" }       one stored event, due or not, for a manual re-run
 //   { "mode": "reminders" }  lock reminders: an hour before a card starts
 //                            locking, and 30 minutes before its main card
-//   { "mode": "activity" }   league activity (joins) and new reports, sent as
-//                            they happen
+//   { "mode": "activity" }   league activity (joins), new reports and new
+//                            community questions, sent as they happen
 //
 // For each event: read the UFC stats feed, write any result that changed,
 // re-score the whole card, send any notifications that are now due, then
@@ -158,7 +158,18 @@ Deno.serve(async request => {
       standings = rankError ? { error: rankError.message } : await notify(db, (ranks ?? []) as Claimed[]);
     }
     const reports = mode === "activity" ? await emailReports(db) : undefined;
-    const report = { ...pushed, ...(standings ? { standings } : {}), ...(reports ? { reports } : {}) };
+    // New community questions, last and apart: a failure here only shows in
+    // the report, and never fails the run.
+    let polls: Record<string, unknown> | undefined;
+    if (mode === "activity") {
+      try {
+        const { data: asked, error: pollError } = await db.rpc("claim_poll_notifications");
+        polls = pollError ? { error: pollError.message } : await notify(db, (asked ?? []) as Claimed[]);
+      } catch (error) {
+        polls = { error: error instanceof Error ? error.message : String(error) };
+      }
+    }
+    const report = { ...pushed, ...(standings ? { standings } : {}), ...(reports ? { reports } : {}), ...(polls ? { polls } : {}) };
     const failed = error != null || (reports != null && "error" in reports) || rankFailed;
     console.log(JSON.stringify(report));
     return Response.json(report, { status: failed ? 500 : 200 });
