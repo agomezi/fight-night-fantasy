@@ -153,6 +153,8 @@ export const makePicksStyles = (c: Palette) =>
       textAlign: "center",
     },
     dogNote: { color: c.textFaint, fontSize: 11, lineHeight: 15, textAlign: "center", marginTop: 10, marginHorizontal: 12 },
+    // Same line height as the chevron it replaces, so a tagged card is no taller.
+    rowNeed: { fontSize: 9, lineHeight: 12, fontWeight: "800", letterSpacing: 1, color: c.textFaint },
     vsSmall: { color: c.textFaint, fontWeight: "700", fontSize: 12, lineHeight: 14 },
     rowBody: {
       marginTop: 12,

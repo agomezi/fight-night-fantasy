@@ -6,8 +6,10 @@ import { useTheme } from "../context/ThemeContext";
 import type { LeaderboardRow as Row } from "../services/leaderboard";
 import PressableScale from "./PressableScale";
 
-function signed(points: number): string {
-  return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : "0";
+/** Season totals read as scores: a minus when negative, never a plus. Edge
+ * keeps its green or red. */
+function total(points: number): string {
+  return points < 0 ? `−${-points}` : `${points}`;
 }
 
 /** One player on the global leaderboard. Your own row is tinted; tapping a
@@ -74,7 +76,7 @@ export default function LeaderboardRow({
           <Text style={{ color: c.textFaint, fontSize: 12, marginTop: 1 }}>
             {row.cards} card{row.cards === 1 ? "" : "s"}
             {row.accuracy != null ? ` · ${row.accuracy}% called` : ""}
-            {` · ${signed(row.points)} pts`}
+            {` · ${total(row.points)} pts`}
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
@@ -86,7 +88,7 @@ export default function LeaderboardRow({
               fontVariant: ["tabular-nums"],
             }}
           >
-            {row.edge == null ? "—" : signed(row.edge)}
+            {row.edge == null ? "—" : total(row.edge)}
           </Text>
           <Text style={{ color: c.textFaint, fontSize: 9.5, fontWeight: "800", letterSpacing: 1 }}>EDGE</Text>
         </View>
