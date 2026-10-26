@@ -193,12 +193,12 @@ describe("notificationText", () => {
       expect(m.body).toBe(
         'Several players reported it, so others see you as "Player #4821" until a moderator checks it. Pick a new name and everyone sees it straight away.'
       );
-      expect(m.data).toEqual({ screen: "home" });
+      expect(m.data).toEqual({ screen: "edit-profile" });
     });
 
     it("tells a player who renamed that the new name stays", () => {
       for (const action of ["warn", "reset_name"] as const) {
-        const m = notificationText("moderation", { action, kept: true, reason: "Offensive name" });
+        const m = notificationText("name_kept", { action, reason: "Offensive name" });
         expect(m.title).toBe("Your new name stays");
         expect(m.body).toBe(
           `Your old name broke our rules, so your new name stays. Reason: Offensive name. Think this is a mistake? Email ${SUPPORT_EMAIL}.`

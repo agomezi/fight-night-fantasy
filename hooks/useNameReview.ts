@@ -7,18 +7,24 @@ const skippedKey = (userId: string) => `nameReviewSkipped:${userId}`;
 
 /** Whether Home should offer a rename because reports hide your name. Checked
  * on focus at most once a minute. "Keep it for now" puts it off for the rest
- * of that case, remembered on this phone by the case's tag. */
-export function useNameReview(userId: string | undefined) {
+ * of that case, remembered on this phone by the case's tag. `onClosed` runs
+ * when a case seen earlier has closed, since a moderator may have changed the
+ * name. */
+export function useNameReview(userId: string | undefined, onClosed?: () => void) {
   const [review, setReview] = useState<NameReview | null>(null);
   const [skipped, setSkipped] = useState<number | null>(null);
   const [skipRead, setSkipRead] = useState(false);
   const fetched = useRef({ key: "", at: 0 });
+  const seenAlias = useRef<number | null>(null);
+  const closed = useRef(onClosed);
+  closed.current = onClosed;
 
   useEffect(() => {
     let current = true;
     setReview(null);
     setSkipped(null);
     setSkipRead(false);
+    seenAlias.current = null;
     if (!userId) return;
     AsyncStorage.getItem(skippedKey(userId))
       .then((v) => {
@@ -43,6 +49,8 @@ export function useNameReview(userId: string | undefined) {
         .then((r) => {
           if (!current) return;
           fetched.current = { key: userId, at: Date.now() };
+          if (seenAlias.current !== null && r.alias !== seenAlias.current) closed.current?.();
+          seenAlias.current = r.alias;
           setReview(r);
         })
         .catch(() => {});

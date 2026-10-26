@@ -14,7 +14,8 @@ export type NotificationKind =
   | "schedule"
   | "rank"
   | "poll"
-  | "name_restored";
+  | "name_restored"
+  | "name_kept";
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
@@ -87,18 +88,19 @@ export type StandingPayload = {
  * A moderator's decision, or `under_review` when enough reports hide the
  * player's name until a moderator looks. `until` is when a suspension ends.
  * `alias` is the number others see while the name is hidden ("Player #4821"),
- * missing on older sends. `kept` is set on a warning or reset for a player who
- * already renamed: the old name is retired and the new one stays.
+ * missing on older sends.
  */
 export type ModerationPayload = {
   action: "warn" | "reset_name" | "suspend" | "lift" | "under_review";
   reason?: string;
   until?: string;
   alias?: number;
-  kept?: boolean;
 };
 /** A moderator found nothing wrong with a hidden name, so it's back. */
 export type NameRestoredPayload = { name: string };
+/** A warning or reset for a player who had already renamed: the old name is
+ * retired and the new one stays. */
+export type NameKeptPayload = { action: "warn" | "reset_name"; reason?: string };
 
 /** A fight you picked flipped underdog before it locked. */
 export type OddsPayload = {
@@ -370,19 +372,12 @@ function moderation(p: ModerationPayload): Message {
       return {
         title: "Your display name is under review",
         body: `Several players reported it, so others see you as "Player #${p.alias}" until a moderator checks it. Pick a new name and everyone sees it straight away.`,
-        data: { screen: "home" },
+        data: { screen: "edit-profile" },
       };
     }
     return {
       title: "Your display name is under review",
       body: 'Several players reported it, so others see you as "Player" until a moderator checks it. You can keep playing as normal.',
-      data: { screen: "moderation" },
-    };
-  }
-  if (p.kept && (p.action === "warn" || p.action === "reset_name")) {
-    return {
-      title: "Your new name stays",
-      body: `Your old name broke our rules, so your new name stays.${why}${appeal}`,
       data: { screen: "moderation" },
     };
   }
@@ -417,6 +412,15 @@ function moderation(p: ModerationPayload): Message {
   };
 }
 
+function nameKept(p: NameKeptPayload): Message {
+  const why = p.reason ? ` Reason: ${p.reason.replace(/\.+$/, "")}.` : "";
+  return {
+    title: "Your new name stays",
+    body: `Your old name broke our rules, so your new name stays.${why} Think this is a mistake? Email ${SUPPORT_EMAIL}.`,
+    data: { screen: "moderation" },
+  };
+}
+
 function nameRestored(p: NameRestoredPayload): Message {
   return {
     title: "Your name is back",
@@ -439,6 +443,7 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "poll") return poll(payload as PollPayload);
   if (kind === "final") return final(payload as FinalPayload);
   if (kind === "name_restored") return nameRestored(payload as NameRestoredPayload);
+  if (kind === "name_kept") return nameKept(payload as NameKeptPayload);
   // A kind from a newer server than this build.
   return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };
 }

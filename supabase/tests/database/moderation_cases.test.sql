@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(51);
+select plan(52);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -164,7 +164,8 @@ select is((select display_name from public.profiles where id = pg_temp.u(3)), nu
 select is((select moderator from public.moderation_actions where action = 'reset_name'), null,
   'run from the SQL editor, it records no moderator');
 
-update public.profiles set display_name = 'Cal' where id = pg_temp.u(3);
+select is(public.display_name_status('Cal'), 'blocked', 'and retired, so it can''t be taken back');
+update public.profiles set display_name = 'Cal_Two' where id = pg_temp.u(3);
 select results_eq(
   format('select standing, until > now() + interval ''6 days'' from public.moderate(%s, %L, %L, null, interval ''7 days'')',
     pg_temp.case_of(1), 'suspend', 'Repeated offensive names'),

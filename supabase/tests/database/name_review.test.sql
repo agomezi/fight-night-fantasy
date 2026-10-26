@@ -2,12 +2,14 @@
 -- the hidden player can rename once without the weekly limit and is seen by
 -- the new name at once; the held name can't be taken meanwhile; dismissing
 -- puts it back and frees the new one; an action against it retires it; and a
--- former member is tagged too.
+-- former member is tagged too. Also the edges: a case that starts hiding with
+-- no new report, a held name blocked before it could come back, a new name
+-- hidden in turn, a case that never hid, and a deleted account.
 -- Runs with `npx supabase test db`.
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(75);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid
@@ -15,10 +17,13 @@ $$;
 -- 01 Kilo owns a league everyone joins. 02 Lima, 03 Mike and 04 Nova get
 -- reported by 05 Oscar, 06 Papa and 07 Quinn, who are established. 08 Romeo
 -- deletes his account. 09 Sierra is a moderator.
-insert into auth.users (id, email) select pg_temp.u(n), 'nr' || n || '@example.test' from generate_series(1, 9) n;
+-- 10 Tango, 11 Uniform, 12 Victor and 14 Xray are reported by players
+-- outside the league; 13 Whiskey has no score yet.
+insert into auth.users (id, email) select pg_temp.u(n), 'nr' || n || '@example.test' from generate_series(1, 14) n;
 update public.profiles p set display_name = v.name, created_at = now() - interval '30 days'
 from (values (1, 'Kilo'), (2, 'Lima'), (3, 'Mike'), (4, 'Nova'), (5, 'Oscar'), (6, 'Papa'), (7, 'Quinn'),
-             (8, 'Romeo'), (9, 'Sierra')) v(n, name)
+             (8, 'Romeo'), (9, 'Sierra'), (10, 'Tango'), (11, 'Uniform'), (12, 'Victor'), (13, 'Whiskey'),
+             (14, 'Xray')) v(n, name)
 where p.id = pg_temp.u(v.n);
 update public.profiles set is_moderator = true where id = pg_temp.u(9);
 
@@ -199,9 +204,13 @@ update public.profiles set display_name = 'Mike_Fresh' where id = pg_temp.u(3);
 select public.moderate(pg_temp.case_of(3), 'reset_name');
 select is((select display_name from public.profiles where id = pg_temp.u(3)), 'Mike_Fresh',
   'a reset after a rename keeps the new name');
-select is((select payload->>'kept' from public.notifications_sent
-  where user_id = pg_temp.u(3) and kind = 'moderation' and payload->>'action' = 'reset_name'), 'true',
-  'and the note says the new name stays');
+select results_eq($$select kind, payload->>'action' from public.notifications_sent
+  where user_id = pg_temp.u(3) and kind in ('moderation', 'name_kept') and payload->>'action' = 'reset_name'$$,
+  $$values ('name_kept'::text, 'reset_name'::text)$$, 'and the note, a kind of its own, says the new name stays');
+select pg_temp.act(3);
+select is((select count(*)::integer from public.inbox_items_v2() where kind = 'name_kept'), 0,
+  'older builds, which would word it as a reset, don''t get it');
+select is((select count(*)::integer from public.inbox_items_v3() where kind = 'name_kept'), 1, 'this build does');
 select ok(exists (select 1 from public.retired_names where name_key = 'mike'), 'the held name is retired');
 
 set local role authenticated;
@@ -219,9 +228,8 @@ select public.moderate(pg_temp.case_of(4), 'reset_name');
 select is((select display_name from public.profiles where id = pg_temp.u(4)), null,
   'a reset without a rename clears the name');
 select ok(exists (select 1 from public.retired_names where name_key = 'nova'), 'and retires it');
-select is((select payload->>'kept' from public.notifications_sent
-  where user_id = pg_temp.u(4) and kind = 'moderation' and payload->>'action' = 'reset_name'), null,
-  'with the usual note');
+select ok(exists (select 1 from public.notifications_sent
+  where user_id = pg_temp.u(4) and kind = 'moderation' and payload->>'action' = 'reset_name'), 'with the usual note');
 
 -------------------------------------------------------------------------------
 -- A new case, and former members
@@ -240,6 +248,94 @@ select is(pg_temp.kilo_sees(8), pg_temp.kilo_sees(8), 'with the same tag every t
 reset role;
 
 -------------------------------------------------------------------------------
+-- Edges
+-------------------------------------------------------------------------------
+
+create function pg_temp.flag(by int, who int) returns boolean language sql as $$
+  select pg_temp.act(by);
+  select public.report_player(pg_temp.u(who), 'offensive name');
+$$;
+create function pg_temp.sees(who int) returns text language sql as $$
+  select pg_temp.act(1);
+  select public.league_display_name(pg_temp.u(who));
+$$;
+
+-- Tango's third reporter only counts once he has a score: the case starts
+-- hiding without a report being filed.
+set local role authenticated;
+select pg_temp.flag(5, 10); select pg_temp.flag(6, 10); select pg_temp.flag(13, 10);
+reset role;
+select is(pg_temp.sees(10), 'Tango', 'two established reporters don''t hide a name');
+insert into public.scores (user_id, bout_id, season_id, points, casual_points, breakdown, correct, counts_for_accuracy)
+select pg_temp.u(13), b.id, e.season_id, 10, 10, '{}'::jsonb, true, true
+from public.bouts b join public.events e on e.id = b.event_id where b.ufc_fight_id = 'nr11';
+select is(pg_temp.sees(10), 'Player #' || (select alias from public.moderation_cases where id = pg_temp.case_of(10)),
+  'a reporter becoming established hides it later');
+set local role authenticated;
+select pg_temp.act(10);
+select lives_ok($$select public.rename_under_review('Tango_New')$$, 'and the free rename still works');
+reset role;
+select is(pg_temp.sees(10), 'Tango_New', 'showing the new name');
+select is((select held_name from public.moderation_cases where id = pg_temp.case_of(10)), 'Tango',
+  'with the old one held from then');
+
+-- The blocked list catches "Tango" before the moderator gets to it.
+insert into public.blocked_name_terms (term, match) values ('tango', 'name');
+select public.moderate(pg_temp.case_of(10), 'dismiss');
+select is((select display_name from public.profiles where id = pg_temp.u(10)), 'Tango_New',
+  'a held name blocked in the meantime doesn''t come back');
+select ok(not exists (select 1 from public.notifications_sent where user_id = pg_temp.u(10) and kind = 'name_restored'),
+  'and no note says it did');
+delete from public.blocked_name_terms where term = 'tango';
+
+-- Uniform renames, and the new name gets hidden too.
+set local role authenticated;
+select pg_temp.flag(r, 11) from generate_series(5, 7) r;
+select pg_temp.act(11);
+select public.rename_under_review('Uniform_New');
+select pg_temp.flag(r, 11) from (values (1), (2), (4)) v(r);
+reset role;
+select is(pg_temp.sees(11), 'Player #' || (select alias from public.moderation_cases where id = pg_temp.case_of(11)),
+  'a new name reported in turn is hidden');
+
+-- An older join from Uniform, in the newest inbox.
+insert into public.notifications_sent (user_id, kind, key, payload)
+values (pg_temp.u(1), 'league_join', (select id from lg) || ':' || pg_temp.u(11) || ':1',
+  jsonb_build_object('league', 'Gym League', 'leagueId', (select id from lg), 'member', 'Uniform'));
+insert into tags select 11, 'Player #' || alias from public.moderation_cases where id = pg_temp.case_of(11);
+set local role authenticated;
+select pg_temp.act(1);
+select results_eq($$select payload->>'member' from public.inbox_items_v3() where kind = 'league_join' and key like '%' || pg_temp.u(11) || '%'$$,
+  $$select pg_temp.tag(11)$$, 'this build''s inbox names a hidden player by the tag');
+reset role;
+
+select public.moderate(pg_temp.case_of(11), 'reset_name');
+select is((select display_name from public.profiles where id = pg_temp.u(11)), null,
+  'a reset clears a new name that was hidden too');
+select ok(exists (select 1 from public.notifications_sent
+  where user_id = pg_temp.u(11) and kind = 'moderation' and payload->>'action' = 'reset_name'), 'with the usual note');
+select ok(exists (select 1 from public.retired_names where name_key = 'uniform'), 'and retires the held name');
+
+-- One report never hid Victor's name; a warning still retires it.
+set local role authenticated;
+select pg_temp.flag(1, 12);
+reset role;
+select public.moderate(pg_temp.case_of(12), 'warn');
+select ok(exists (select 1 from public.retired_names where name_key = 'victor'),
+  'a warning retires the reported name, hidden or not');
+
+-- Xray is hidden, then deletes the account.
+set local role authenticated;
+select pg_temp.flag(r, 14) from (values (1), (2), (4)) v(r);
+reset role;
+select is((select held_name from public.moderation_cases where id = pg_temp.case_of(14)), 'Xray', 'Xray''s name is held');
+update public.profiles set deleted_at = now(), display_name = null where id = pg_temp.u(14);
+select is((select held_name from public.moderation_cases where id = pg_temp.case_of(14)), null,
+  'deleting the account lets the held name go');
+select isnt(pg_temp.sees(14), 'Former Member #' || (select alias from public.moderation_cases where id = pg_temp.case_of(14)),
+  'and the account''s former-member tag isn''t its case''s');
+
+-------------------------------------------------------------------------------
 -- Access
 -------------------------------------------------------------------------------
 
@@ -250,6 +346,9 @@ select throws_ok($$select public.hidden_name(pg_temp.u(2))$$, '42501', null, 'or
 reset role;
 set local role anon;
 select throws_ok($$select public.rename_under_review('Anon_Name')$$, '42501', null, 'signed-out callers can''t rename');
+select throws_ok($$select * from public.my_name_review()$$, '42501', null, 'or read a review');
+select throws_ok($$select * from public.inbox_items_v3()$$, '42501', null, 'or an inbox');
+select throws_ok($$select public.inbox_unread_count_v3()$$, '42501', null, 'or its count');
 reset role;
 
 select * from finish();

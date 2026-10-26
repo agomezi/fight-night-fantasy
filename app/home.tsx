@@ -224,8 +224,8 @@ export default function Home() {
   const { session } = useAuth();
   const userId = session?.user.id;
   // Reports have hidden your name: offer a new one on the spot.
-  const { profile, renameUnderReview } = useProfile();
-  const nameReview = useNameReview(userId);
+  const { profile, renameUnderReview, refreshName } = useProfile();
+  const nameReview = useNameReview(userId, refreshName);
   const modalsFree = useModalsFree();
   const picksKey = userId && event ? `picks:${userId}:${event.id}` : null;
   const [serverPicks, setServerPicks] = useState<Record<string, LanePick>>(() => readCache(picksKey) ?? {});

@@ -143,7 +143,9 @@ as $$
 $$;
 
 -- As before, until the player renames: a new name shows at once, unless
--- enough established reporters report that one too.
+-- enough established reporters report that one too. A case can start hiding
+-- with no report filed, when a reporter becomes established later, so before
+-- a name is held the reported names stand in for it.
 create or replace function public.name_hidden(player uuid)
 returns boolean
 language sql
@@ -157,7 +159,10 @@ as $$
     join public.profiles p on p.id = c.player
     where c.player = name_hidden.player and c.status = 'open'
       and case
-        when c.held_name is null or lower(p.display_name) is not distinct from lower(c.held_name)
+        when lower(p.display_name) is not distinct from lower(c.held_name)
+          or (c.held_name is null and exists (
+                select 1 from public.name_reports r
+                where r.case_id = c.id and lower(r.display_name) = lower(p.display_name)))
           then public.case_hides(c.id)
         else public.case_hides(c.id, p.display_name)
       end
@@ -177,8 +182,9 @@ as $$
   where c.player = hidden_name.player and c.status = 'open' and public.name_hidden(hidden_name.player);
 $$;
 
--- "Former Member #4821": the tag of the player's latest case, or the one
--- given when the account was deleted.
+-- "Former Member #4821": for a banned player, the tag of their latest case;
+-- for a deleted account, the number it was given when deleted, so it can't be
+-- linked to the tag it had while hidden.
 create function public.former_name(player uuid)
 returns text
 language sql
@@ -186,11 +192,14 @@ stable
 security definer
 set search_path = ''
 as $$
-  select 'Former Member' || coalesce(' #' || coalesce(
-    (select c.alias from public.moderation_cases c
-     where c.player = former_name.player order by c.opened_at desc, c.id desc limit 1),
-    (select p.former_alias from public.profiles p where p.id = former_name.player)
-  ), '');
+  select 'Former Member' || coalesce(' #' || case
+    when p.deleted_at is not null then p.former_alias
+    else coalesce(
+      (select c.alias from public.moderation_cases c
+       where c.player = former_name.player order by c.opened_at desc, c.id desc limit 1),
+      p.former_alias)
+  end, '')
+  from public.profiles p where p.id = former_name.player;
 $$;
 
 -- Cases already hiding a name hold the name they're hiding.
@@ -240,10 +249,10 @@ alter table public.notifications_sent
   drop constraint notifications_sent_kind_check,
   add constraint notifications_sent_kind_check
     check (kind in ('reminder', 'scored', 'final', 'league_join', 'moderation', 'matchup', 'standing', 'awards',
-                    'odds', 'schedule', 'rank', 'poll', 'name_restored'));
+                    'odds', 'schedule', 'rank', 'poll', 'name_restored', 'name_kept'));
 
--- As in pick polls, and a restored name is pushed whatever the player's
--- settings, like a moderator's decision.
+-- As in pick polls, and a restored or kept name is pushed whatever the
+-- player's settings, like a moderator's decision.
 create or replace function public.claim_activity_notifications()
 returns table (user_id uuid, kind text, payload jsonb, tokens text[], wanted boolean)
 language sql
@@ -265,6 +274,7 @@ as $$
     case c.kind
       when 'moderation' then true
       when 'name_restored' then true
+      when 'name_kept' then true
       when 'reminder' then p.notify_reminders
       when 'odds' then p.notify_card_news and exists (
         select 1 from public.bouts b join public.events e on e.id = b.event_id
@@ -352,6 +362,7 @@ begin
   if new.deleted_at is not null then
     delete from public.display_name_history where user_id = old.id;
     delete from public.name_reports where reported_id = old.id;
+    update public.moderation_cases set held_name = null where player = old.id and held_name is not null;
     return new;
   end if;
 
@@ -370,14 +381,17 @@ begin
   -- session rather than current_user.
   if current_setting('role', true) in ('anon', 'authenticated') and old.display_name is not null then
     perform public.require_good_standing(old.id);
-    if new.display_name is not null then
+    -- Changing only the case of the letters doesn't count: it stays hidden.
+    if new.display_name is not null and lower(new.display_name) <> lower(old.display_name) then
       select c.id into review from public.moderation_cases c
       where c.player = old.id and c.status = 'open' and c.renamed_at is null
-        and lower(c.held_name) = lower(old.display_name) and public.name_hidden(old.id)
+        and (c.held_name is null or lower(c.held_name) = lower(old.display_name)) and public.name_hidden(old.id)
       for update;
     end if;
     if review is not null then
-      update public.moderation_cases set renamed_at = now() where id = review;
+      update public.moderation_cases
+      set renamed_at = now(), held_name = coalesce(held_name, old.display_name)
+      where id = review;
     elsif old.name_changed_at > now() - interval '7 days' then
       raise exception 'You can change your name once a week.'
         using errcode = 'P0001', hint = 'too_soon',
@@ -646,7 +660,7 @@ $$;
 
 -- Every kind, for this build on, with the tag for a hidden name. Builds
 -- before it show a kind they don't know as "You have a new notification", so
--- the RPCs they call leave restored names out.
+-- the RPCs they call leave restored and kept names out.
 create function public.inbox_items_v3(max_rows integer default 50)
 returns table (kind text, key text, payload jsonb, sent_at timestamptz, read boolean)
 language sql
@@ -693,7 +707,7 @@ as $$
 $$;
 
 -- The build before this one. inbox_items and my_notifications read through
--- it, so they leave restored names out too.
+-- it, so they leave restored and kept names out too.
 create or replace function public.inbox_items_v2(max_rows integer default 50)
 returns table (kind text, key text, payload jsonb, sent_at timestamptz, read boolean)
 language sql
@@ -703,7 +717,7 @@ set search_path = ''
 as $$
   select i.kind, i.key, i.payload, i.sent_at, i.read
   from public.inbox_items_v3(200) with ordinality i
-  where i.kind <> 'name_restored'
+  where i.kind not in ('name_restored', 'name_kept')
   order by i.ordinality
   limit least(greatest(max_rows, 1), 200);
 $$;
@@ -717,7 +731,7 @@ set search_path = ''
 as $$
   select count(*)::integer from public.notifications_sent n
   where n.user_id = (select auth.uid()) and n.payload is not null and n.read_at is null
-    and n.kind <> 'name_restored';
+    and n.kind not in ('name_restored', 'name_kept');
 $$;
 
 create or replace function public.inbox_unread_count()
@@ -729,7 +743,7 @@ set search_path = ''
 as $$
   select count(*)::integer from public.notifications_sent n
   where n.user_id = (select auth.uid()) and n.payload is not null and n.read_at is null
-    and n.kind not in ('poll', 'name_restored');
+    and n.kind not in ('poll', 'name_restored', 'name_kept');
 $$;
 
 create or replace function public.unread_notification_count()
@@ -741,7 +755,7 @@ set search_path = ''
 as $$
   select count(*)::integer from public.notifications_sent n
   where n.user_id = (select auth.uid()) and n.payload is not null and n.read_at is null
-    and n.kind not in ('matchup', 'standing', 'awards', 'odds', 'schedule', 'rank', 'poll', 'name_restored');
+    and n.kind not in ('matchup', 'standing', 'awards', 'odds', 'schedule', 'rank', 'poll', 'name_restored', 'name_kept');
 $$;
 
 revoke execute on function public.inbox_items_v3(integer), public.inbox_unread_count_v3() from public, anon;
@@ -755,10 +769,11 @@ grant execute on function public.inbox_items_v3(integer), public.inbox_unread_co
 --   dismiss                        a player who renamed gets the held name
 --                                  back, free of the weekly limit, and the
 --                                  new one is freed
---   warn, reset_name, suspend, ban the held name is retired. A player who
---                                  renamed keeps the new name: a warning or
---                                  reset says so instead of asking for one,
---                                  unless the new name is hidden too
+--   warn, reset_name, suspend, ban the held name, or the reported one, is
+--                                  retired. A player who renamed keeps the
+--                                  new name: a warning or reset says so
+--                                  instead of asking for one, unless the new
+--                                  name is hidden too
 create or replace function public.moderate(
   case_id  bigint,
   action   text,
@@ -832,8 +847,13 @@ begin
     update auth.users set banned_until = null where id = c.player;
   end if;
 
-  if action in ('warn', 'reset_name', 'suspend', 'ban') and c.status = 'open' and c.held_name is not null then
-    insert into public.retired_names (name_key, case_id) values (lower(c.held_name), c.id)
+  -- The name the case is about: the held one, or the current one if it was
+  -- reported in this case.
+  if action in ('warn', 'reset_name', 'suspend', 'ban') and c.status = 'open' then
+    insert into public.retired_names (name_key, case_id)
+    select lower(coalesce(c.held_name, named)), c.id
+    where c.held_name is not null
+       or exists (select 1 from public.name_reports r where r.case_id = c.id and lower(r.display_name) = lower(named))
     on conflict (name_key) do nothing;
   end if;
 
@@ -854,11 +874,12 @@ begin
     perform public.invoke_activity_push();
   end if;
 
+  -- A kept name is its own kind: older builds would word it as a reset.
   if action in ('warn', 'reset_name', 'suspend', 'lift') then
     insert into public.notifications_sent (user_id, kind, key, payload, pushed)
-    values (c.player, 'moderation', c.id || ':' || added,
+    values (c.player, case when kept then 'name_kept' else 'moderation' end, c.id || ':' || added,
       jsonb_strip_nulls(jsonb_build_object('action', action, 'reason', nullif(left(btrim(reason), 200), ''),
-        'until', expires, 'kept', case when kept then true end)),
+        'until', expires)),
       false);
     perform public.invoke_activity_push();
   end if;
@@ -888,7 +909,7 @@ select c.id as case_id,
        c.opened_at,
        c.alias,
        c.held_name,
-       c.held_name is not null and lower(p.display_name) is distinct from lower(c.held_name) as renamed
+       c.held_name is not null and p.display_name is not null and lower(p.display_name) <> lower(c.held_name) as renamed
 from public.moderation_cases c
 join public.profiles p on p.id = c.player
 left join public.name_reports r on r.case_id = c.id
