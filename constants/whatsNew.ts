@@ -17,6 +17,23 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-name-review",
+    date: "2026-10-27T12:00:00Z",
+    title: "Names under review",
+    items: [
+      {
+        icon: "person-circle",
+        title: "Tell hidden players apart",
+        body: "When enough players report a name, it's hidden while a moderator checks it. It now shows as \"Player\" with a number, like Player #4821, so two hidden players never look the same.",
+      },
+      {
+        icon: "create",
+        title: "Rename on the spot",
+        body: "If it's your name, you can pick a new one straight away and everyone sees it. If the old one turns out fine, you get it back.",
+      },
+    ],
+  },
+  {
     id: "2026-10-league-onboarding",
     date: "2026-10-25T18:00:00Z",
     title: "League rules up front",
