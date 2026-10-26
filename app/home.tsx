@@ -20,6 +20,7 @@ import FighterPhoto from "../components/FighterPhoto";
 import FighterSpotlight from "../components/FighterSpotlight";
 import HeaderBar from "../components/HeaderBar";
 import LiveDot from "../components/LiveDot";
+import PickMinimumBanner from "../components/PickMinimumBanner";
 import InfoCards, { type Card as InfoCard } from "../components/InfoCards";
 import { communityCard } from "../components/CommunityCard";
 import { StatBox, StatBoxRow } from "../components/StatBox";
@@ -42,6 +43,7 @@ import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEv
 import { useAuth } from "../context/AuthContext";
 import { loadDraft, samePicks, withDraft } from "../services/pickDraft";
 import { loadPicks, pickSummary } from "../services/picks";
+import { askForLeagueReminders } from "../services/push";
 import { readCache, writeCache } from "../services/screenCache";
 import type { LanePick } from "../services/pickTypes";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -220,6 +222,9 @@ export default function Home() {
   const picksKey = userId && event ? `picks:${userId}:${event.id}` : null;
   const [serverPicks, setServerPicks] = useState<Record<string, LanePick>>(() => readCache(picksKey) ?? {});
   const [draft, setDraftPicks] = useState<Record<string, LanePick> | undefined>(undefined);
+  // The card whose saved picks have loaded, so nothing claims a missed
+  // minimum from picks that just haven't arrived.
+  const [picksLoadedFor, setPicksLoadedFor] = useState<string | null>(null);
   useFocusEffect(
     useCallback(() => {
       if (!event) {
@@ -231,7 +236,11 @@ export default function Home() {
       if (userId) loadDraft(userId, event.id).then((d) => current && setDraftPicks(d));
       else setDraftPicks(undefined);
       loadPicks(event.bouts)
-        .then((picks) => current && setServerPicks(writeCache(picksKey, picks)))
+        .then((picks) => {
+          if (!current) return;
+          setServerPicks(writeCache(picksKey, picks));
+          setPicksLoadedFor(event.id);
+        })
         .catch(() => {});
       return () => {
         current = false;
@@ -273,6 +282,11 @@ export default function Home() {
   // The league the Leagues tab shows, and where you sit in it once ranked.
   const leagueState = useLeague();
   const myLeague = leagueState.status === "ready" ? leagueState.league : null;
+  // In a league, lock reminders matter: ask once for notifications.
+  const inLeague = !!myLeague;
+  useEffect(() => {
+    if (inLeague) askForLeagueReminders();
+  }, [inLeague]);
   const standingRows = leagueState.status === "ready" ? (leagueState.standings?.rows ?? []) : [];
   const ranked = standingRows.filter((s) => s.rank != null);
   const me = standingRows.find((s) => s.isMe);
@@ -653,6 +667,16 @@ export default function Home() {
         contentContainerStyle={{ padding: 24, paddingBottom: 24 }}
       >
         <HeaderBar />
+        {event && leagueState.status === "ready" && picksLoadedFor === event.id && (
+          <PickMinimumBanner
+            eventId={event.id}
+            card={event.bouts}
+            firstLock={event.locksAt}
+            leagues={leagueState.leagues.map((l) => ({ name: l.name, tier: l.tier, rule: l.rule }))}
+            saved={(id) => !!serverPicks[id]}
+            now={next.now}
+          />
+        )}
 
         {/*
           Cards earn their place — each one only appears when it has something

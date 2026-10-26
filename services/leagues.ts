@@ -403,6 +403,19 @@ export async function setPickRule(leagueId: string, rule: PickRule): Promise<voi
   if (error) throw new Error(error.message);
 }
 
+/** A member's progress on the league's required fights for a card. Counts
+ * only, never which fighters: the owner sees who to chase. */
+export type MemberPickStatus = { userId: string; name: string; required: number; picked: number; missed: number; isMe: boolean };
+
+/** Owner only: how many of the required fights each member has picked. */
+export async function loadPickStatus(leagueId: string, eventId: string): Promise<MemberPickStatus[]> {
+  const { data, error } = await (await db()).rpc("league_pick_status", { league: leagueId, event: eventId });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as { user_id: string; display_name: string; required: number; picked: number; missed: number; is_me: boolean }[]).map(
+    (r) => ({ userId: r.user_id, name: r.display_name, required: r.required, picked: r.picked, missed: r.missed, isMe: r.is_me })
+  );
+}
+
 export async function loadStandings(leagueId: string): Promise<LeagueStandings> {
   const { data, error } = await (await db()).rpc("league_standings", { league: leagueId });
   if (error) throw new Error(error.message);

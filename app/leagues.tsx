@@ -16,6 +16,7 @@ import PressableScale from "../components/PressableScale";
 import ProgressRing from "../components/ProgressRing";
 import LeagueAwards from "../components/LeagueAwards";
 import LeaguePicksCard from "../components/LeaguePicksCard";
+import LeaguePickStatus from "../components/LeaguePickStatus";
 import SwipeableCards from "../components/SwipeableCards";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -357,6 +358,8 @@ export default function Leagues() {
 
       {/* The fights this league needs from you on the next card. */}
       <LeaguePicksCard league={league} />
+      {/* The owner sees who still has picks to make. */}
+      <LeaguePickStatus league={league} />
 
       {/* Standings preview — data, so no box. */}
       <View style={{ marginTop: 22 }}>
