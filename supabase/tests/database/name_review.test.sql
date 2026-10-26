@@ -332,8 +332,8 @@ select is((select held_name from public.moderation_cases where id = pg_temp.case
 update public.profiles set deleted_at = now(), display_name = null where id = pg_temp.u(14);
 select is((select held_name from public.moderation_cases where id = pg_temp.case_of(14)), null,
   'deleting the account lets the held name go');
-select isnt(pg_temp.sees(14), 'Former Member #' || (select alias from public.moderation_cases where id = pg_temp.case_of(14)),
-  'and the account''s former-member tag isn''t its case''s');
+select is(pg_temp.sees(14), 'Former Member #' || (select former_alias from public.profiles where id = pg_temp.u(14)),
+  'and the account is tagged with the number it got when deleted, not its case''s');
 
 -------------------------------------------------------------------------------
 -- Access

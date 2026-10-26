@@ -353,6 +353,11 @@ as $$
 declare
   review bigint;
 begin
+  -- A deleted account lets go of a held name, even one deleted with no name.
+  if new.deleted_at is not null then
+    update public.moderation_cases set held_name = null where player = old.id and held_name is not null;
+  end if;
+
   if new.display_name is not distinct from old.display_name then
     return new;
   end if;
@@ -362,7 +367,6 @@ begin
   if new.deleted_at is not null then
     delete from public.display_name_history where user_id = old.id;
     delete from public.name_reports where reported_id = old.id;
-    update public.moderation_cases set held_name = null where player = old.id and held_name is not null;
     return new;
   end if;
 
