@@ -173,6 +173,12 @@ function boutFor(row: HistoryPickRow, score: HistoryScoreRow | undefined): Histo
   return { ...scored, verdict: score.correct ? "hit" : "miss" };
 }
 
+/** The fights History lists: a fight waiting on its result or its score
+ * stays out until it has one. */
+export function shownBouts(bouts: HistoryBout[]): HistoryBout[] {
+  return bouts.filter(b => b.verdict !== "pending");
+}
+
 /**
  * Shapes picks and scores into played events. Only cards that have locked
  * appear: before that, picks can still change and nothing has been played.

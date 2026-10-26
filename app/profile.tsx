@@ -29,7 +29,6 @@ import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, t
 import { loadCareer, type Career } from "../services/career";
 import { loadPinnedCalls, MAX_PINNED_CALLS, movePinToTop, shareCallText, unpinCall, type PinnedCall } from "../services/pins";
 import { loadBadges, type Badge } from "../services/awards";
-import { loadTakesRecord } from "../services/community";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -79,19 +78,6 @@ export default function Profile() {
       if (!session?.user.id) return;
       let current = true;
       loadBadges(session.user.id).then((v) => current && setBadges(v)).catch(() => {});
-      return () => {
-        current = false;
-      };
-    }, [session?.user.id])
-  );
-
-  // Your record on Community takes, once any you voted on have settled.
-  const [takes, setTakes] = useState<{ wins: number; losses: number } | null>(null);
-  useFocusEffect(
-    useCallback(() => {
-      if (!session?.user.id) return;
-      let current = true;
-      loadTakesRecord().then((v) => current && setTakes(v)).catch(() => {});
       return () => {
         current = false;
       };
@@ -232,10 +218,10 @@ export default function Profile() {
           <Text style={styles.memberLine}>
             {/* Nothing about your record until it has loaded. */}
             {career == null
-              ? profile.title
-              : `${career.cards > 0 ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}` : "No fights yet"}${
-                  takes && takes.wins + takes.losses > 0 ? ` · Takes ${takes.wins}-${takes.losses}` : ""
-                } · ${profile.title}`}
+              ? "\u00a0"
+              : career.cards > 0
+                ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}`
+                : "No fights yet"}
           </Text>
         </Animated.View>
 
