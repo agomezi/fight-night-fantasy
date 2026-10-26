@@ -55,6 +55,48 @@ describe("notificationText", () => {
     });
   });
 
+  test("the day before, a player short of a league's minimum hears what it needs and when", () => {
+    expect(
+      notificationText("reminder", {
+        event: "UFC 334: A vs. B",
+        section: "eve",
+        minutes: 1290,
+        hasMainPick: true,
+        league: "Test1",
+        required: 12,
+        picked: 5,
+        leagueMissing: 7,
+        firstAt: "2026-10-31T22:00:00Z",
+        tz: "America/New_York",
+      })
+    ).toEqual({
+      title: "Test1 needs 12 picks for UFC 334",
+      body: "You've made 5. The first fights lock Saturday at 6:00 PM. Miss one and you forfeit this week's matchup.",
+      data: { screen: "picks" },
+    });
+    expect(
+      notificationText("reminder", {
+        event: "UFC 334: A vs. B", section: "eve", league: "Test1", required: 12, picked: 0,
+        firstAt: "2026-10-31T22:00:00Z", tz: "America/New_York",
+      }).body
+    ).toBe("You haven't made any yet. The first fights lock Saturday at 6:00 PM. Miss one and you forfeit this week's matchup.");
+  });
+
+  test("an hour before a later section, the required fights in it still to pick", () => {
+    expect(
+      notificationText("reminder", {
+        event: "UFC 334: A vs. B", section: "segment", segment: "prelims", minutes: 60, league: "Test1", segmentMissing: 4,
+      })
+    ).toEqual({
+      title: "Prelims lock in 60 min",
+      body: "Test1 still needs 4 of them from you. Miss one and you forfeit this week's matchup.",
+      data: { screen: "picks" },
+    });
+    expect(
+      notificationText("reminder", { event: "UFC 334", section: "segment", segment: "main", minutes: 55, league: "Test1", segmentMissing: 1 }).title
+    ).toBe("Main card locks in 55 min");
+  });
+
   test("main card reminder for someone with every main card fight picked", () => {
     expect(
       notificationText("reminder", { event: "UFC 333: A vs. B", minutes: 25, hasMainPick: true, section: "main", missing: 0 }).body

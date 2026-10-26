@@ -17,17 +17,31 @@ export type NotificationKind =
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
- * the main event you picked changed fighters before locking. */
+ * the main event you picked changed fighters before locking. "eve" is the
+ * day before, for a player short of a league's minimum, and "segment" an
+ * hour before a later section with a required fight still to pick; both
+ * name the league asking for the most. */
 export type ReminderPayload = {
   event: string;
   minutes?: number;
   hasMainPick?: boolean;
-  section?: "main" | "changed";
+  section?: "main" | "changed" | "eve" | "segment";
   missing?: number;
   /** Open fights any of your leagues requires that you haven't picked. */
   leagueMissing?: number;
   red?: string;
   blue?: string;
+  league?: string;
+  /** "eve": the fights the league requires, and how many you've picked. */
+  required?: number;
+  picked?: number;
+  /** "eve": when the card's first fights lock. `tz` is the player's zone,
+   * added when the push is sent; the inbox uses the phone's. */
+  firstAt?: string;
+  tz?: string;
+  /** "segment": the section locking, and its required fights still to pick. */
+  segment?: "main" | "prelims" | "early_prelims";
+  segmentMissing?: number;
 };
 export type ScoredPayload = {
   event: string;
@@ -118,6 +132,7 @@ export type Message = {
 };
 
 const METHOD = { KO: "KO/TKO", SUB: "Submission", DEC: "Decision" } as const;
+const SECTION = { main: "Main card", prelims: "Prelims", early_prelims: "Early prelims" } as const;
 const VOID = {
   NC: "No contest",
   DRAW: "Draw",
@@ -204,6 +219,26 @@ function reminder(p: ReminderPayload): Message {
     return {
       title: `${title(p.event)} main event changed`,
       body: `It's now ${p.red} vs ${p.blue}. Your pick no longer counts, so pick it again before it locks.`,
+      data: { screen: "picks" },
+    };
+  }
+  if (p.section === "eve") {
+    const when = p.firstAt
+      ? `${inZone(p.firstAt, p.tz, { weekday: "long" })} at ${clock(p.firstAt, p.tz)}`
+      : "tomorrow";
+    const made = p.picked ? `You've made ${p.picked}.` : "You haven't made any yet.";
+    const need = p.required ?? p.leagueMissing ?? 1;
+    return {
+      title: `${p.league ?? "Your league"} needs ${need} pick${need === 1 ? "" : "s"} for ${title(p.event)}`,
+      body: `${made} The first fights lock ${when}. Miss one and you forfeit this week's matchup.`,
+      data: { screen: "picks" },
+    };
+  }
+  if (p.section === "segment") {
+    const label = SECTION[p.segment ?? "main"];
+    return {
+      title: `${label} lock${p.segment === "main" ? "s" : ""} in ${p.minutes} min`,
+      body: `${p.league ?? "Your league"} still needs ${p.segmentMissing ?? 1} of them from you. Miss one and you forfeit this week's matchup.`,
       data: { screen: "picks" },
     };
   }

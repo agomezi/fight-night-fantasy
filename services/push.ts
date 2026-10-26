@@ -6,7 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import { Platform } from "react-native";
+import { Alert, Linking, Platform } from "react-native";
 
 const TOKEN_KEY = "push-token";
 const ZONE_KEY = "push-zone";
@@ -71,6 +71,34 @@ async function saveTimeZone(): Promise<void> {
     const { data: saved, error } = await supabase.from("profiles").update({ time_zone: zone }).eq("id", userId).select("id");
     // Only remembered once it's actually stored, so a miss is retried.
     if (!error && saved?.length) await AsyncStorage.setItem(key, zone);
+  } catch {}
+}
+
+const ASKED_KEY = "push-asked-for-leagues";
+
+/**
+ * Once per phone, for a player in a league: asks for notifications so lock
+ * reminders reach them, or, if they were turned off, points to Settings.
+ * Missing a league's minimum loses the week, and without push the only
+ * warning is in the app. Never throws.
+ */
+export async function askForLeagueReminders(): Promise<void> {
+  try {
+    if (!Device.isDevice || (await AsyncStorage.getItem(ASKED_KEY))) return;
+    const status = await pushPermission();
+    if (status === "granted") return;
+    await AsyncStorage.setItem(ASKED_KEY, "1");
+    // Said first, so the system prompt (or Settings) doesn't come out of nowhere.
+    Alert.alert(
+      "Turn on lock reminders?",
+      "Your leagues need picks before each part of the card locks, and missing one loses the week. Notifications are how we remind you in time.",
+      [
+        { text: "Not now", style: "cancel" },
+        status === "undetermined"
+          ? { text: "Turn on", onPress: () => void enablePush(true) }
+          : { text: "Open Settings", onPress: () => Linking.openSettings().catch(() => {}) },
+      ]
+    );
   } catch {}
 }
 

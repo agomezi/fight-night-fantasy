@@ -18,6 +18,7 @@ import LeagueAwards from "../components/LeagueAwards";
 import LeagueChecklist from "../components/LeagueChecklist";
 import LeagueRulesSheet from "../components/LeagueRulesSheet";
 import LeaguePicksCard from "../components/LeaguePicksCard";
+import LeaguePickStatus from "../components/LeaguePickStatus";
 import SwipeableCards from "../components/SwipeableCards";
 import { appear } from "../constants/motion";
 import { useAuth } from "../context/AuthContext";
@@ -376,6 +377,8 @@ export default function Leagues() {
 
       {/* The fights this league needs from you on the next card. */}
       <LeaguePicksCard league={league} />
+      {/* The owner sees who still has picks to make. */}
+      <LeaguePickStatus league={league} />
 
       {/* Standings preview — data, so no box. */}
       <View style={{ marginTop: 22 }}>

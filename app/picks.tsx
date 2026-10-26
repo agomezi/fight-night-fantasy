@@ -39,6 +39,7 @@ import { divisionLabel, initials, lastName, lockLabel, nextLock, splitEventName,
 import { clearDraft, loadDraft, samePicks, setDraft, withDraft } from "../services/pickDraft";
 import { AccountRestrictedError, loadPicks, PicksLockedError, savePicks } from "../services/picks";
 import { fightNeeds, globalStatus, lockInNeeds, requiredBouts } from "../services/tierPicks";
+import { leagueShortfalls } from "../services/pickMinimum";
 import { enablePush } from "../services/push";
 import { appear, popIn } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -292,6 +293,9 @@ export default function Picks() {
 
   // One lane pick per bout — winner, method and round are a single decision.
   const [lane, setLane] = useState<Record<string, LanePick>>({});
+  // The card whose saved picks have loaded: until then a locked fight with
+  // no pick may just not have arrived.
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [lockedIn, setLockedIn] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -325,6 +329,7 @@ export default function Picks() {
         // leave before locking in.
         edited.current = switched;
         setLane(seeded);
+        setLoadedFor(event.id);
         // A saved card opens locked in. One missing its main event (a fighter
         // replaced since) opens for editing, since that pick has to be redone,
         // and so does one just switched on home or carrying unsaved edits.
@@ -391,13 +396,32 @@ export default function Picks() {
     : null;
   const shownUndercard = focusIds ? UNDERCARD.filter((f) => focusIds.has(f.id)) : UNDERCARD;
   const global = globalStatus(countable, (id) => !!picks[id], (f) => !isLocked(f));
+  // A league whose required fight locked unpicked: that week is already a
+  // forfeit, so the screen never reads as all set for it.
+  const picksLoaded = !!event && loadedFor === event.id;
+  const missedLeague = picksLoaded
+    ? leagueShortfalls(leagueRules, allFights, (id) => !!picks[id], next.now).find((s) => s.missed > 0)?.league
+    : undefined;
 
-  /** Under a fight still to pick: which leagues need it, or that global does. */
+  /** Under a fight still to pick: which leagues need it, or that global does.
+   * Under one that locked unpicked: which leagues it cost. */
   const needTag = (fight: Fight) => {
-    if (picks[fight.id] || isLocked(fight)) return null;
+    if (picks[fight.id]) return null;
     const n = needs[fight.id];
+    if (isLocked(fight) && !n?.leagues.length) return null;
     if (!n || (!n.leagues.length && !n.global)) return null;
     const names = n.leagues.length > 2 ? `${n.leagues.slice(0, 2).join(", ")} +${n.leagues.length - 2}` : n.leagues.join(", ");
+    if (isLocked(fight)) {
+      if (!picksLoaded) return null;
+      return (
+        <Text
+          style={{ textAlign: "center", fontSize: 9.5, fontWeight: "800", letterSpacing: 1, color: c.red, paddingBottom: 8, marginTop: -4 }}
+          numberOfLines={1}
+        >
+          {`MISSED · ${names.toUpperCase()}`}
+        </Text>
+      );
+    }
     return (
       <Text
         style={{
@@ -575,6 +599,14 @@ export default function Picks() {
                 : global.state === "missed"
                   ? "Won't count for global: a main card fight locked"
                   : `Global needs the whole main card · ${global.left} left`}
+            </Text>
+          </View>
+        )}
+        {MAIN_EVENT && missedLeague && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: -10, marginBottom: 16 }}>
+            <Ionicons name="alert-circle" size={13} color={c.red} />
+            <Text style={{ flex: 1, color: c.red, fontSize: 12.5, fontWeight: "700" }} numberOfLines={1}>
+              {`Missed ${missedLeague}'s minimum · this week is a forfeit`}
             </Text>
           </View>
         )}

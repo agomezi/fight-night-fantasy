@@ -171,7 +171,10 @@ select is(public.unread_notification_count(), 0, 'marking read clears the count'
 select is((select count(*)::int from public.my_notifications() where read), 4, 'and the inbox shows them read');
 
 select pg_temp.act(3);
-select is_empty($$select * from public.my_notifications()$$, 'nobody sees another player''s inbox');
+-- Their own lock reminder only: it reaches league members without a push
+-- token too (20261129).
+select results_eq($$select kind from public.my_notifications()$$, $$values ('reminder'::text)$$,
+  'nobody sees another player''s inbox');
 select public.mark_notifications_read();
 reset role;
 select is((select count(*)::int from public.notifications_sent where user_id = pg_temp.u(2) and read_at is not null), 0,
