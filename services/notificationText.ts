@@ -12,7 +12,8 @@ export type NotificationKind =
   | "awards"
   | "odds"
   | "schedule"
-  | "rank";
+  | "rank"
+  | "poll";
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
@@ -101,6 +102,8 @@ export type SchedulePayload = {
 };
 /** Your career rank went up. */
 export type RankPayload = { rank: string; event?: string };
+/** A new community question is up on Home. */
+export type PollPayload = { question: string; pollId?: string; eventId?: string; closesAt?: string };
 
 /** Where players write to appeal a decision. */
 export const SUPPORT_EMAIL = "fightnightfantasymma@gmail.com";
@@ -190,6 +193,10 @@ function schedule(p: SchedulePayload): Message {
 
 function rank(p: RankPayload): Message {
   return { title: `You're now a ${p.rank}`, body: "Your career rank went up. Keep stacking cards.", data: { screen: "profile" } };
+}
+
+function poll(p: PollPayload): Message {
+  return { title: `New question: ${p.question}`, body: "Vote on Home, then see how everyone else split.", data: { screen: "home" } };
 }
 
 function reminder(p: ReminderPayload): Message {
@@ -364,6 +371,7 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "odds") return odds(payload as OddsPayload);
   if (kind === "schedule") return schedule(payload as SchedulePayload);
   if (kind === "rank") return rank(payload as RankPayload);
+  if (kind === "poll") return poll(payload as PollPayload);
   if (kind === "final") return final(payload as FinalPayload);
   // A kind from a newer server than this build.
   return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };

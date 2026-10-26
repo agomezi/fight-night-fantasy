@@ -19,6 +19,7 @@ import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useHistory } from "../hooks/useHistory";
 import { useAuth } from "../context/AuthContext";
 import { loadPinnedCalls, MAX_PINNED_CALLS, pinCall, shareCallText, unpinCall } from "../services/pins";
+import { shownBouts } from "../services/history";
 import ActionSheet, { type SheetAction } from "../components/ActionSheet";
 import { useToggleProgress } from "../hooks/useToggleProgress";
 import { makeCommonStyles } from "../styles/common";
@@ -266,6 +267,7 @@ export default function History() {
               const expanded = isOpen(e.id);
               const pct = e.total > 0 ? Math.round((e.hit / e.total) * 100) : null;
               const status = e.live ? "LIVE" : e.provisional ? "PROVISIONAL" : null;
+              const bouts = shownBouts(e.bouts);
 
               return (
                 <Animated.View
@@ -336,7 +338,12 @@ export default function History() {
                         borderBottomColor: c.border,
                       }}
                     >
-                      {e.bouts.map((b, bi) => {
+                      {bouts.length === 0 && (
+                        <Text style={{ color: c.textFaint, fontSize: 13, paddingVertical: 12 }}>
+                          Your fights show up here as they&apos;re scored.
+                        </Text>
+                      )}
+                      {bouts.map((b, bi) => {
                         const focused = b.id === focusBout;
                         return (
                           <View
@@ -359,7 +366,7 @@ export default function History() {
                               verdict={b.verdict}
                               verdictNote={b.voidNote ? `${b.pick} · ${b.voidNote}` : b.pick}
                               settled={b.settled}
-                              last={bi === e.bouts.length - 1}
+                              last={bi === bouts.length - 1}
                               pinned={pinned.has(b.id)}
                               onMore={() => {
                                 const canPin = b.verdict === "hit" && b.meta === "Final";

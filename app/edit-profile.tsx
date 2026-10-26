@@ -117,7 +117,6 @@ export default function EditProfile() {
 
   const [username, setUsername] = useState(profile.username);
   const [favDivision, setFavDivision] = useState(profile.favDivision);
-  const [bio, setBio] = useState(profile.bio);
 
   const save = async () => {
     if (saving) return;
@@ -146,7 +145,7 @@ export default function EditProfile() {
         return;
       }
     }
-    updateProfile({ title: profile.title, favDivision, bio });
+    updateProfile({ title: profile.title, favDivision, bio: profile.bio });
     router.back();
   };
 
@@ -206,14 +205,6 @@ export default function EditProfile() {
 
         <Text style={styles.fieldLabel}>FAVORITE DIVISION</Text>
         <DivisionPicker value={favDivision} onChange={setFavDivision} />
-
-        <Text style={styles.fieldLabel}>BIO</Text>
-        <ClearableInput
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          placeholder="Tell the crew about yourself"
-        />
 
         <Text style={styles.fieldLabel}>EMAIL</Text>
         <TextInput

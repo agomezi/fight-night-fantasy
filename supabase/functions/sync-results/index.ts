@@ -5,8 +5,8 @@
 //   { "eventId": "…" }       one stored event, due or not, for a manual re-run
 //   { "mode": "reminders" }  lock reminders: an hour before a card starts
 //                            locking, and 30 minutes before its main card
-//   { "mode": "activity" }   league activity (joins) and new reports, sent as
-//                            they happen
+//   { "mode": "activity" }   league activity (joins), new reports and new
+//                            community questions, sent as they happen
 //
 // For each event: read the UFC stats feed, write any result that changed,
 // re-score the whole card, send any notifications that are now due, then
@@ -15,6 +15,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { parseResults, type LiveCard } from "../../../services/ingestion/results.ts";
+import { parseFightStats } from "../../../services/ingestion/fightStats.ts";
 import { scoreEvent } from "../../../services/eventScoring.ts";
 import { sendClaimed, type Claimed } from "./push.ts";
 import { emailReports } from "./email.ts";
@@ -74,6 +75,42 @@ async function notify(db: Db, claimed: Claimed[]) {
   }
 }
 
+/** Strike and grappling stats for the fight in the cage, and for finished
+ * fights until the feed marks theirs official, from the per-fight stats feed
+ * (`UFC_FIGHT_FEED_BASE_URL`, optional: unset, the step is skipped). Never
+ * worth failing a sync over: it runs after the next poll is booked, one bad
+ * file never stops the others, and the next run tries again. */
+async function syncStats(db: Db, eventId: string) {
+  try {
+    const fights = Deno.env.get("UFC_FIGHT_FEED_BASE_URL")?.replace(/\/+$/, "");
+    if (!fights) return { skipped: "no fight feed set" };
+    const { data: due, error } = await db.rpc("stats_due", { event: eventId });
+    if (error) return { error: error.message };
+    const ids = (due ?? []) as string[];
+    const outcomes = await Promise.all(ids.map(async (fightId) => {
+      try {
+        const response = await fetch(`${fights}/${fightId}.json`, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(6_000) });
+        if (!response.ok) {
+          await response.body?.cancel();
+          return { fightId, skipped: `HTTP ${response.status}` };
+        }
+        const stats = parseFightStats(await response.json());
+        if (!stats) return { fightId, skipped: "no stats yet" };
+        const { data: changed, error: writeError } = await db.rpc("record_bout_stats", { stats });
+        if (writeError) return { fightId, skipped: writeError.message };
+        return { fightId, written: changed === true };
+      } catch (e) {
+        return { fightId, skipped: e instanceof Error ? e.message : String(e) };
+      }
+    }));
+    const skipped = outcomes.flatMap(o => ("skipped" in o ? [`${o.fightId}: ${o.skipped}`] : []));
+    const written = outcomes.filter(o => "written" in o && o.written).length;
+    return { read: ids.length, written, ...(skipped.length ? { skipped } : {}) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: string) {
   const response = await fetch(`${feed}/${ufcEventId}.json`, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(20_000) });
   if (!response.ok) throw new Error(`HTTP ${response.status} from the feed`);
@@ -115,11 +152,13 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   // Career rank-ups once the card is final, apart for the same reason.
   const { data: ranked, error: rankError } = await db.rpc("claim_rank_notifications", { event: eventId });
   const ranks = rankError ? { error: rankError.message } : await notify(db, (ranked ?? []) as Claimed[]);
-
   const hasProvisional = results.some(r => r.status === "provisional");
   const dueAt = new Date(Date.now() + nextPollIn(card, hasProvisional)).toISOString();
   const { error: dueError } = await db.rpc("set_results_due", { event_id: eventId, due_at: dueAt });
   if (dueError) throw new Error(dueError.message);
+  // Fight stats last, after the next poll is booked, so a slow stats file
+  // never holds up a result or a push.
+  const stats = await syncStats(db, eventId);
 
   const issues = card.bouts.flatMap(b => (b.issues ?? []).map(issue => `fight ${b.ufcFightId}: ${issue}`));
   return {
@@ -131,6 +170,7 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
     notifications,
     matchups,
     ranks,
+    stats,
     nextPoll: dueAt,
     ...(issues.length ? { issues } : {}),
   };
@@ -158,7 +198,18 @@ Deno.serve(async request => {
       standings = rankError ? { error: rankError.message } : await notify(db, (ranks ?? []) as Claimed[]);
     }
     const reports = mode === "activity" ? await emailReports(db) : undefined;
-    const report = { ...pushed, ...(standings ? { standings } : {}), ...(reports ? { reports } : {}) };
+    // New community questions, last and apart: a failure here only shows in
+    // the report, and never fails the run.
+    let polls: Record<string, unknown> | undefined;
+    if (mode === "activity") {
+      try {
+        const { data: asked, error: pollError } = await db.rpc("claim_poll_notifications");
+        polls = pollError ? { error: pollError.message } : await notify(db, (asked ?? []) as Claimed[]);
+      } catch (error) {
+        polls = { error: error instanceof Error ? error.message : String(error) };
+      }
+    }
+    const report = { ...pushed, ...(standings ? { standings } : {}), ...(reports ? { reports } : {}), ...(polls ? { polls } : {}) };
     const failed = error != null || (reports != null && "error" in reports) || rankFailed;
     console.log(JSON.stringify(report));
     return Response.json(report, { status: failed ? 500 : 200 });

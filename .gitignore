@@ -54,6 +54,8 @@ components/FighterFace.tsx
 
 # parser test fixtures — third-party HTML, fetched with scripts/fetch-fixtures.sh
 services/ingestion/__fixtures__/*.html
+# real per-fight stats files saved during cards; the committed one is made up
+services/ingestion/__fixtures__/live-stats/real/
 
 # third-party data (e.g. the fight-predictor fight table) is read in place, never committed
 *.csv

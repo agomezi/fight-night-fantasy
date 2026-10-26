@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,6 +19,7 @@ import LeaguePicksCard from "../components/LeaguePicksCard";
 import SwipeableCards from "../components/SwipeableCards";
 import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { useLeague } from "../hooks/useLeague";
 import { readCache, writeCache } from "../services/screenCache";
 import { loadLeagueCommunityCard, toCommunityView, type RawCommunityCard } from "../services/community";
@@ -27,6 +28,7 @@ import {
   currentWeek,
   inviteMessage,
   isPreseason,
+  matchupStreaks,
   rankLabel,
   TIER_LABEL,
   waitingLine,
@@ -53,6 +55,10 @@ export default function Leagues() {
 
   // The global table: the top five and, if you're further down, you.
   const [board, setBoard] = useState<Leaderboard | null>(() => readCache<Leaderboard>("leaderboard:5") ?? null);
+  const animateBoard = useEntranceOnce(!!board);
+  const animateStandings = useEntranceOnce(state.status === "ready");
+  const readyWeeks = state.status === "ready" ? state.weeks : null;
+  const streaks = useMemo(() => (readyWeeks ? matchupStreaks(readyWeeks) : {}), [readyWeeks]);
   useFocusEffect(
     useCallback(() => {
       let current = true;
@@ -89,7 +95,7 @@ export default function Leagues() {
         <Text style={{ color: c.red, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 }}>{board.season}</Text>
       </View>
       {board.rows.map((row, i) => (
-        <LeaderboardRow key={row.userId} row={row} index={i} last={i === board.rows.length - 1} />
+        <LeaderboardRow key={row.userId} row={row} index={i} last={i === board.rows.length - 1} animate={animateBoard} />
       ))}
       <PressableScale onPress={() => router.push("/leaderboard")} style={{ paddingTop: 12, alignItems: "center" }}>
         <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: "700" }}>See the full leaderboard →</Text>
@@ -311,7 +317,7 @@ export default function Leagues() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: c.text, fontSize: 21, fontWeight: "800" }}>{league.name}</Text>
                   <Text style={{ color: c.textMuted, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>
-                    {[me?.rank != null ? me.record : null, `${(me?.points ?? 0).toLocaleString()} pts`, `${league.members} members`]
+                    {[me?.rank != null ? me.record : null, `${league.members} members`]
                       .filter(Boolean)
                       .join(" · ")}
                   </Text>
@@ -370,10 +376,18 @@ export default function Leagues() {
             <View style={styles.columnHeader}>
               <Text style={[styles.columnLabel, { width: 42, textAlign: "center" }]}>RNK</Text>
               <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER</Text>
-              <Text style={styles.columnLabel}>PTS</Text>
+              <Text style={styles.columnLabel}>W-L</Text>
             </View>
             {standings.rows.slice(0, 4).map((row, i) => (
-              <LeagueStandingRow key={row.userId} row={row} index={i} move={state.moves[row.userId]} onPress={() => setViewing(row.userId)} />
+              <LeagueStandingRow
+                key={row.userId}
+                row={row}
+                index={i}
+                move={state.moves[row.userId]}
+                streak={streaks[row.userId]}
+                animate={animateStandings}
+                onPress={() => setViewing(row.userId)}
+              />
             ))}
           </>
         ) : (

@@ -268,12 +268,32 @@ export class VoteRefusedError extends Error {}
 
 export async function votePoll(pollId: string, choice: string): Promise<RawPoll> {
   const { data, error } = await (await db()).rpc("vote_poll", { poll: pollId, choice });
-  if (error?.hint === "closed") throw new PollClosedError(error.message);
-  if (error?.hint === "suspended" || error?.hint === "banned") throw new VoteRefusedError(error.message);
+  if (error?.hint === "closed" || error?.hint === "missing") throw new PollClosedError(error.message);
+  if (error?.hint && ["suspended", "banned", "signed_out", "bad_option"].includes(error.hint))
+    throw new VoteRefusedError(error.message);
   if (error) throw new Error(error.message);
   return data as RawPoll;
 }
 
+/** Votes, trying once more after a moment if the first try fails on the
+ * network. A vote is an upsert, so a retry can't count twice. A closed poll
+ * or a refusal isn't retried. */
+export async function voteWithRetry(
+  pollId: string,
+  choice: string,
+  vote: (pollId: string, choice: string) => Promise<RawPoll> = votePoll,
+  waitMs = 800
+): Promise<RawPoll> {
+  try {
+    return await vote(pollId, choice);
+  } catch (e) {
+    if (e instanceof PollClosedError || e instanceof VoteRefusedError) throw e;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+    return vote(pollId, choice);
+  }
+}
+
+/** Tracked for a later award; not shown anywhere. */
 export async function loadTakesRecord(): Promise<{ wins: number; losses: number } | null> {
   const { data, error } = await (await db()).rpc("takes_record");
   if (error) throw new Error(error.message);

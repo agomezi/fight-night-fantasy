@@ -287,6 +287,27 @@ export function matchupOutcome(m: Matchup): "won" | "lost" | "drew" | "leading" 
   return m.a.points > m.b.points ? "leading" : "trailing";
 }
 
+/** Each player's current run of finished matchups, "W2" or "L1" or "D1",
+ * from the latest week back. A week a player sat out of the rotation doesn't
+ * break the run. Players with no finished matchup are left out. */
+export function matchupStreaks(weeks: Week[]): Record<string, string> {
+  const runs = new Map<string, { result: "W" | "L" | "D"; count: number; open: boolean }>();
+  for (const week of [...weeks].sort((x, y) => y.week - x.week)) {
+    if (week.state !== "final") continue;
+    for (const m of week.matchups) {
+      if (m.state !== "final") continue;
+      for (const side of [m.a, m.b]) {
+        const result = m.winnerId == null ? "D" : m.winnerId === side.userId ? "W" : "L";
+        const run = runs.get(side.userId);
+        if (!run) runs.set(side.userId, { result, count: 1, open: true });
+        else if (run.open && run.result === result) run.count += 1;
+        else run.open = false;
+      }
+    }
+  }
+  return Object.fromEntries([...runs].map(([userId, r]) => [userId, `${r.result}${r.count}`]));
+}
+
 /** What a league mate's profile shows. Nothing else about them is sent. */
 export type MemberProfile = {
   name: string;

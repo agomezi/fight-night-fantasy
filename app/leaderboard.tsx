@@ -9,6 +9,7 @@ import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import Skeleton from "../components/Skeleton";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
+import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import { makeCommonStyles } from "../styles/common";
 
@@ -23,6 +24,7 @@ export default function LeaderboardScreen() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const [board, setBoard] = useState<Leaderboard | null>(null);
+  const animate = useEntranceOnce(!!board);
   const [failed, setFailed] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
 
@@ -85,6 +87,7 @@ export default function LeaderboardScreen() {
                 row={row}
                 index={i}
                 last={i === top.length - 1}
+                animate={animate}
                 onPress={() => setViewing(row.userId)}
               />
             ))}

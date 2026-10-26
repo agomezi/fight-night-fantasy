@@ -23,8 +23,9 @@ export type BoutSide = {
  * reads the same whether it's your call or what actually happened, which makes
  * comparing the two immediate.
  *
- * No card: these are read, not tapped, so they sit on the ground with a
- * hairline between them.
+ * No card: they sit on the ground with a hairline between them. A fought
+ * bout can open its stats: the whole row is the tap target, with a small
+ * Stats pill to say so.
  */
 export default function ResultRow({
   red,
@@ -39,6 +40,7 @@ export default function ResultRow({
   index = 0,
   last = false,
   onMore,
+  onStats,
   pinned = false,
 }: {
   red: BoutSide;
@@ -59,6 +61,8 @@ export default function ResultRow({
   last?: boolean;
   /** Opens this call's menu (pin, share, the full card). */
   onMore?: () => void;
+  /** Opens this fight's stats. */
+  onStats?: () => void;
   /** It's pinned to your profile. */
   pinned?: boolean;
 }) {
@@ -111,17 +115,8 @@ export default function ResultRow({
           ? { bg: c.surface2, fg: c.textMuted, icon: null }
           : null;
 
-  return (
-    <Animated.View
-      entering={appear(index)}
-      style={{
-        flexDirection: "row",
-        gap: 12,
-        paddingVertical: 14,
-        borderBottomWidth: last ? 0 : 1,
-        borderBottomColor: c.border,
-      }}
-    >
+  const body = (
+    <>
       <View style={{ flex: 1, minWidth: 0, gap: 9 }}>
         <Side side={red} corner="red" />
         <Side side={blue} corner="blue" />
@@ -178,6 +173,24 @@ export default function ResultRow({
             {points}
           </Text>
         )}
+        {onStats && (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              marginTop: 6,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderColor: c.borderStrong,
+            }}
+          >
+            <Ionicons name="stats-chart" size={12} color={c.text2} />
+            <Text style={{ fontSize: 11.5, fontWeight: "700", color: c.text2 }}>Stats</Text>
+          </View>
+        )}
         {(onMore || pinned) && (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 }}>
             {pinned && <Ionicons name="pin" size={14} color={c.red} accessibilityLabel="Pinned to your profile" />}
@@ -203,6 +216,28 @@ export default function ResultRow({
           </View>
         )}
       </View>
+    </>
+  );
+  const row = { flexDirection: "row", gap: 12, paddingVertical: 14 } as const;
+
+  return (
+    <Animated.View
+      entering={appear(index)}
+      style={{ borderBottomWidth: last ? 0 : 1, borderBottomColor: c.border }}
+    >
+      {onStats ? (
+        <PressableScale
+          onPress={onStats}
+          scaleTo={0.99}
+          accessibilityRole="button"
+          accessibilityHint="Opens the fight stats"
+          style={row}
+        >
+          {body}
+        </PressableScale>
+      ) : (
+        <View style={row}>{body}</View>
+      )}
     </Animated.View>
   );
 }

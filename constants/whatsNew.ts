@@ -29,6 +29,57 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     ],
   },
   {
+    id: "2026-10-live-stats",
+    date: "2026-10-25T12:00:00Z",
+    title: "Live fight stats",
+    items: [
+      {
+        icon: "stats-chart",
+        title: "Tale of the tape",
+        body: "Tap a live or finished fight on the card to see sig. strikes, takedowns, knockdowns and control time side by side, for the whole fight or round by round.",
+      },
+      {
+        icon: "pulse",
+        title: "Live, then official",
+        body: "The numbers update while the fight is on and turn official once the UFC confirms them. Your pick sits right above them.",
+      },
+    ],
+  },
+  {
+    id: "2026-10-matchup-picks",
+    date: "2026-10-25T12:00:00Z",
+    title: "Scout the whole league",
+    items: [
+      {
+        icon: "eye",
+        title: "Every matchup's picks",
+        body: "On the head-to-head screen, tap VS on any matchup in your league to see both sides' picks. They show as each part of the card starts, the same as your opponent's.",
+      },
+      {
+        icon: "chatbubbles",
+        title: "New question alerts",
+        body: "Get a heads-up when a new community question goes up, every few days at most. Turn it off in Settings.",
+      },
+    ],
+  },
+  {
+    id: "2026-10-records",
+    date: "2026-10-24T12:00:00Z",
+    title: "Standings are about your record",
+    items: [
+      {
+        icon: "podium",
+        title: "Record first",
+        body: "League standings show your record and your current streak. Points still decide this week's matchup and break ties in the table.",
+      },
+      {
+        icon: "time",
+        title: "Small fixes from fight night",
+        body: "History now only lists fights once they're scored, and a vote that doesn't go through tells you so.",
+      },
+    ],
+  },
+  {
     id: "2026-10-community",
     date: "2026-10-23T12:00:00Z",
     title: "Community takes",
@@ -42,11 +93,6 @@ export const WHATS_NEW: WhatsNewEntry[] = [
         icon: "podium",
         title: "Top performers and crowd vs. reality",
         body: "After a card, see its best scorers, the boldest call that landed, and the fight the crowd got most wrong. Your league's page shows its top predictor, its craftiest pick, and whoever finished last.",
-      },
-      {
-        icon: "checkmark-done",
-        title: "Your takes record",
-        body: "Every take you call right or wrong goes on your profile.",
       },
     ],
   },

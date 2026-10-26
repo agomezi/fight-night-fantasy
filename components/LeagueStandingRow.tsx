@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
-import { useThemedStyles } from "../context/ThemeContext";
+import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { rankLabel, type LeagueStanding } from "../services/leagues";
 import { makeLeaguesStyles } from "../styles/leagues";
 import PressableScale from "./PressableScale";
@@ -13,26 +13,35 @@ const STATUS_NOTE: Partial<Record<LeagueStanding["status"], string>> = {
   left: "LEAVING",
 };
 
-/** One member of a league table: rank, record and points. Unranked members
- * (queued for next season) show their points with no rank. `move` is places
- * climbed since before the last card, for the arrow from 4th down. */
+/** One member of a league table: rank and record, with the current streak
+ * under it. Points still break ties but aren't shown: the table is about the
+ * record. Unranked members (queued for next season) show no record. `move` is
+ * places climbed since before the last card, for the arrow from 4th down. */
 export default function LeagueStandingRow({
   row,
   index = 0,
   move,
+  streak,
+  animate = true,
   onPress,
 }: {
   row: LeagueStanding;
   index?: number;
   move?: number;
+  /** "W2", "L1" or "D1"; none before a matchup has finished. */
+  streak?: string;
+  /** False once the table has shown: a refresh must not replay the entrance. */
+  animate?: boolean;
   onPress?: () => void;
 }) {
+  const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
   const note = STATUS_NOTE[row.status];
-  const accuracy = row.accuracy == null ? null : `${row.accuracy}%`;
+  const ranked = row.rank != null;
+  const streakColor = streak?.startsWith("W") ? c.green : streak?.startsWith("L") ? c.red : c.textFaint;
 
   return (
-    <Animated.View entering={appear(Math.min(index, 8))}>
+    <Animated.View entering={animate ? appear(Math.min(index, 8)) : undefined}>
       <PressableScale
         onPress={onPress}
         disabled={!onPress}
@@ -56,20 +65,12 @@ export default function LeagueStandingRow({
           <Text style={[styles.playerName, row.isMe && styles.playerNameMe]} numberOfLines={1}>
             {row.name}
           </Text>
-          <Text style={styles.playerTeam}>
-            {[
-              row.rank != null ? row.record : null,
-              accuracy,
-              note,
-            ]
-              .filter(Boolean)
-              .join(" · ") || "No picks scored"}
-          </Text>
+          {note ? <Text style={styles.playerTeam}>{note}</Text> : null}
         </View>
 
         <View>
-          <Text style={styles.points}>{row.points.toLocaleString()}</Text>
-          <Text style={styles.pointsUnit}>PTS</Text>
+          <Text style={styles.points}>{ranked ? row.record : "—"}</Text>
+          {ranked && streak ? <Text style={[styles.pointsUnit, { color: streakColor }]}>{streak}</Text> : null}
         </View>
       </PressableScale>
     </Animated.View>
