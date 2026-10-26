@@ -1,4 +1,4 @@
-import { buildHistory, pickLabel, type HistoryPickRow, type HistoryScoreRow } from "../history";
+import { buildHistory, pickLabel, shownBouts, type HistoryPickRow, type HistoryScoreRow } from "../history";
 
 const NOW = new Date("2026-10-04T06:00:00Z");
 const red = { id: "f-red", name: "Natalia Silva" };
@@ -152,5 +152,24 @@ describe("boutPoints", () => {
     expect(boutPoints(30, { underdogBonus: 10 })).toBe("+30 · +10 DOG");
     expect(boutPoints(50, { underdogBonus: 0 })).toBe("+50");
     expect(boutPoints(-45, null)).toBe("−45");
+  });
+});
+
+describe("shownBouts", () => {
+  const ufc333 = event("333", "2026-10-04T00:00:00Z", { status: "live" });
+
+  test("keeps scored and voided fights, and hides fights waiting on a result or a score", () => {
+    const h = buildHistory(
+      [
+        row("scored", 1, ufc333),
+        row("no-result", 2, ufc333, { bout: { result: null } }),
+        row("no-score", 3, ufc333),
+        row("cancelled", 4, ufc333, { bout: { result: null, status: "cancelled" } }),
+      ],
+      [score("scored", 50)],
+      null,
+      NOW
+    );
+    expect(shownBouts(h.events[0].bouts).map((b) => b.id)).toEqual(["scored", "cancelled"]);
   });
 });

@@ -1,6 +1,7 @@
 import {
   currentWeek,
   matchupOutcome,
+  matchupStreaks,
   outcomeText,
   pickRuleLabel,
   rankLabel,
@@ -219,5 +220,47 @@ describe("league rules", () => {
     const [row] = toStandings([standing(1, "Joe", { forfeit_wins: 1 })]).rows;
     expect(row.forfeitWins).toBe(1);
     expect(toStandings([standing(1, "Ann")]).rows[0].forfeitWins).toBe(0);
+  });
+});
+
+describe("matchupStreaks", () => {
+  test("counts the current run from the latest finished week back", () => {
+    const weeks = toWeeks(
+      [
+        matchup(1, "ann", "bob", { winner: "bob" }),
+        matchup(2, "ann", "bob"),
+        matchup(3, "ann", "bob"),
+      ],
+      null
+    );
+    expect(matchupStreaks(weeks)).toEqual({ "ann": "W2", "bob": "L2" });
+  });
+
+  test("skips a live week and counts a draw as its own run", () => {
+    const weeks = toWeeks(
+      [
+        matchup(1, "ann", "bob"),
+        matchup(2, "ann", "bob", { winner: null }),
+        matchup(3, "ann", "bob", { state: "live", winner: null }),
+      ],
+      null
+    );
+    expect(matchupStreaks(weeks)).toEqual({ "ann": "D1", "bob": "D1" });
+  });
+
+  test("a week out of the rotation doesn't break the run", () => {
+    const weeks = toWeeks(
+      [
+        matchup(1, "ann", "bob"),
+        matchup(2, "bob", "cal"),
+        matchup(3, "ann", "cal"),
+      ],
+      null
+    );
+    expect(matchupStreaks(weeks)).toMatchObject({ "ann": "W2", "cal": "L2" });
+  });
+
+  test("nobody has a streak before a matchup finishes", () => {
+    expect(matchupStreaks(toWeeks([matchup(1, "ann", "bob", { state: "upcoming", winner: null })], null))).toEqual({});
   });
 });
