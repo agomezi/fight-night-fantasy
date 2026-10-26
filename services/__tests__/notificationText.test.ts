@@ -188,12 +188,38 @@ describe("notificationText", () => {
       expect(m.body).not.toContain(SUPPORT_EMAIL);
     });
 
+    it("names the tag others see, and offers a rename, when the note carries it", () => {
+      const m = notificationText("moderation", { action: "under_review", alias: 4821 });
+      expect(m.body).toBe(
+        'Several players reported it, so others see you as "Player #4821" until a moderator checks it. Pick a new name and everyone sees it straight away.'
+      );
+      expect(m.data).toEqual({ screen: "home" });
+    });
+
+    it("tells a player who renamed that the new name stays", () => {
+      for (const action of ["warn", "reset_name"] as const) {
+        const m = notificationText("moderation", { action, kept: true, reason: "Offensive name" });
+        expect(m.title).toBe("Your new name stays");
+        expect(m.body).toBe(
+          `Your old name broke our rules, so your new name stays. Reason: Offensive name. Think this is a mistake? Email ${SUPPORT_EMAIL}.`
+        );
+      }
+    });
+
     it("welcomes a player back after a lift", () => {
       expect(notificationText("moderation", { action: "lift" })).toEqual({
         title: "Your account is back in good standing",
         body: "You can make picks and join leagues again.",
         data: { screen: "picks" },
       });
+    });
+  });
+
+  it("tells a player their name is back after a review", () => {
+    expect(notificationText("name_restored", { name: "Kilo_9" })).toEqual({
+      title: "Your name is back",
+      body: '"Kilo_9" is your name again. A moderator found nothing wrong with it. You can still change it in Edit Profile.',
+      data: { screen: "edit-profile" },
     });
   });
 

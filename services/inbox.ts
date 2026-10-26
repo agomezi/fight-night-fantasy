@@ -78,13 +78,13 @@ async function db() {
 }
 
 export async function loadInbox(maxRows = 50): Promise<InboxItem[]> {
-  const { data, error } = await (await db()).rpc("inbox_items_v2", { max_rows: maxRows });
+  const { data, error } = await (await db()).rpc("inbox_items_v3", { max_rows: maxRows });
   if (error) throw new Error(error.message);
   return toInbox((data ?? []) as RawInboxItem[]);
 }
 
 export async function loadUnreadCount(): Promise<number> {
-  const { data, error } = await (await db()).rpc("inbox_unread_count_v2");
+  const { data, error } = await (await db()).rpc("inbox_unread_count_v3");
   if (error) throw new Error(error.message);
   return (data as number | null) ?? 0;
 }

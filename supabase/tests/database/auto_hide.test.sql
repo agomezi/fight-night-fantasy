@@ -86,11 +86,17 @@ select is(pg_temp.reviews(), 0, 'and Ben isn''t told anything');
 
 set local role authenticated;
 select pg_temp.report(5);
-select is(pg_temp.ana_sees(), 'Player', 'the third established reporter hides Ben''s name in standings');
+reset role;
+-- The tag everyone else sees: "Player #" and the case's random number.
+create temp table tag as
+  select 'Player #' || alias as tag from public.moderation_cases where player = pg_temp.u(2) and status = 'open';
+grant select on tag to authenticated;
+set local role authenticated;
+select is(pg_temp.ana_sees(), (select tag from tag), 'the third established reporter hides Ben''s name in standings, behind his case''s tag');
 select results_eq($$select display_name from public.season_leaderboard() where user_id = pg_temp.u(2)$$,
-  $$values ('Player'::text)$$, 'on the leaderboard');
+  $$select tag from tag$$, 'on the leaderboard');
 select results_eq($$select display_name from public.league_member_profile((select id from lg), pg_temp.u(2))$$,
-  $$values ('Player'::text)$$, 'and on the profile card');
+  $$select tag from tag$$, 'and on the profile card');
 select ok(not exists (select 1 from public.league_matchups((select id from lg)) m
   where m.name_a = 'Ben' or m.name_b = 'Ben'), 'matchups never name him');
 select results_eq($$select display_name from public.league_member_profile((select id from lg), pg_temp.u(3))$$,
@@ -112,7 +118,7 @@ select is(pg_temp.reviews(), 1, 'more reports don''t send the note again');
 -- League joins
 -------------------------------------------------------------------------------
 
--- Ben joins another of Ana's leagues while hidden: the push names "Player".
+-- Ben joins another of Ana's leagues while hidden: the push names his tag.
 create temp table lg2 (id uuid, code text);
 grant all on lg2 to authenticated;
 set local role authenticated;
@@ -125,7 +131,7 @@ reset role;
 select results_eq(
   $$select payload->>'member' from public.notifications_sent
     where user_id = pg_temp.u(1) and kind = 'league_join' and key like (select id from lg2) || ':%'$$,
-  $$values ('Player'::text)$$, 'a join while hidden is sent as Player');
+  $$select tag from tag$$, 'a join while hidden is sent with the tag');
 
 -- An older join still reads "Ben" in the table; the inbox hides it.
 insert into public.notifications_sent (user_id, kind, key, payload)
@@ -134,7 +140,7 @@ values (pg_temp.u(1), 'league_join', (select id from lg) || ':' || pg_temp.u(2) 
 set local role authenticated;
 select pg_temp.act(1);
 select results_eq($$select payload->>'member' from public.my_notifications() where key = (select id from lg) || ':' || pg_temp.u(2) || ':1'$$,
-  $$values ('Player'::text)$$, 'an older join from Ben shows as Player in Ana''s inbox');
+  $$select tag from tag$$, 'an older join from Ben shows with the tag in Ana''s inbox');
 
 select throws_ok($$select public.name_hidden(pg_temp.u(2))$$, '42501', null, 'players can''t probe who is hidden');
 reset role;

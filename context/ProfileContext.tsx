@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { LEGACY_PROFILE_KEY, profileStorageKey } from "../constants/storage";
+import { renameUnderReview as saveRenameUnderReview } from "../services/nameReview";
 import { fetchDisplayName, nextNameChange, saveDisplayName, saveFavDivision } from "../services/profile";
 import { useAuth } from "./AuthContext";
 
@@ -28,6 +29,8 @@ type ProfileContextValue = {
   updateProfile: (next: LocalProfile) => void;
   /** Saves the handle to Supabase; throws HandleTakenError if it is taken. */
   setUsername: (name: string) => Promise<void>;
+  /** A rename while your name is hidden by reports. */
+  renameUnderReview: (name: string) => Promise<void>;
   /** When the handle can next be changed; null when it can be now. */
   nameChangeableAt: Date | null;
   /** True once the handle has been read, so routing can wait for it. */
@@ -119,16 +122,23 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     [userId]
   );
 
+  const renameUnderReview = useCallback(async (name: string) => {
+    await saveRenameUnderReview(name);
+    setUsernameState(name);
+    setNameChangedAt(new Date());
+  }, []);
+
   const value = useMemo<ProfileContextValue>(
     () => ({
       profile: { ...local, username: username ?? "" },
       updateProfile,
       setUsername,
+      renameUnderReview,
       nameChangeableAt: nextNameChange(nameChangedAt),
       ready,
       needsOnboarding: !!userId && ready && username === null,
     }),
-    [local, username, nameChangedAt, updateProfile, setUsername, ready, userId]
+    [local, username, nameChangedAt, updateProfile, setUsername, renameUnderReview, ready, userId]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

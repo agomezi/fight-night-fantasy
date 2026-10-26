@@ -223,11 +223,15 @@ select results_eq(format('select standing, strikes from public.moderate(%s, %L, 
 select isnt((select banned_until from auth.users where id = pg_temp.u(3)), null, 'sign-in is refused');
 select is((pg_temp.notices())[4], null, 'a ban sends no notice');
 select is_empty($$select 1 from public.season_leaderboard() where user_id = pg_temp.u(3)$$, 'they leave the leaderboard');
-select is(public.league_display_name(pg_temp.u(3)), 'Former Member', 'and show as Former Member in leagues');
+select is(public.league_display_name(pg_temp.u(3)),
+  'Former Member #' || (select alias from public.moderation_cases where id = pg_temp.case_of(1)),
+  'and show as Former Member, with their case''s tag, in leagues');
+create temp table former_tag as select public.league_display_name(pg_temp.u(3)) as tag;
+grant select on former_tag to authenticated;
 set local role authenticated;
 select pg_temp.act(5);
 select results_eq($$select display_name, status from public.league_standings('00000000-0000-0000-0000-0000000000aa') where user_id = pg_temp.u(3)$$,
-  $$values ('Former Member'::text, 'former'::text)$$, 'listed as a former member in league standings');
+  $$select tag, 'former'::text from former_tag$$, 'listed as a former member in league standings');
 reset role;
 select is((select owner_id from public.leagues where name = 'Cal League'), pg_temp.u(5), 'their leagues pass to another member');
 set local role authenticated;

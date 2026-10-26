@@ -1,54 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-} from "react-native";
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ClearableInput from "../components/ClearableInput";
 import PressableScale from "../components/PressableScale";
 import { DIVISIONS } from "../constants/divisions";
 import { getInitials, useProfile } from "../context/ProfileContext";
 import { cleanHandle, HandleBlockedError, handleProblem, HandleTakenError, HandleTooSoonError, HANDLE_MAX } from "../services/profile";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
-
-type ClearableInputProps = TextInputProps & {
-  value: string;
-  onChangeText: (text: string) => void;
-};
-
-function ClearableInput({ value, onChangeText, multiline, style, ...rest }: ClearableInputProps) {
-  const { c } = useTheme();
-  const styles = useThemedStyles(makeSettingsStyles);
-  return (
-    <View style={styles.inputWrap}>
-      <TextInput
-        style={[styles.input, multiline && styles.textArea, { paddingRight: 38 }, style]}
-        value={value}
-        onChangeText={onChangeText}
-        multiline={multiline}
-        placeholderTextColor={c.textFaint}
-        {...rest}
-      />
-      {value.length > 0 && (
-        <PressableScale
-          style={multiline ? styles.clearBtnMultiline : styles.clearBtn}
-          onPress={() => onChangeText("")}
-          hitSlop={8}
-        >
-          <Ionicons name="close-circle" size={18} color={c.textFaint} />
-        </PressableScale>
-      )}
-    </View>
-  );
-}
 
 /** Favorite division as a choice from the UFC's weight classes, men's and women's. */
 function DivisionPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
