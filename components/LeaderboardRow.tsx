@@ -16,16 +16,19 @@ export default function LeaderboardRow({
   row,
   index = 0,
   last = false,
+  animate = true,
   onPress,
 }: {
   row: Row;
   index?: number;
   last?: boolean;
+  /** False once the board has shown: a live refresh must not replay the entrance. */
+  animate?: boolean;
   onPress?: () => void;
 }) {
   const { c } = useTheme();
   return (
-    <Animated.View entering={appear(Math.min(index, 8))}>
+    <Animated.View entering={animate ? appear(Math.min(index, 8)) : undefined}>
       <PressableScale
         onPress={onPress}
         disabled={!onPress}

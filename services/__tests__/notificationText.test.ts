@@ -229,3 +229,13 @@ describe("notificationText", () => {
     });
   });
 });
+
+describe("poll", () => {
+  it("names the new question and opens Home", () => {
+    expect(notificationText("poll", { question: "Will any fight end in round 1?", pollId: "p1" })).toEqual({
+      title: "New question: Will any fight end in round 1?",
+      body: "Vote on Home, then see how everyone else split.",
+      data: { screen: "home" },
+    });
+  });
+});

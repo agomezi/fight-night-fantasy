@@ -89,3 +89,13 @@ describe("toInbox results", () => {
     expect(item.href).toBe("/history?bout=b-2");
   });
 });
+
+describe("poll pushes", () => {
+  it("open Home, with the question in the title", () => {
+    const [item] = toInbox([
+      { kind: "poll", key: "p1", payload: { question: "Do they go the distance?", pollId: "p1" }, sent_at: "2026-10-24T16:00:00Z", read: false },
+    ]);
+    expect(item.title).toBe("New question: Do they go the distance?");
+    expect(item.href).toBe("/home");
+  });
+});

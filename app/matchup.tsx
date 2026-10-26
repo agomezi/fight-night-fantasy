@@ -30,8 +30,23 @@ function StatusPill({ state }: { state: MatchupState }) {
   );
 }
 
-/** Someone else's matchup that week, on one line. Tapping a name opens that player. */
-function OtherMatchup({ m, index, onPressPlayer }: { m: Matchup; index: number; onPressPlayer: (userId: string) => void }) {
+/** Someone else's matchup that week, on one line. Tapping a name opens that
+ * player; tapping between them opens both sides' picks. */
+function OtherMatchup({
+  m,
+  index,
+  leagueId,
+  open,
+  onToggle,
+  onPressPlayer,
+}: {
+  m: Matchup;
+  index: number;
+  leagueId: string | null;
+  open: boolean;
+  onToggle: () => void;
+  onPressPlayer: (userId: string) => void;
+}) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
   const score = (points: number | null, won: boolean) => (
@@ -40,21 +55,33 @@ function OtherMatchup({ m, index, onPressPlayer }: { m: Matchup; index: number; 
     </Text>
   );
   return (
-    <Animated.View entering={appear(index)} style={[styles.boutRow, { flexDirection: "row", alignItems: "center" }]}>
-      <PressableScale style={[styles.pickSide, { flex: 1 }]} onPress={() => onPressPlayer(m.a.userId)} scaleTo={0.97}>
-        <Text style={styles.pickName} numberOfLines={1}>{m.a.name}</Text>
-        {score(m.a.points, m.winnerId === m.a.userId)}
-      </PressableScale>
-      <Text style={{ color: c.textFaint, fontSize: 11, fontWeight: "800", marginHorizontal: 10 }}>VS</Text>
-      <PressableScale
-        style={[styles.pickSide, { flex: 1, alignItems: "flex-end" }]}
-        onPress={() => onPressPlayer(m.b.userId)}
-        scaleTo={0.97}
-      >
-        <Text style={styles.pickName} numberOfLines={1}>{m.b.name}</Text>
-        {score(m.b.points, m.winnerId === m.b.userId)}
-      </PressableScale>
-    </Animated.View>
+    <>
+      <Animated.View entering={appear(index)} style={[styles.boutRow, { flexDirection: "row", alignItems: "center" }]}>
+        <PressableScale style={[styles.pickSide, { flex: 1 }]} onPress={() => onPressPlayer(m.a.userId)} scaleTo={0.97}>
+          <Text style={styles.pickName} numberOfLines={1}>{m.a.name}</Text>
+          {score(m.a.points, m.winnerId === m.a.userId)}
+        </PressableScale>
+        <PressableScale
+          onPress={onToggle}
+          hitSlop={12}
+          style={{ alignItems: "center", marginHorizontal: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel={`${open ? "Hide" : "Show"} picks for ${m.a.name} vs ${m.b.name}`}
+        >
+          <Text style={{ color: c.textFaint, fontSize: 11, fontWeight: "800" }}>VS</Text>
+          <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color={c.textFaint} />
+        </PressableScale>
+        <PressableScale
+          style={[styles.pickSide, { flex: 1, alignItems: "flex-end" }]}
+          onPress={() => onPressPlayer(m.b.userId)}
+          scaleTo={0.97}
+        >
+          <Text style={styles.pickName} numberOfLines={1}>{m.b.name}</Text>
+          {score(m.b.points, m.winnerId === m.b.userId)}
+        </PressableScale>
+      </Animated.View>
+      {open && leagueId && <MatchupPicksList leagueId={leagueId} matchup={m} around />}
+    </>
   );
 }
 
@@ -69,6 +96,8 @@ export default function MatchupScreen() {
   const state = useLeague(id);
   const [picked, setPicked] = useState<number | null>(null);
   const [viewing, setViewing] = useState<string | null>(null);
+  // Other matchups whose picks are open, by week and pair.
+  const [opened, setOpened] = useState<Set<string>>(new Set());
 
   const weeks = state.status === "ready" ? state.weeks : [];
   const week = weeks.find((w) => w.week === picked) ?? currentWeek(weeks);
@@ -205,9 +234,26 @@ export default function MatchupScreen() {
                   <Text style={styles.cardTitle}>Around the league</Text>
                   <Text style={styles.cardMeta}>WEEK {week.week}</Text>
                 </View>
-                {others.map((m, i) => (
-                  <OtherMatchup key={`${m.a.userId}-${m.b.userId}`} m={m} index={i} onPressPlayer={setViewing} />
-                ))}
+                {others.map((m, i) => {
+                  const pair = `${week.week}:${m.a.userId}-${m.b.userId}`;
+                  return (
+                    <OtherMatchup
+                      key={pair}
+                      m={m}
+                      index={i}
+                      leagueId={state.status === "ready" ? (state.league?.id ?? null) : null}
+                      open={opened.has(pair)}
+                      onToggle={() =>
+                        setOpened((was) => {
+                          const next = new Set(was);
+                          if (!next.delete(pair)) next.add(pair);
+                          return next;
+                        })
+                      }
+                      onPressPlayer={setViewing}
+                    />
+                  );
+                })}
               </>
             )}
           </>
