@@ -107,7 +107,7 @@ $$;
 create function pg_temp.join_as(n int, code text) returns uuid language plpgsql as $$
 begin
   perform pg_temp.act(n);
-  return public.join_league(code);
+  return public.join_league(code) #>> '{}';
 end;
 $$;
 insert into ids values ('L', public.create_league('  The   Alpha League ', 'casual'));
@@ -122,9 +122,9 @@ select results_eq(
 );
 
 select pg_temp.act(2);
-select throws_ok($$select public.join_league('nope0000')$$, 'P0001', 'No league has that code.', 'an unknown code is refused');
-select is(public.join_league(upper(' ' || pg_temp.code('L') || ' ')), pg_temp.id('L'), 'codes are read case-insensitively');
-select is(public.join_league(pg_temp.code('L')), pg_temp.id('L'), 'joining twice does nothing');
+select is(public.join_league('nope0000') ->> 'message', 'No league has that code.', 'an unknown code is refused');
+select is(public.join_league(upper(' ' || pg_temp.code('L') || ' ')), to_jsonb(pg_temp.id('L')), 'codes are read case-insensitively');
+select is(public.join_league(pg_temp.code('L')), to_jsonb(pg_temp.id('L')), 'joining twice does nothing');
 select public.join_league(pg_temp.code('S'));
 select pg_temp.act(3);
 select public.join_league(pg_temp.code('L'));
@@ -219,7 +219,7 @@ select is((select count(*)::int from public.league_matchups(pg_temp.id('F'))
            where week = 3 and pg_temp.u(21) in (user_a, user_b)), 0,
   'and they are out of the weeks to come');
 select pg_temp.act(1);
-select is(public.join_league(pg_temp.code('F')), pg_temp.id('F'), 'their place is free');
+select is(public.join_league(pg_temp.code('F')), to_jsonb(pg_temp.id('F')), 'their place is free');
 
 -------------------------------------------------------------------------------
 -- The season opens
@@ -327,7 +327,8 @@ set local role authenticated;
 -------------------------------------------------------------------------------
 
 select pg_temp.act(2);
-select results_eq(
+-- Both joined in this transaction, so joined_at ties and the order is not tested.
+select set_eq(
   $$select name, tier::text, is_owner, members, my_status, wins, losses, draws from public.my_leagues()$$,
   $$values ('The Alpha League', 'casual', false, 4, 'active', 1, 0, 1), ('Small', 'amateur', false, 4, 'queued', 0, 0, 0)$$,
   'my leagues lists each with how it is going'
