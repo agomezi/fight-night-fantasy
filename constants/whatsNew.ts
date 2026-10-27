@@ -17,6 +17,18 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-profile-titles",
+    date: "2026-10-28T12:00:00Z",
+    title: "Wear your awards",
+    items: [
+      {
+        icon: "ribbon",
+        title: "Titles you earn",
+        body: "Win an award at a season's final drop and you can wear it as your title, next to your pro record. Pick it in Edit Profile, and anyone who opens your card sees it.",
+      },
+    ],
+  },
+  {
     id: "2026-10-name-review",
     date: "2026-10-27T12:00:00Z",
     title: "Names under review",
