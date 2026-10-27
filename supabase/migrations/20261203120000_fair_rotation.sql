@@ -63,9 +63,9 @@ revoke execute on function public.league_rotation_since() from public, anon, aut
 -------------------------------------------------------------------------------
 
 -- Every week of a league's season (null: the pre-season) with its matchups, in
--- order: the saved week where there is one, the old pairing for a card that
--- locked before the rule took over, and otherwise the rule, which counts every
--- week before it. The weeks, cards and rosters are exactly league_schedule's
+-- order: the saved week where there is one, whoever is in the league now, the
+-- old pairing for a card that locked before the rule took over, and otherwise
+-- the rule, which counts every week before it. The weeks, cards and rosters are exactly league_schedule's
 -- before this migration (20261111).
 create function public.league_pairings(league uuid, season uuid)
 returns table (
@@ -94,8 +94,9 @@ declare
   wk_b     uuid[];
   wk_d     boolean[];
   -- Every matchup so far this season, in step.
-  hist_a   uuid[] := '{}';
-  hist_b   uuid[] := '{}';
+  hist_a   uuid[] := '{}'::uuid[];
+  hist_b   uuid[] := '{}'::uuid[];
+  hist_d   boolean[] := '{}'::boolean[];
 begin
   for c in
     with
@@ -139,57 +140,61 @@ begin
     select * from preseason_cards
     order by 1
   loop
-    -- The week's roster in join order: in a season its active members, in the
-    -- pre-season whoever was in the league when the card locked.
-    members := array(
-      select m.user_id from public.league_members m
-      where m.league_id = league
-        and case
-          when season is not null then m.status = 'active'
-          else m.joined_at <= coalesce(c.locks_at, now())
-               and (m.left_at is null or m.left_at > coalesce(c.locks_at, now()))
-        end
-      order by m.joined_at, m.user_id
-    );
-    n := cardinality(members);
-    continue when n < min_size;
-
-    if c.id is not null and exists (
-      select 1 from public.league_weeks lw where lw.league_id = league and lw.event_id = c.id
-    ) then
+    wk_a := null;
+    if c.id is not null then
       select array_agg(lw.user_a), array_agg(lw.user_b), array_agg(lw.doubleheader)
         into wk_a, wk_b, wk_d
       from public.league_weeks lw where lw.league_id = league and lw.event_id = c.id;
+    end if;
 
-    elsif c.id is not null and c.locks_at <= now() and c.locks_at < since then
-      select array_agg(members[p.a + 1]), array_agg(members[p.b + 1]), array_agg(r.b is null)
-        into wk_a, wk_b, wk_d
-      from public.circle_pairings(n, c.w) p
-      join public.circle_round(n, c.w) r on r.a = p.a;
+    if wk_a is null then
+      -- The week's roster in join order: in a season its active members, in the
+      -- pre-season whoever was in the league when the card locked.
+      members := array(
+        select m.user_id from public.league_members m
+        where m.league_id = league
+          and case
+            when season is not null then m.status = 'active'
+            else m.joined_at <= coalesce(c.locks_at, now())
+                 and (m.left_at is null or m.left_at > coalesce(c.locks_at, now()))
+          end
+        order by m.joined_at, m.user_id
+      );
+      n := cardinality(members);
+      continue when n < min_size;
 
-    else
-      with r as (
-        select cr.a, cr.b from public.circle_round(n, c.w) cr
-      ),
-      opponent as (
-        -- The leftover's opponent: fewest matchups so far, then fewest
-        -- meetings with the leftover, then join order.
-        select i - 1 as pos
-        from generate_series(1, n) i, (select r.a as lo from r where r.b is null) l
-        where i - 1 <> l.lo
-        order by
-          (select count(*) from unnest(hist_a, hist_b) h(x, y)
-            where members[i] in (h.x, h.y)),
-          (select count(*) from unnest(hist_a, hist_b) h(x, y)
-            where (h.x, h.y) in ((members[i], members[l.lo + 1]), (members[l.lo + 1], members[i]))),
-          i
-        limit 1
-      )
-      select array_agg(members[r.a + 1]),
-             array_agg(members[coalesce(r.b, (select o.pos from opponent o)) + 1]),
-             array_agg(r.b is null)
-        into wk_a, wk_b, wk_d
-      from r;
+      if c.id is not null and c.locks_at <= now() and c.locks_at < since then
+        select array_agg(members[p.a + 1]), array_agg(members[p.b + 1]), array_agg(r.b is null)
+          into wk_a, wk_b, wk_d
+        from public.circle_pairings(n, c.w) p
+        join public.circle_round(n, c.w) r on r.a = p.a;
+
+      else
+        with r as (
+          select cr.a, cr.b from public.circle_round(n, c.w) cr
+        ),
+        opponent as (
+          -- The leftover's opponent: fewest matchups so far, then fewest
+          -- meetings with the leftover, then join order. Everyone plays once a
+          -- week, so fewest matchups is fewest extra ones; counting those keeps
+          -- a pre-season player who joined late from doubling up every week.
+          select i - 1 as pos
+          from generate_series(1, n) i, (select r.a as lo from r where r.b is null) l
+          where i - 1 <> l.lo
+          order by
+            (select count(*) from unnest(hist_b, hist_d) h(y, d)
+              where h.d and h.y = members[i]),
+            (select count(*) from unnest(hist_a, hist_b) h(x, y)
+              where (h.x, h.y) in ((members[i], members[l.lo + 1]), (members[l.lo + 1], members[i]))),
+            i
+          limit 1
+        )
+        select array_agg(members[r.a + 1]),
+               array_agg(members[coalesce(r.b, (select o.pos from opponent o)) + 1]),
+               array_agg(r.b is null)
+          into wk_a, wk_b, wk_d
+        from r;
+      end if;
     end if;
 
     return query
@@ -198,6 +203,7 @@ begin
 
     hist_a := hist_a || wk_a;
     hist_b := hist_b || wk_b;
+    hist_d := hist_d || wk_d;
   end loop;
 end;
 $$;
@@ -300,7 +306,6 @@ end;
 $$;
 
 revoke execute on function public.save_league_week_pairings(uuid) from public, anon, authenticated;
-grant execute on function public.save_league_week_pairings(uuid) to service_role;
 
 -- Every card that has locked in the last two days and isn't saved yet, in
 -- lock order. A card no league plays is looked at again, which is cheap.
@@ -334,7 +339,6 @@ end;
 $$;
 
 revoke execute on function public.save_locked_league_weeks() from public, anon, authenticated;
-grant execute on function public.save_locked_league_weeks() to service_role;
 
 select cron.schedule('league-weeks', '* * * * *', $$select public.save_locked_league_weeks()$$);
 

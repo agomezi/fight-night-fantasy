@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(35);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-00000000f1' || lpad(n::text, 2, '0'))::uuid
@@ -126,9 +126,37 @@ set local role anon;
 select throws_ok($$select count(*) from public.league_weeks$$, '42501', null, 'signed out reads nothing');
 reset role;
 
--- Season 1 opens after the pre-season and wipes its weeks.
+-- A pre-season league that played ten cards before the ones above: four
+-- players, then a fifth joins after five. The newcomer has the fewest
+-- matchups but doesn't double up every week for it.
+insert into public.leagues (id, name, owner_id, tier, created_at)
+values (pg_temp.lg('00a3'), 'League 00a3', pg_temp.u(1), 'pro', now() - interval '120 days');
+insert into public.league_members (league_id, user_id, joined_at)
+select pg_temp.lg('00a3'), pg_temp.u(m), now() - interval '120 days' + m * interval '1 minute'
+from generate_series(1, 4) m;
+insert into public.league_members (league_id, user_id, joined_at)
+values (pg_temp.lg('00a3'), pg_temp.u(5), now() - interval '85 days');
+insert into public.events (ufc_event_id, name, starts_at, locks_at, status)
+select 'fr-l' || k, 'Late ' || k, now() - interval '111 days' + k * interval '5 days',
+       now() - interval '111 days' + k * interval '5 days', 'complete'
+from generate_series(1, 10) k;
+select is(
+  (select max(n)::int from (
+     select count(*) as n from public.league_pairings(pg_temp.lg('00a3'), null)
+     where week between 6 and 10 and doubleheader group by user_b) x),
+  1, 'a late joiner in the pre-season doubles up no more often than anyone else');
+select is(
+  (select count(*)::int from public.league_pairings(pg_temp.lg('00a3'), null) where week <= 5 and doubleheader),
+  0, 'and the four-player weeks before had no doubleheaders');
+delete from public.leagues where id = pg_temp.lg('00a3');
+delete from public.events where ufc_event_id like 'fr-l%';
+
+-- Season 1 is made, then opens after the pre-season and wipes its weeks.
 select pg_temp.rule_since('infinity');
-insert into public.seasons (number, starts_at) values (1, now() - interval '5 days');
+insert into public.seasons (number, starts_at) values (1, null);
+select is((select count(*)::int from public.league_weeks where season_id is null), 3 + 2,
+  'a season that hasn''t started leaves the pre-season alone');
+update public.seasons set starts_at = now() - interval '5 days' where number = 1;
 select is((select count(*)::int from public.league_weeks where season_id is null), 0,
   'Season 1 wipes the pre-season''s weeks');
 delete from public.leagues where id in (pg_temp.lg('00a1'), pg_temp.lg('00a2'));
@@ -168,9 +196,13 @@ select is(
   (select sum(public.save_league_week_pairings(pg_temp.ev('s' || w))) from generate_series(4, 10) w)::int,
   7 * (3 + 4 + 3), 'and the next seven');
 
--- The eleventh locks: the saver slots it first, then saves it.
+-- The eleventh locks: the saver slots it first, then saves it. Not if it
+-- locked before the rule took over.
 update public.events set locks_at = now() - interval '1 minute', starts_at = now() - interval '1 minute', status = 'live'
 where id = pg_temp.ev('s11');
+select pg_temp.rule_since(now());
+select is(public.save_locked_league_weeks(), 0, 'the cron leaves a card that locked before the rule');
+select pg_temp.rule_since('-infinity');
 select is(public.save_locked_league_weeks(), 10, 'the cron saves the card that just locked');
 select is((select season_index::int from public.events where id = pg_temp.ev('s11')), 11, 'in its slot');
 
@@ -219,6 +251,13 @@ select is(
   (select array_agg(pg_temp.circle(6, w) order by w) from generate_series(1, 11) w),
   'an even league pairs exactly as before');
 select is((select count(*)::int from cron.job where jobname = 'league-weeks'), 1, 'the saver runs every minute');
+
+-- A twelfth card locks: the cron opens Season 2 for it and saves it there.
+insert into public.events (ufc_event_id, name, starts_at, locks_at, status)
+values ('fr-s12', 'Season 12', now() - interval '30 seconds', now() - interval '30 seconds', 'live');
+select is(public.save_locked_league_weeks(), 10, 'a card that opens a new season is saved too');
+select is((select array_agg(distinct s.number) from public.league_weeks lw join public.seasons s on s.id = lw.season_id
+           where lw.event_id = pg_temp.ev('s12')), array[2], 'under the new season');
 
 select * from finish();
 rollback;
