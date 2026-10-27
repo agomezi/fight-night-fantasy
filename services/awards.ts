@@ -220,6 +220,12 @@ export function showsOnLeaguePage(drop: DropInfo, now: Date): boolean {
   return until == null || now.getTime() < until.getTime();
 }
 
+/** The drops for the list under the standings: all but the newest while
+ * it's still on the league page. */
+export function pastDrops(drops: DropInfo[], now: Date): DropInfo[] {
+  return drops[0] && showsOnLeaguePage(drops[0], now) ? drops.slice(1) : drops;
+}
+
 type RawDrop = {
   id: string;
   label: string;
@@ -281,7 +287,7 @@ export async function loadLatestDrop(): Promise<DropInfo | null> {
   return row ? toDropInfo(row) : null;
 }
 
-/** This season's drops with something for the league, newest first. */
+/** This season's drops with something for the league, newest published first. */
 export async function loadLeagueDrops(leagueId: string): Promise<DropInfo[]> {
   const { data, error } = await (await db()).rpc("league_award_drops", { league: leagueId });
   if (error) throw new Error(error.message);

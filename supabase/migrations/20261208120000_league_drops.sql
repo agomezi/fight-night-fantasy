@@ -25,9 +25,11 @@ as $$
 $$;
 
 -- This season's published drops that have something for this league, newest
--- first, for its members. Each one opens with league_award_drop(league, id).
+-- first, for its members, with the same next lock as v2 so the app can leave
+-- out the one still on the league page. Each one opens with
+-- league_award_drop(league, id).
 create function public.league_award_drops(league uuid)
-returns table (id uuid, label text, kind text, ran_at timestamptz, published_at timestamptz)
+returns table (id uuid, label text, kind text, ran_at timestamptz, published_at timestamptz, next_lock_at timestamptz)
 language plpgsql
 stable
 security definer
@@ -36,13 +38,15 @@ as $$
 begin
   perform public.require_league_member(league);
   return query
-    select d.id, d.label, d.kind, d.ran_at, d.published_at
+    select d.id, d.label, d.kind, d.ran_at, d.published_at,
+           (select min(e.locks_at) from public.events e
+            where e.locks_at > d.published_at and e.status <> 'cancelled')
     from public.award_drops d
     where d.published_at is not null
       and d.season_id is not distinct from public.current_season()
       and (exists (select 1 from public.drop_awards a where a.drop_id = d.id and a.scope = league::text)
            or exists (select 1 from public.drop_stats s where s.drop_id = d.id and s.scope = league::text))
-    order by d.ran_at desc;
+    order by d.published_at desc, d.ran_at desc;
 end;
 $$;
 

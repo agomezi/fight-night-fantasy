@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid
@@ -80,6 +80,8 @@ select ok(not exists (select 1 from public.league_award_drops(pg_temp.lg()) wher
   'nor one with nothing for this league');
 select is((select published_at from public.league_award_drops(pg_temp.lg()) where label = 'First check-in'), pg_temp.t(0),
   'each with its publish time');
+select is((select next_lock_at from public.league_award_drops(pg_temp.lg()) where label = 'Midseason'), pg_temp.t(14),
+  'and the next card''s lock');
 
 select set_config('request.jwt.claims', json_build_object('sub', pg_temp.u(3), 'role', 'authenticated')::text, true);
 select throws_ok($$select * from public.league_award_drops(pg_temp.lg())$$, 'P0001', null,

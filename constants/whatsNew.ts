@@ -29,7 +29,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "trophy",
         title: "Awards step aside after a week",
-        body: "A new set of awards stays on the league page for a week, or until the next card locks. After that, find every one under Past awards at the bottom of the standings.",
+        body: "A new set of awards stays on the league page for a week, or until the next card locks. After that, this season's awards are under Past awards at the bottom of the standings.",
       },
     ],
   },

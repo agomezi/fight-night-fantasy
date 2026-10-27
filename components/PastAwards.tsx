@@ -1,17 +1,15 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, Text, View } from "react-native";
-import { awardsSeenKey } from "../constants/storage";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { dropDate, loadLeagueDrop, loadLeagueDrops, type DropInfo, type LeagueDrop } from "../services/awards";
+import { dropDate, loadLeagueDrop, loadLeagueDrops, pastDrops, type DropInfo, type LeagueDrop } from "../services/awards";
 import AwardsReveal from "./AwardsReveal";
 import PressableScale from "./PressableScale";
 
-/** Every award drop the league has had this season, newest first, each a tap
- * from its reveal. Nothing until there's one. */
+/** The league's award drops this season once they've left the league page,
+ * newest first, each a tap from its reveal. Nothing until there's one. */
 export default function PastAwards({ leagueId, leagueName }: { leagueId: string; leagueName: string }) {
   const { c } = useTheme();
   const { session } = useAuth();
@@ -33,7 +31,7 @@ export default function PastAwards({ leagueId, leagueName }: { leagueId: string;
   );
 
   // Never another league's, while switching.
-  const drops = list?.leagueId === leagueId ? list.drops : [];
+  const drops = list?.leagueId === leagueId ? pastDrops(list.drops, new Date()) : [];
   if (!drops.length) return null;
 
   const show = (drop: DropInfo) => {
@@ -43,15 +41,6 @@ export default function PastAwards({ leagueId, leagueName }: { leagueId: string;
       .then((d) => d && setOpen(d))
       .catch((e) => Alert.alert("Couldn't open the awards", (e as Error).message))
       .finally(() => setOpening(null));
-  };
-
-  // Seeing the newest one here counts as seeing it on the league page too.
-  // (An older one doesn't: that would mark the newest unseen again.)
-  const close = () => {
-    if (open && myId && open.drop.id === drops[0].id) {
-      AsyncStorage.setItem(awardsSeenKey(myId, leagueId), open.drop.id).catch(() => {});
-    }
-    setOpen(null);
   };
 
   return (
@@ -85,7 +74,7 @@ export default function PastAwards({ leagueId, leagueName }: { leagueId: string;
           )}
         </PressableScale>
       ))}
-      {open && <AwardsReveal leagueName={leagueName} drop={open} myId={myId} onClose={close} />}
+      {open && <AwardsReveal leagueName={leagueName} drop={open} myId={myId} onClose={() => setOpen(null)} />}
     </View>
   );
 }

@@ -121,7 +121,7 @@ export default function LeagueStandings() {
           </PressableScale>
         )}
 
-        {/* The league's award drops, kept once they leave the league page. */}
+        {/* This season's award drops, kept once they leave the league page. */}
         {league && <PastAwards key={league.id} leagueId={league.id} leagueName={league.name} />}
       </ScrollView>
 

@@ -1,4 +1,4 @@
-import { AWARDS, dropDate, dropShownUntil, shareText, showsOnLeaguePage, toBadges, toDropInfo, toLeagueDrop, yourLine } from "../awards";
+import { AWARDS, dropDate, dropShownUntil, pastDrops, shareText, showsOnLeaguePage, toBadges, toDropInfo, toLeagueDrop, yourLine } from "../awards";
 import { notificationText } from "../notificationText";
 
 const raw = {
@@ -101,4 +101,13 @@ describe("how long a drop stays on the league page", () => {
     const drop = toDropInfo({ id: "d1", label: "UFC 333 Check-in", kind: "checkin", ran_at: "2026-10-25T20:00:00Z", published_at: "2026-10-26T01:00:00Z" });
     expect(dropDate(drop)).toBe("Oct 25");
   });
+});
+
+test("past awards leave out the newest while it's still on the league page", () => {
+  const drop = (id: string, published: string) =>
+    toDropInfo({ id, label: id, kind: "checkin", ran_at: published, published_at: published, next_lock_at: null });
+  const drops = [drop("new", "2026-10-21T18:00:00Z"), drop("old", "2026-10-01T18:00:00Z")];
+  expect(pastDrops(drops, new Date("2026-10-23T00:00:00Z")).map((d) => d.id)).toEqual(["old"]);
+  expect(pastDrops(drops, new Date("2026-10-29T00:00:00Z")).map((d) => d.id)).toEqual(["new", "old"]);
+  expect(pastDrops([], new Date())).toEqual([]);
 });
