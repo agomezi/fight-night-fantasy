@@ -798,60 +798,10 @@ begin
 
   return query
   with
-  -- A season's weeks are its slots so far plus the next one, every week
-  -- played by the active members. The pre-season's are every card that has
-  -- locked since the league was made plus the next, each played by whoever
-  -- was in the league when it locked.
-  next_card as (
-    select e.id, e.name, e.status, e.locks_at from public.events e
-    where e.season_id is null and e.status <> 'cancelled' and e.locks_at > now()
-    order by e.locks_at limit 1
-  ),
-  season_cards as (
-    select wk.w,
-           coalesce(e.id, nc.id) as id, coalesce(e.name, nc.name) as name,
-           coalesce(e.status, nc.status) as status, coalesce(e.locks_at, nc.locks_at) as locks_at
-    from generate_series(1, least(
-           (select coalesce(max(x.season_index), 0)::integer from public.events x where x.season_id = season) + 1,
-           11)) wk(w)
-    left join public.events e on e.season_id = season and e.season_index = wk.w
-    left join next_card nc on e.id is null
-    where season is not null
-  ),
-  preseason_played as (
-    select e.id, e.name, e.status, e.locks_at
-    from public.events e
-    where season is null
-      and e.season_id is null and e.status <> 'cancelled'
-      and e.locks_at <= now()
-      and e.locks_at >= (select l.created_at from public.leagues l where l.id = league)
-  ),
-  preseason_cards as (
-    select (row_number() over (order by p.locks_at, p.id))::integer as w, p.id, p.name, p.status, p.locks_at
-    from preseason_played p
-    union all
-    select (select count(*) from preseason_played)::integer + 1, nc.id, nc.name, nc.status, nc.locks_at
-    from next_card nc
-    where season is null
-  ),
-  cards as (
-    select * from season_cards
-    union all
-    select * from preseason_cards
-  ),
-  roster as (
-    select c.w, m.user_id,
-           (row_number() over (partition by c.w order by m.joined_at, m.user_id) - 1)::integer as pos
-    from cards c
-    join public.league_members m on m.league_id = league
-    where case
-      when season is not null then m.status = 'active'
-      else m.joined_at <= coalesce(c.locks_at, now())
-           and (m.left_at is null or m.left_at > coalesce(c.locks_at, now()))
-    end
-  ),
-  sizes as (
-    select r.w, count(*)::integer as size from roster r group by r.w
+  pairs as (
+    select p.week as w, p.card_id as id, p.card_name as name, p.card_status as status,
+           p.card_locks_at as locks_at, p.user_a as ua, p.user_b as ub
+    from public.league_pairings(league, season) p
   ),
   card_points as (
     select b.event_id, s.user_id,
@@ -859,19 +809,10 @@ begin
            bool_or(s.provisional) as provisional
     from public.scores s
     join public.bouts b on b.id = s.bout_id
-    where b.event_id in (select c.id from cards c where c.id is not null)
+    where b.event_id in (select p.id from pairs p where p.id is not null)
       -- Only the part of the card the league's tier plays.
       and public.bout_counts_for_tier(t, b.id)
     group by b.event_id, s.user_id
-  ),
-  pairs as (
-    select c.w, c.id, c.name, c.status, c.locks_at, ma.user_id as ua, mb.user_id as ub
-    from cards c
-    join sizes n on n.w = c.w
-    cross join lateral public.circle_pairings(n.size, c.w) p
-    join roster ma on ma.w = c.w and ma.pos = p.a
-    left join roster mb on mb.w = c.w and mb.pos = p.b
-    where n.size >= (select min_members from public.league_limits())
   ),
   scored as (
     select p.*,
@@ -993,6 +934,15 @@ begin
   delete from public.drop_awards a where a.drop_id = d.id;
   delete from public.drop_stats s where s.drop_id = d.id;
 
+  -- A results sync that failed to save a card's weeks would leave it out of
+  -- the table. settle_event is safe to run again.
+  perform public.settle_event(e.id)
+  from public.events e
+  where e.season_id is not distinct from d.season_id
+    and e.locks_at <= d.ran_at
+    and public.event_is_final(e.id)
+    and not exists (select 1 from public.league_results r where r.event_id = e.id);
+
   -- Stats, per player per scope.
   insert into public.drop_stats (drop_id, scope, user_id, stats)
   with cards as (
@@ -1023,21 +973,16 @@ begin
     where p.deleted_at is null
       and (select ps.standing from public.player_standing(k.user_id) ps) is distinct from 'banned'
   ),
-  -- The tier each league played each card at.
-  card_tiers as (
-    select l.id as league_id, c.id as event_id, public.league_tier_for(l.id, c.id) as tier
-    from public.leagues l cross join cards c
-  ),
   scoped as (
     select 'global'::text as scope, b.* from base b
     union all
-    select ct.league_id::text, b.*
+    select l.id::text, b.*
     from base b
     join public.league_members m on m.user_id = b.user_id
-    join card_tiers ct on ct.league_id = m.league_id and ct.event_id = b.event_id
+    join public.leagues l on l.id = m.league_id
     where m.joined_at <= b.locks_at
       and (m.left_at is null or m.left_at > b.locks_at)
-      and public.bout_counts_for_tier(ct.tier, b.bout_id)
+      and public.bout_counts_for_tier(public.league_tier_for(l.id, b.event_id), b.bout_id)
   ),
   per_card as (
     select scope, user_id, event_id, count(*) as n, bool_and(correct) as clean
@@ -1059,6 +1004,35 @@ begin
     ) z
     where z.field >= 3 and z.pts = z.low
     group by z.scope, z.user_id
+  ),
+  -- Settled takes on the drop's cards, by the same players.
+  settled_polls as materialized (
+    select cp.id, c.locks_at, o.outcome
+    from public.community_polls cp
+    join cards c on c.id = cp.event_id
+    cross join lateral (select public.poll_outcome(cp.id) as outcome) o
+    where o.outcome is not null and o.outcome <> 'void'
+  ),
+  takes as (
+    select v.user_id, sp.locks_at, v.option = sp.outcome as right_call
+    from settled_polls sp
+    join public.poll_votes v on v.poll_id = sp.id
+    join public.profiles p on p.id = v.user_id
+    where p.deleted_at is null
+      and (select ps.standing from public.player_standing(v.user_id) ps) is distinct from 'banned'
+  ),
+  takes_scoped as (
+    select 'global'::text as scope, t.user_id, t.right_call from takes t
+    union all
+    select m.league_id::text, t.user_id, t.right_call
+    from takes t
+    join public.league_members m on m.user_id = t.user_id
+    where m.joined_at <= t.locks_at
+      and (m.left_at is null or m.left_at > t.locks_at)
+  ),
+  takes_totals as (
+    select t.scope, t.user_id, count(*) as n, count(*) filter (where t.right_call) as right_calls
+    from takes_scoped t group by t.scope, t.user_id
   ),
   totals as (
     select s.scope, s.user_id,
@@ -1087,9 +1061,110 @@ begin
            'perfect_cards', (select count(*) from per_card pc
                              where pc.scope = t.scope and pc.user_id = t.user_id and pc.n >= 5 and pc.clean),
            'picks_per_card', round(t.picks::numeric / t.cards, 2),
-           'last_cards', coalesce((select lc.n from last_on_card lc where lc.scope = t.scope and lc.user_id = t.user_id), 0)
+           'last_cards', coalesce((select lc.n from last_on_card lc where lc.scope = t.scope and lc.user_id = t.user_id), 0),
+           'takes', coalesce(tt.n, 0),
+           'takes_right', coalesce(tt.right_calls, 0)
          )
-  from totals t;
+  from totals t
+  left join takes_totals tt on tt.scope = t.scope and tt.user_id = t.user_id;
+
+  -- Each league's saved matchups this season, from each side. Working tables
+  -- for this call, like award_values below.
+  drop table if exists pg_temp.stored_games;
+  create temp table stored_games on commit drop as
+  select r.league_id, r.event_id, e.locks_at, x.uid, x.opp, x.pts,
+         case when r.winner = x.uid then 'W' when r.winner = x.opp then 'L' else 'D' end as outcome,
+         r.winner = x.uid and not public.met_league_picks(r.league_id, x.opp, r.event_id) as forfeit
+  from public.league_results r
+  join public.events e on e.id = r.event_id
+  cross join lateral (values (r.user_a, r.user_b, r.points_a), (r.user_b, r.user_a, r.points_b)) as x(uid, opp, pts)
+  where r.season_id is not distinct from d.season_id
+    and e.locks_at <= d.ran_at;
+
+  drop table if exists pg_temp.stored_table;
+  create temp table stored_table on commit drop as
+  with rec as (
+    select g.league_id, g.uid,
+           count(*) filter (where g.outcome = 'W')::integer as wins,
+           count(*) filter (where g.forfeit)::integer as forfeit_wins,
+           count(*) filter (where g.outcome = 'L')::integer as losses,
+           count(*) filter (where g.outcome = 'D')::integer as draws,
+           count(distinct g.event_id)::integer as weeks
+    from stored_games g group by g.league_id, g.uid
+  ),
+  -- A doubleheader saves the card's points on both matchups; count them once.
+  card_pts as (
+    select c.league_id, c.uid, sum(c.pts)::integer as points
+    from (select distinct g.league_id, g.uid, g.event_id, g.pts from stored_games g) c
+    group by c.league_id, c.uid
+  ),
+  -- The longest stretch between losses, a card's wins and draws before its loss.
+  runs as (
+    select g.league_id, g.uid, g.outcome,
+           count(*) filter (where g.outcome = 'L') over (
+             partition by g.league_id, g.uid
+             order by g.locks_at, g.event_id, g.outcome = 'L', g.opp
+             rows unbounded preceding
+           ) as breaks
+    from stored_games g
+  ),
+  unbeaten as (
+    select z.league_id, z.uid, max(z.n)::integer as best
+    from (
+      select r.league_id, r.uid, r.breaks, count(*) filter (where r.outcome <> 'L') as n
+      from runs r group by r.league_id, r.uid, r.breaks
+    ) z
+    group by z.league_id, z.uid
+  ),
+  keyed as (
+    select rc.*, cp.points, coalesce(u.best, 0) as unbeaten_run,
+           (3 * (rc.wins - rc.forfeit_wins) + 1.5 * rc.forfeit_wins + rc.draws)::numeric
+             / (rc.wins + rc.losses + rc.draws) as pct,
+           coalesce((ds.stats->>'hits')::numeric / nullif((ds.stats->>'picks')::numeric, 0), 0) as acc,
+           ds.user_id is not null
+             and exists (select 1 from public.league_members m
+                         where m.league_id = rc.league_id and m.user_id = rc.uid and m.left_at is null
+                           and (d.season_id is null or m.status = 'active')) as ranked
+    from rec rc
+    join card_pts cp on cp.league_id = rc.league_id and cp.uid = rc.uid
+    left join unbeaten u on u.league_id = rc.league_id and u.uid = rc.uid
+    left join public.drop_stats ds
+      on ds.drop_id = d.id and ds.scope = rc.league_id::text and ds.user_id = rc.uid
+  ),
+  -- Head to head: net wins over the ranked players level on everything else.
+  h2h as (
+    select k.*,
+           case when k.ranked then (
+             select coalesce(sum(case g.outcome when 'W' then 1 when 'L' then -1 else 0 end), 0)
+             from stored_games g
+             join keyed o on o.league_id = g.league_id and o.uid = g.opp
+             where g.league_id = k.league_id and g.uid = k.uid and o.ranked
+               and o.pct = k.pct and o.points = k.points and o.acc = k.acc
+           ) else 0 end as h2h
+    from keyed k
+  )
+  select k.*,
+         case when k.ranked then rank() over (
+           partition by k.league_id, k.ranked order by k.pct desc, k.points desc, k.acc desc, k.h2h desc
+         ) end as rank
+  from h2h k;
+
+  -- Leagues: the table and where it's heading. Projections go over the
+  -- weeks each player played (a late joiner's few weeks project like
+  -- anyone's), so an odd league's doubleheaders count, over an 11-card
+  -- season.
+  update public.drop_stats ds set stats = ds.stats || jsonb_build_object(
+    'rank', t.rank, 'wins', t.wins, 'losses', t.losses, 'draws', t.draws, 'forfeit_wins', t.forfeit_wins,
+    'league_points', t.points, 'unbeaten_run', t.unbeaten_run,
+    'projected', case when t.weeks > 0 then jsonb_build_object(
+      'wins', round(t.wins::numeric / t.weeks * 11),
+      'losses', round(t.losses::numeric / t.weeks * 11),
+      'draws', round(t.draws::numeric / t.weeks * 11),
+      'points', round(t.points::numeric / t.weeks * 11)
+    ) end
+  )
+  from stored_table t
+  where ds.drop_id = d.id and ds.scope = t.league_id::text and ds.user_id = t.uid;
 
   -- Each award's value per player, where they qualify. A working table for
   -- this call; a preview just before a run leaves one behind.
@@ -1123,6 +1198,10 @@ begin
       ('method_man', (s.stats->>'methods_right')::numeric, s.picks, (s.stats->>'methods_right')::numeric >= 1),
       ('iron_man', s.picks, s.cards, true),
       ('call_of_night', (s.stats->>'best_call')::numeric, s.picks, (s.stats->>'best_call')::numeric > 0),
+      ('oracle', (s.stats->>'takes_right')::numeric / nullif((s.stats->>'takes')::numeric, 0),
+         (s.stats->>'takes')::numeric, (s.stats->>'takes')::numeric >= 5),
+      ('iron_chin', (s.stats->>'unbeaten_run')::numeric, (s.stats->>'wins')::numeric,
+         s.scope <> 'global' and (s.stats->>'unbeaten_run')::numeric >= 3),
       -- The joke one: far fewer fights a card than everyone else. Lower wins,
       -- so it's ranked on the negative.
       -- Another joke: last in the league on the most cards, at least 2.
@@ -1132,7 +1211,7 @@ begin
          s.cards >= 2 and (s.stats->>'picks_per_card')::numeric <= md.ppc / 2)
     ) as x(award, value, tiebreak, ok)
   )
-  select v.*, rank() over (partition by v.scope, v.award order by v.value desc, v.tiebreak desc) as place
+  select v.*, rank() over (partition by v.scope, v.award order by v.value desc, v.tiebreak desc nulls last) as place
   from v where v.ok and v.value is not null;
 
   insert into public.drop_awards (drop_id, scope, award, user_id, value)
@@ -1146,28 +1225,6 @@ begin
     from award_values av where av.scope = ds.scope and av.user_id = ds.user_id and av.award not in ('gun_shy', 'pro_can')
   ))
   where ds.drop_id = d.id;
-
-  -- Leagues: the table and where it's heading. Projections go over the
-  -- weeks each player was in the league (a late joiner's few weeks project
-  -- like anyone's), so an odd league's doubleheaders count, over an 11-card
-  -- season.
-  update public.drop_stats ds set stats = ds.stats || jsonb_build_object(
-    'rank', t.rank, 'wins', t.wins, 'losses', t.losses, 'draws', t.draws, 'forfeit_wins', t.forfeit_wins,
-    'league_points', t.points,
-    'projected', case when t.wins + t.losses + t.draws > 0 and w.weeks > 0 then jsonb_build_object(
-      'wins', round((t.wins::numeric / (t.wins + t.losses + t.draws)) * ((t.wins + t.losses + t.draws)::numeric / w.weeks) * 11),
-      'losses', round((t.losses::numeric / (t.wins + t.losses + t.draws)) * ((t.wins + t.losses + t.draws)::numeric / w.weeks) * 11),
-      'draws', round((t.draws::numeric / (t.wins + t.losses + t.draws)) * ((t.wins + t.losses + t.draws)::numeric / w.weeks) * 11),
-      'points', round(t.points::numeric / w.weeks * 11)
-    ) end
-  )
-  from public.leagues l
-  cross join lateral public.league_table(l.id) t
-  cross join lateral (
-    select count(distinct s.week) as weeks from public.league_schedule(l.id, d.season_id) s
-    where s.state = 'final' and t.user_id in (s.user_a, s.user_b)
-  ) w
-  where ds.drop_id = d.id and ds.scope = l.id::text and t.user_id = ds.user_id;
 
   -- League #1: Interim Champ at a review, Champ at a final one.
   insert into public.drop_awards (drop_id, scope, award, user_id, value)
