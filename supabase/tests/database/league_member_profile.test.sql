@@ -78,9 +78,10 @@ select results_eq(
   'your own profile has no favorite division under five scored picks, and no report'
 );
 select results_eq(
-  $$select display_name, accuracy, can_report from public.league_member_profile(pg_temp.gym(), pg_temp.u(4))$$,
-  $$values ('Former Member'::text, null::integer, false)$$,
-  'a deleted member shows as a former member and cannot be reported'
+  $$select display_name ~ '^Former Member #[1-9][0-9]{3}$', accuracy, can_report
+    from public.league_member_profile(pg_temp.gym(), pg_temp.u(4))$$,
+  $$values (true, null::integer, false)$$,
+  'a deleted member shows as a tagged former member and cannot be reported'
 );
 select is_empty(
   $$select * from public.league_member_profile(pg_temp.gym(), pg_temp.u(3))$$,

@@ -1,54 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-} from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ClearableInput from "../components/ClearableInput";
 import PressableScale from "../components/PressableScale";
 import { DIVISIONS } from "../constants/divisions";
 import { getInitials, useProfile } from "../context/ProfileContext";
+import { loadNameReview } from "../services/nameReview";
 import { cleanHandle, HandleBlockedError, handleProblem, HandleTakenError, HandleTooSoonError, HANDLE_MAX } from "../services/profile";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
-
-type ClearableInputProps = TextInputProps & {
-  value: string;
-  onChangeText: (text: string) => void;
-};
-
-function ClearableInput({ value, onChangeText, multiline, style, ...rest }: ClearableInputProps) {
-  const { c } = useTheme();
-  const styles = useThemedStyles(makeSettingsStyles);
-  return (
-    <View style={styles.inputWrap}>
-      <TextInput
-        style={[styles.input, multiline && styles.textArea, { paddingRight: 38 }, style]}
-        value={value}
-        onChangeText={onChangeText}
-        multiline={multiline}
-        placeholderTextColor={c.textFaint}
-        {...rest}
-      />
-      {value.length > 0 && (
-        <PressableScale
-          style={multiline ? styles.clearBtnMultiline : styles.clearBtn}
-          onPress={() => onChangeText("")}
-          hitSlop={8}
-        >
-          <Ionicons name="close-circle" size={18} color={c.textFaint} />
-        </PressableScale>
-      )}
-    </View>
-  );
-}
 
 /** Favorite division as a choice from the UFC's weight classes, men's and women's. */
 function DivisionPicker({ value, onChange }: { value: string; onChange: (d: string) => void }) {
@@ -108,14 +70,35 @@ export default function EditProfile() {
   const router = useRouter();
   const { c } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
-  const { profile, updateProfile, setUsername: saveUsername, nameChangeableAt } = useProfile();
-  const nameLocked = !!nameChangeableAt;
+  const { profile, updateProfile, setUsername: saveUsername, renameUnderReview, refreshName, nameChangeableAt } =
+    useProfile();
+  // While reports hide your name, the first rename skips the weekly limit.
+  const [underReview, setUnderReview] = useState(false);
+  const nameLocked = !!nameChangeableAt && !underReview;
   const nextChangeLabel = nameChangeableAt
     ? nameChangeableAt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
     : null;
   const [saving, setSaving] = useState(false);
 
   const [username, setUsername] = useState(profile.username);
+  // A moderator may have changed the name since it was loaded: read it again,
+  // and follow it until the player starts typing.
+  const typed = useRef(false);
+  useEffect(() => {
+    refreshName();
+    let current = true;
+    loadNameReview()
+      .then((r) => {
+        if (current) setUnderReview(r.hidden && !r.renamed);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [refreshName]);
+  useEffect(() => {
+    if (!typed.current) setUsername(profile.username);
+  }, [profile.username]);
   const [favDivision, setFavDivision] = useState(profile.favDivision);
 
   const save = async () => {
@@ -129,7 +112,7 @@ export default function EditProfile() {
       }
       setSaving(true);
       try {
-        await saveUsername(username);
+        await (underReview ? renameUnderReview(username) : saveUsername(username));
       } catch (e) {
         if (e instanceof HandleTakenError) Alert.alert("That name is taken", "Try another one.");
         else if (e instanceof HandleBlockedError) Alert.alert("That name isn't allowed", "Pick another one.");
@@ -182,7 +165,10 @@ export default function EditProfile() {
         ) : (
           <ClearableInput
             value={username}
-            onChangeText={(t) => setUsername(cleanHandle(t))}
+            onChangeText={(t) => {
+              typed.current = true;
+              setUsername(cleanHandle(t));
+            }}
             autoCapitalize="none"
             autoCorrect={false}
             maxLength={HANDLE_MAX}

@@ -20,6 +20,7 @@ import FighterPhoto from "../components/FighterPhoto";
 import FighterSpotlight from "../components/FighterSpotlight";
 import HeaderBar from "../components/HeaderBar";
 import LiveDot from "../components/LiveDot";
+import NameReviewSheet from "../components/NameReviewSheet";
 import PickMinimumBanner from "../components/PickMinimumBanner";
 import InfoCards, { type Card as InfoCard } from "../components/InfoCards";
 import { communityCard } from "../components/CommunityCard";
@@ -38,9 +39,12 @@ import {
   voteWithRetry,
   type RawCommunityCard,
 } from "../services/community";
+import { useNameReview } from "../hooks/useNameReview";
 import { useNextEvent } from "../hooks/useNextEvent";
 import { boutLocked, countdown, initials, lastName, lockLabel, nextLock, splitEventName, spotlightFighters, startLabel } from "../services/events";
 import { useAuth } from "../context/AuthContext";
+import { useProfile } from "../context/ProfileContext";
+import { useModalsFree } from "../services/modalGate";
 import { loadDraft, samePicks, withDraft } from "../services/pickDraft";
 import { loadPicks, pickSummary } from "../services/picks";
 import { askForLeagueReminders } from "../services/push";
@@ -219,6 +223,10 @@ export default function Home() {
   // place of the saved card, flagged as unsaved.
   const { session } = useAuth();
   const userId = session?.user.id;
+  // Reports have hidden your name: offer a new one on the spot.
+  const { profile, renameUnderReview, refreshName } = useProfile();
+  const nameReview = useNameReview(userId, refreshName);
+  const modalsFree = useModalsFree();
   const picksKey = userId && event ? `picks:${userId}:${event.id}` : null;
   const [serverPicks, setServerPicks] = useState<Record<string, LanePick>>(() => readCache(picksKey) ?? {});
   const [draft, setDraftPicks] = useState<Record<string, LanePick> | undefined>(undefined);
@@ -1300,6 +1308,17 @@ export default function Home() {
       >
         <BottomNav active="home" />
       </View>
+
+      <NameReviewSheet
+        visible={nameReview.offer && modalsFree}
+        alias={nameReview.alias}
+        currentName={profile.username}
+        onRename={async (name) => {
+          await renameUnderReview(name);
+          nameReview.renamed();
+        }}
+        onSkip={nameReview.skip}
+      />
     </SafeAreaView>
   );
 }
