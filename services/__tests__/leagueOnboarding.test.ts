@@ -3,6 +3,8 @@ import {
   leagueStarted,
   loadChecklistTicks,
   minimumPhrase,
+  previewError,
+  RateLimitedError,
   rulesSheet,
   saveChecklistTicks,
   TIER_MINIMUM_LINE,
@@ -194,4 +196,18 @@ describe("rulesSheet", () => {
 it("has a create-form line for each open tier", () => {
   expect(TIER_MINIMUM_LINE.pro).toBe("You'll set the minimum picks next.");
   expect(Object.keys(TIER_MINIMUM_LINE)).toEqual(["casual", "amateur", "pro"]);
+});
+
+describe("previewError", () => {
+  it("says to wait after too many wrong codes, so the join isn't tried", () => {
+    const e = previewError({ message: "Too many tries. Wait a bit and try again.", hint: "rate_limited" });
+    expect(e).toBeInstanceOf(RateLimitedError);
+    expect(e.message).toBe("Too many tries. Wait a bit and try again.");
+  });
+
+  it("keeps any other failure a plain error, which falls back to joining", () => {
+    const e = previewError({ message: "Could not find the function", hint: null });
+    expect(e).not.toBeInstanceOf(RateLimitedError);
+    expect(e.message).toBe("Could not find the function");
+  });
 });

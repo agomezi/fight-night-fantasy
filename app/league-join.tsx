@@ -19,7 +19,7 @@ import {
   TIER_LABEL,
   type LeagueTier,
 } from "../services/leagues";
-import { previewLeague, rulesSheet, TIER_MINIMUM_LINE, type RulesSheet } from "../services/leagueOnboarding";
+import { previewLeague, RateLimitedError, rulesSheet, TIER_MINIMUM_LINE, type RulesSheet } from "../services/leagueOnboarding";
 import { suspendedReason } from "../services/standing";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
@@ -84,7 +84,12 @@ export default function LeagueJoin() {
     let preview;
     try {
       preview = await previewLeague(code);
-    } catch {
+    } catch (e) {
+      if (e instanceof RateLimitedError) {
+        setError(e.message);
+        setBusy(false);
+        return;
+      }
       // A server without the preview still lets you join.
       return finish();
     }

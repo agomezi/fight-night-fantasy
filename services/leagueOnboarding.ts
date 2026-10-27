@@ -232,10 +232,19 @@ async function db() {
   return (await import("./supabase")).supabase;
 }
 
-/** A league's rules by invite code; null for a code no league has. */
+/** Too many wrong codes lately; the message says to wait. */
+export class RateLimitedError extends Error {}
+
+/** What a failed preview throws. */
+export function previewError(error: { message: string; hint?: string | null }): Error {
+  return error.hint === "rate_limited" ? new RateLimitedError(error.message) : new Error(error.message);
+}
+
+/** A league's rules by invite code; null for a code no league has. A wrong
+ * code is recorded, so this must stay a POST (no `get: true`). */
 export async function previewLeague(code: string): Promise<LeaguePreview | null> {
   const { data, error } = await (await db()).rpc("league_preview", { code });
-  if (error) throw new Error(error.message);
+  if (error) throw previewError(error);
   return toLeaguePreview((data ?? []) as RawLeaguePreview[]);
 }
 
