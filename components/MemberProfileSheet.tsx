@@ -18,6 +18,7 @@ import { loadPinnedCalls, type PinnedCall } from "../services/pins";
 import PinnedCalls from "./PinnedCalls";
 import BadgesBlock from "./BadgesBlock";
 import { loadBadges, type Badge } from "../services/awards";
+import { loadTitle, titleName } from "../services/titles";
 import PressableScale from "./PressableScale";
 import { StatBox, StatBoxRow } from "./StatBox";
 import ScreenSkeleton from "./ScreenSkeleton";
@@ -51,6 +52,7 @@ export default function MemberProfileSheet({
   const [error, setError] = useState<string | null>(null);
   const [pins, setPins] = useState<PinnedCall[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
+  const [title, setTitle] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
@@ -72,6 +74,10 @@ export default function MemberProfileSheet({
     setBadges([]);
     loadBadges(userId)
       .then((v) => current && setBadges(v))
+      .catch(() => {});
+    setTitle(null);
+    loadTitle(userId)
+      .then((v) => current && setTitle(titleName(v)))
       .catch(() => {});
     return () => {
       current = false;
@@ -124,7 +130,7 @@ export default function MemberProfileSheet({
     }
   };
 
-  const title = { color: c.text, fontSize: 20, fontWeight: "800" as const };
+  const heading = { color: c.text, fontSize: 20, fontWeight: "800" as const };
   const muted = { color: c.textMuted, fontSize: 13.5, lineHeight: 19 };
 
   const body = () => {
@@ -137,7 +143,7 @@ export default function MemberProfileSheet({
       return (
         <View style={{ alignItems: "center", paddingVertical: 16, gap: 10 }}>
           <Ionicons name={step === "sent" ? "checkmark-circle" : "information-circle"} size={40} color={step === "sent" ? c.green : c.textMuted} />
-          <Text style={title}>{step === "sent" ? "Report sent" : "Already reported"}</Text>
+          <Text style={heading}>{step === "sent" ? "Report sent" : "Already reported"}</Text>
           <Text style={[muted, { textAlign: "center" }]}>
             {step === "sent"
               ? `Thanks. We'll review ${profile.name}'s name.`
@@ -154,7 +160,7 @@ export default function MemberProfileSheet({
       return (
         <View style={{ alignItems: "center", paddingVertical: 16, gap: 10 }}>
           <Ionicons name="ban" size={40} color={c.textMuted} />
-          <Text style={title}>Blocked</Text>
+          <Text style={heading}>Blocked</Text>
           <Text style={[muted, { textAlign: "center" }]}>
             You won&apos;t see {profile.name}&apos;s name in your leagues or on the leaderboard, and won&apos;t hear when they join
             your leagues. You can unblock them in Settings.
@@ -170,7 +176,7 @@ export default function MemberProfileSheet({
       const canAlsoReport = profile.canReport && !profile.reported;
       return (
         <View>
-          <Text style={title}>Block {profile.name}?</Text>
+          <Text style={heading}>Block {profile.name}?</Text>
           <Text style={[muted, { marginTop: 6, marginBottom: 16 }]}>
             They&apos;ll show as &ldquo;Blocked player&rdquo; to you in your leagues, matchups and the leaderboard, and you won&apos;t
             hear when they join your leagues. They aren&apos;t told, and you both stay in your leagues.
@@ -206,7 +212,7 @@ export default function MemberProfileSheet({
     if (step === "report") {
       return (
         <View>
-          <Text style={title}>Report {profile.name}</Text>
+          <Text style={heading}>Report {profile.name}</Text>
           <Text style={[muted, { marginTop: 4, marginBottom: 14 }]}>What&apos;s wrong with this name?</Text>
           {REPORT_REASONS.map((r) => {
             const on = reason === r.value;
@@ -292,7 +298,12 @@ export default function MemberProfileSheet({
             </Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={title} numberOfLines={1}>{profile.name}</Text>
+            <Text style={heading} numberOfLines={1}>{profile.name}</Text>
+            {!!title && !profile.blocked && (
+              <Text style={{ color: c.blue, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>
+                {title}
+              </Text>
+            )}
             {profile.isMe && <Text style={{ color: c.textFaint, fontSize: 12, marginTop: 2 }}>That&apos;s you</Text>}
           </View>
           {profile.canReport && (

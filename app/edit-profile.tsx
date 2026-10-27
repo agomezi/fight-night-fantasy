@@ -3,12 +3,16 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ActionSheet, { type SheetAction } from "../components/ActionSheet";
 import ClearableInput from "../components/ClearableInput";
 import PressableScale from "../components/PressableScale";
 import { DIVISIONS } from "../constants/divisions";
+import { useAuth } from "../context/AuthContext";
 import { getInitials, useProfile } from "../context/ProfileContext";
+import { loadBadges, type AwardId } from "../services/awards";
 import { loadNameReview } from "../services/nameReview";
 import { cleanHandle, HandleBlockedError, handleProblem, HandleTakenError, HandleTooSoonError, HANDLE_MAX } from "../services/profile";
+import { titleName, titleOptions, type TitleOption } from "../services/titles";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -70,8 +74,9 @@ export default function EditProfile() {
   const router = useRouter();
   const { c } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
-  const { profile, updateProfile, setUsername: saveUsername, renameUnderReview, refreshName, nameChangeableAt } =
+  const { profile, updateProfile, setTitle, setUsername: saveUsername, renameUnderReview, refreshName, nameChangeableAt } =
     useProfile();
+  const { session } = useAuth();
   // While reports hide your name, the first rename skips the weekly limit.
   const [underReview, setUnderReview] = useState(false);
   const nameLocked = !!nameChangeableAt && !underReview;
@@ -101,6 +106,33 @@ export default function EditProfile() {
   }, [profile.username]);
   const [favDivision, setFavDivision] = useState(profile.favDivision);
 
+  // Titles are the awards you've won; null until they've loaded.
+  const [titles, setTitles] = useState<TitleOption[] | null>(null);
+  // Undefined until a title is picked, so a title still loading isn't cleared.
+  const [picked, setTitleChoice] = useState<AwardId | null | undefined>(undefined);
+  const title = picked === undefined ? profile.title : picked;
+  const [choosingTitle, setChoosingTitle] = useState(false);
+  const myId = session?.user.id;
+  useEffect(() => {
+    if (!myId) return;
+    let current = true;
+    loadBadges(myId)
+      .then((b) => current && setTitles(titleOptions(b)))
+      .catch(() => current && setTitles([]));
+    return () => {
+      current = false;
+    };
+  }, [myId]);
+  const titleActions: SheetAction[] = [
+    ...(titles ?? []).map((t) => ({
+      label: t.title,
+      icon: t.icon,
+      note: t.award === title ? "Wearing" : t.where,
+      onPress: () => setTitleChoice(t.award),
+    })),
+    { label: "No title", icon: "remove-circle-outline", note: title == null ? "Wearing" : undefined, onPress: () => setTitleChoice(null) },
+  ];
+
   const save = async () => {
     if (saving) return;
     // The name lives on the server and has rules; the rest stays on this phone.
@@ -128,7 +160,17 @@ export default function EditProfile() {
         return;
       }
     }
-    updateProfile({ title: profile.title, favDivision, bio: profile.bio });
+    if (picked !== undefined && picked !== profile.title) {
+      setSaving(true);
+      try {
+        await setTitle(picked);
+      } catch (e) {
+        Alert.alert("Couldn't save your title", e instanceof Error ? e.message : "Please try again.");
+        setSaving(false);
+        return;
+      }
+    }
+    updateProfile({ favDivision, bio: profile.bio });
     router.back();
   };
 
@@ -182,12 +224,26 @@ export default function EditProfile() {
         </Text>
 
         <Text style={styles.fieldLabel}>TITLE</Text>
-        <TextInput
-          style={[styles.input, styles.inputDisabled]}
-          value={profile.title}
-          editable={false}
-        />
-        <Text style={styles.hint}>Titles are earned from your picks. Coming soon.</Text>
+        {titles?.length ? (
+          <PressableScale
+            onPress={() => setChoosingTitle(true)}
+            style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Title: ${titleName(title) ?? "none"}`}
+          >
+            <Text style={{ color: title ? c.text : c.textFaint, fontSize: 15 }}>{titleName(title) ?? "No title"}</Text>
+            <Ionicons name="chevron-down" size={18} color={c.textFaint} />
+          </PressableScale>
+        ) : (
+          <TextInput style={[styles.input, styles.inputDisabled]} value="" editable={false} />
+        )}
+        <Text style={styles.hint}>
+          {titles?.length
+            ? "Wear an award you've won. It shows next to your pro record, and to anyone who opens your card."
+            : titles
+              ? "Titles are earned at award drops. Join a league and make your picks to earn your first one."
+              : " "}
+        </Text>
 
         <Text style={styles.fieldLabel}>FAVORITE DIVISION</Text>
         <DivisionPicker value={favDivision} onChange={setFavDivision} />
@@ -202,6 +258,7 @@ export default function EditProfile() {
         />
         <Text style={styles.hint}>Your email is used for sign-in and can&apos;t be changed here.</Text>
       </ScrollView>
+      <ActionSheet visible={choosingTitle} title="YOUR TITLE" actions={titleActions} onClose={() => setChoosingTitle(false)} />
     </SafeAreaView>
   );
 }

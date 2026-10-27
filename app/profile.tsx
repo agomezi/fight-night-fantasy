@@ -29,6 +29,7 @@ import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, t
 import { loadCareer, type Career } from "../services/career";
 import { loadPinnedCalls, MAX_PINNED_CALLS, movePinToTop, shareCallText, unpinCall, type PinnedCall } from "../services/pins";
 import { loadBadges, type Badge } from "../services/awards";
+import { profileLine, titleName } from "../services/titles";
 
 export default function Profile() {
   const insets = useSafeAreaInsets();
@@ -36,7 +37,7 @@ export default function Profile() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const styles = useThemedStyles(makeProfileStyles);
-  const { profile } = useProfile();
+  const { profile, refreshTitle } = useProfile();
   const { session, signOut } = useAuth();
 
   // Your season so far, your place on the global table and in your league.
@@ -65,10 +66,11 @@ export default function Profile() {
       let current = true;
       loadCareer().then((v) => current && setCareer(writeCache("career", v))).catch(() => {});
       loadMyLeagueRecords().then((v) => current && setRecords(writeCache("league-records", v))).catch(() => {});
+      refreshTitle();
       return () => {
         current = false;
       };
-    }, [])
+    }, [refreshTitle])
   );
 
   // Awards you've locked in at the end of a season.
@@ -217,11 +219,7 @@ export default function Profile() {
           )}
           <Text style={styles.memberLine}>
             {/* Nothing about your record until it has loaded. */}
-            {career == null
-              ? "\u00a0"
-              : career.cards > 0
-                ? `Pro record ${career.record}${career.streakLabel ? ` · ${career.streakLabel}` : ""}`
-                : "No fights yet"}
+            {profileLine(career, titleName(profile.title)) ?? "\u00a0"}
           </Text>
         </Animated.View>
 
