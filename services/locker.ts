@@ -50,7 +50,8 @@ export type Locker = {
 };
 
 /** Your belt for a number of career points: the rank's colour, and up to four
- * stripes for how far through it you are. Legend has no stripes. */
+ * stripes for how far through it you are. Legend has no stripes. Must match
+ * career_belt() in the database. */
 export function beltFor(points: number): Belt {
   const rank = rankFor(points);
   const i = RANKS.findIndex((r) => r.rank === rank);
@@ -61,7 +62,7 @@ export function beltFor(points: number): Belt {
 }
 
 type RawLocker = {
-  points: number | null;
+  belt: { rank: string; stripes: number } | null;
   badges: { id: string; seasons?: number[] }[];
   hidden: string[];
 };
@@ -69,7 +70,10 @@ type RawLocker = {
 export function toLocker(raw: RawLocker | null): Locker | null {
   if (!raw) return null;
   return {
-    belt: raw.points == null ? null : beltFor(Number(raw.points)),
+    belt:
+      raw.belt && RANKS.some((r) => r.rank === raw.belt!.rank)
+        ? { rank: raw.belt.rank as CareerRank, stripes: Math.min(4, Math.max(0, Number(raw.belt.stripes) || 0)) }
+        : null,
     badges: (raw.badges ?? [])
       .filter((b): b is { id: BadgeId; seasons?: number[] } => b.id in BADGES)
       .map((b) => ({ id: b.id, title: BADGES[b.id].title, icon: BADGES[b.id].icon, blurb: BADGES[b.id].blurb(b.seasons ?? []) })),
@@ -91,10 +95,10 @@ async function db() {
   return (await import("./supabase")).supabase;
 }
 
-/** A player's locker; null for one you can't see, or before the server has lockers. */
+/** A player's locker; null for one you can't see. Throws when it couldn't be read. */
 export async function loadLocker(userId: string): Promise<Locker | null> {
   const { data, error } = await (await db()).rpc("player_locker_v2", { member: userId });
-  if (error) return null;
+  if (error) throw new Error(error.message);
   return toLocker((data ?? null) as RawLocker | null);
 }
 

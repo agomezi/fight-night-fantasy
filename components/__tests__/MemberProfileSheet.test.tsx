@@ -92,7 +92,7 @@ describe("MemberProfileSheet", () => {
   });
 
   it("shows their belt and badges", async () => {
-    locker.mockResolvedValue(toLocker({ points: 7, badges: [{ id: "og" }], hidden: [] }));
+    locker.mockResolvedValue(toLocker({ belt: { rank: "Contender", stripes: 1 }, badges: [{ id: "og" }], hidden: [] }));
     await open(ben);
     expect(await screen.findByLabelText("Contender belt, 1 stripe")).toBeTruthy();
     expect(screen.getByLabelText("OG badge")).toBeTruthy();
@@ -100,7 +100,7 @@ describe("MemberProfileSheet", () => {
   });
 
   it("leaves out what you've hidden when it's your own card", async () => {
-    locker.mockResolvedValue(toLocker({ points: 7, badges: [{ id: "og" }], hidden: ["og", "belt"] }));
+    locker.mockResolvedValue(toLocker({ belt: { rank: "Contender", stripes: 1 }, badges: [{ id: "og" }], hidden: ["og", "belt"] }));
     await open({ ...ben, isMe: true });
     await screen.findByText("Ben");
     await waitFor(() => expect(locker).toHaveBeenCalled());

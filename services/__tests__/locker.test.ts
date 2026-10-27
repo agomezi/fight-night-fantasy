@@ -26,7 +26,7 @@ describe("the belt", () => {
 
 describe("a locker", () => {
   const raw = {
-    points: 7,
+    belt: { rank: "Contender", stripes: 1 },
     badges: [{ id: "og" }, { id: "season_veteran", seasons: [1, 2] }, { id: "a_future_badge" }],
     hidden: ["og", "a_future_item"],
   };
@@ -49,6 +49,10 @@ describe("a locker", () => {
 
   test("is nothing for a player you can't see", () => {
     expect(toLocker(null)).toBeNull();
-    expect(toLocker({ points: null, badges: [], hidden: [] })!.belt).toBeNull();
+    expect(toLocker({ belt: null, badges: [], hidden: [] })!.belt).toBeNull();
+  });
+
+  test("leaves out a belt this build doesn't know", () => {
+    expect(toLocker({ belt: { rank: "Grandmaster", stripes: 2 }, badges: [], hidden: [] })!.belt).toBeNull();
   });
 });

@@ -75,13 +75,14 @@ export default function Profile() {
   );
 
   // Your belt and badges, less anything you've hidden in the locker.
-  const lockerKey = `locker:${session?.user.id}`;
+  const lockerKey = session?.user.id ? `locker:${session.user.id}` : null;
   const [locker, setLocker] = useState<Locker | null>(() => readCache<Locker>(lockerKey) ?? null);
   useFocusEffect(
     useCallback(() => {
       if (!session?.user.id) return;
       let current = true;
       loadLocker(session.user.id)
+        // A failed read keeps what was there, so nothing hidden flashes back.
         .then((v) => current && setLocker(writeCache(lockerKey, v)))
         .catch(() => {});
       return () => {
@@ -217,7 +218,8 @@ export default function Profile() {
           </View>
           <Text style={styles.levelText}>{career ? career.rank.toUpperCase() : "—"}</Text>
           {/* Your belt: its stripes show how close the next rank is, without saying what it is. */}
-          {career != null && !locker?.hidden.includes("belt") && (
+          {/* Only once the locker is known, so a hidden belt never shows. */}
+          {career != null && locker != null && !locker.hidden.includes("belt") && (
             <View style={styles.rankProgress}>
               <RankBelt {...beltFor(career.points)} />
             </View>

@@ -128,23 +128,33 @@ export default function EditProfile() {
   }, [myId]);
   // The locker: each switch saves straight away, like the ones in Settings.
   const [locker, setLocker] = useState<Locker | null>(null);
+  const [lockerFailed, setLockerFailed] = useState(false);
   useEffect(() => {
     if (!myId) return;
     let current = true;
     loadLocker(myId)
       .then((v) => current && setLocker(v))
-      .catch(() => {});
+      .catch(() => current && setLockerFailed(true));
     return () => {
       current = false;
     };
   }, [myId]);
+  // One save at a time per item, so quick taps reach the server in order.
+  const lockerSaves = useRef<Partial<Record<LockerItem, Promise<void>>>>({});
   const toggleItem = (item: LockerItem, show: boolean) => {
     const hide = (l: Locker, h: boolean) => ({ ...l, hidden: h ? [...l.hidden.filter((x) => x !== item), item] : l.hidden.filter((x) => x !== item) });
     setLocker((l) => (l ? hide(l, !show) : l));
-    setLockerItem(item, show).catch((e) => {
-      setLocker((l) => (l ? hide(l, show) : l));
-      Alert.alert("Couldn't save that", e instanceof Error ? e.message : "Please try again.");
-    });
+    const prev = lockerSaves.current[item] ?? Promise.resolve();
+    const last = prev
+      .catch(() => {})
+      .then(() => setLockerItem(item, show))
+      .catch((e) => {
+        // Only the newest tap decides what the switch shows.
+        if (lockerSaves.current[item] !== last) return;
+        setLocker((l) => (l ? hide(l, show) : l));
+        Alert.alert("Couldn't save that", e instanceof Error ? e.message : "Please try again.");
+      });
+    lockerSaves.current[item] = last;
   };
   const lockerRows = locker
     ? [
@@ -283,6 +293,12 @@ export default function EditProfile() {
               : " "}
         </Text>
 
+        {lockerFailed && (
+          <>
+            <Text style={styles.fieldLabel}>LOCKER</Text>
+            <Text style={[styles.hint, { marginTop: 0 }]}>Couldn&apos;t load your locker. Open Edit Profile again to retry.</Text>
+          </>
+        )}
         {lockerRows.length > 0 && (
           <>
             <Text style={styles.fieldLabel}>LOCKER</Text>
