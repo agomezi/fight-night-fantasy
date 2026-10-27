@@ -160,7 +160,8 @@ export default function EditProfile() {
         return;
       }
     }
-    if (picked !== undefined && picked !== profile.title) {
+    // Sent even when it looks unchanged: the title on this phone may be stale.
+    if (picked !== undefined) {
       setSaving(true);
       try {
         await setTitle(picked);
@@ -235,12 +236,12 @@ export default function EditProfile() {
             <Ionicons name="chevron-down" size={18} color={c.textFaint} />
           </PressableScale>
         ) : (
-          <TextInput style={[styles.input, styles.inputDisabled]} value="" editable={false} />
+          <TextInput style={[styles.input, styles.inputDisabled]} value={titleName(title) ?? ""} editable={false} />
         )}
         <Text style={styles.hint}>
           {titles?.length
             ? "Wear an award you've won. It shows next to your pro record, and to anyone who opens your card."
-            : titles
+            : titles && !title
               ? "Titles are earned at award drops. Join a league and make your picks to earn your first one."
               : " "}
         </Text>

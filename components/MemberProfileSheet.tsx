@@ -108,6 +108,9 @@ export default function MemberProfileSheet({
     try {
       await unblockPlayer(userId);
       setProfile((await loadMemberProfile(leagueId, userId)) ?? null);
+      loadTitle(userId)
+        .then((v) => setTitle(titleName(v)))
+        .catch(() => {});
     } catch {
       setError("Couldn't unblock this player. Please try again.");
     } finally {

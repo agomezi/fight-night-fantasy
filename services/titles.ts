@@ -50,7 +50,7 @@ export function titleName(award: string | null | undefined): string | null {
  * career is loading. */
 export function profileLine(career: Pick<Career, "cards" | "record"> | null, title: string | null): string | null {
   if (!career) return null;
-  if (career.cards === 0) return title ? `No fights yet · ${title}` : "No fights yet";
+  if (career.cards === 0) return "No fights yet";
   return `Pro record ${career.record}${title ? ` · ${title}` : ""}`;
 }
 

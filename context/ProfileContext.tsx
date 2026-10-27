@@ -150,8 +150,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [userId]);
 
+  // Bumped on every save, so a read started before it can't undo it.
+  const titleSaves = useRef(0);
   const setTitle = useCallback(
     async (award: AwardId | null) => {
+      titleSaves.current += 1;
       await saveTitle(award);
       if (accountRef.current === userId) setTitleState(award);
     },
@@ -160,8 +163,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const refreshTitle = useCallback(() => {
     if (!userId) return;
+    const saves = titleSaves.current;
     loadTitle(userId)
-      .then((t) => accountRef.current === userId && setTitleState(t))
+      .then((t) => accountRef.current === userId && saves === titleSaves.current && setTitleState(t))
       .catch(() => {});
   }, [userId]);
 

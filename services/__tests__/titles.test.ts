@@ -36,7 +36,7 @@ describe("the line under the rank", () => {
   });
 
   test("before a first fight", () => {
-    expect(profileLine({ cards: 0, record: "0-0" }, null)).toBe("No fights yet");
+    expect(profileLine({ cards: 0, record: "0-0" }, "Round Sniper")).toBe("No fights yet");
   });
 
   test("names only awards this build knows", () => {

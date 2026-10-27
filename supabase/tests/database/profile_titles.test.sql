@@ -4,7 +4,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-0000000000' || lpad(n::text, 2, '0'))::uuid
@@ -51,6 +51,7 @@ select is(public.player_title(pg_temp.u(1)), null, 'nothing for a player you''ve
 reset role;
 set local role anon;
 select throws_ok($$select public.player_title('00000000-0000-0000-0000-000000000001')$$, '42501', null, 'signed-out callers can''t read titles');
+select throws_ok($$select public.set_profile_title(null)$$, '42501', null, 'or set one');
 
 reset role;
 set local session_replication_role = replica;
@@ -62,6 +63,12 @@ select is(public.player_title(pg_temp.u(1)), null, 'nothing for a banned player'
 
 reset role;
 delete from public.moderation_actions where player = pg_temp.u(1);
+update public.profiles set display_name = null, deleted_at = now() where id = pg_temp.u(1);
+set local role authenticated;
+select pg_temp.act(2);
+select is(public.player_title(pg_temp.u(1)), null, 'nothing for a deleted account');
+reset role;
+update public.profiles set deleted_at = null, display_name = 'Titler1' where id = pg_temp.u(1);
 select public.delete_award_drop((select id from final_drop));
 set local role authenticated;
 select pg_temp.act(2);
