@@ -64,6 +64,8 @@ select pg_temp.play(3, array[1, 2, 3, 4], 'blue', 'ANY', null, 'KO', -50, false,
 -- 04: one fight a card, the underdog to win: far fewer than everyone.
 select pg_temp.play(4, array[1], 'red', 'ANY', null, null, 50, true, 0, 0);
 set local session_replication_role = origin;
+-- Each week saved as it went final, as the results sync does.
+select public.settle_event(e.event_id) from (select distinct event_id from public.bouts where ufc_fight_id like 'ad%') e;
 
 create function pg_temp.winners(a text) returns uuid[] language sql as $$
   select array_agg(user_id order by user_id) from public.drop_awards
