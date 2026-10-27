@@ -22,6 +22,7 @@ function league(over: Partial<MyLeague> = {}): MyLeague {
     name: "The Alpha League",
     tier: "pro",
     rule: { scope: "main_card", topN: null },
+    upgrade: null,
     inviteCode: "AB12CD34",
     isOwner: true,
     members: 5,

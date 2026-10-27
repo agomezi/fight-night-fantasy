@@ -12,12 +12,20 @@ export type MemberStatus = "active" | "queued" | "left" | "former";
  * event and the next N-1 bouts down the card. */
 export type PickRule = { scope: "main_event" | "main_card" | "whole_card" | "top_n"; topN: number | null };
 
+/** A move up a tier that starts with season `season`; `from` is the tier of
+ * the season being played. */
+export type TierUpgrade = { from: LeagueTier; tier: LeagueTier; season: number };
+
 export type MyLeague = {
   id: string;
   name: string;
+  /** The tier the league's next card plays. */
   tier: LeagueTier;
-  /** A Pro league's minimum picks for its next card; null for Casual and Amateur, whose range is fixed. */
+  /** A Pro league's minimum picks for its next card, also set while it waits
+   * to move up to Pro; null for Casual and Amateur, whose range is fixed. */
   rule: PickRule | null;
+  /** A move up that hasn't started yet. */
+  upgrade: TierUpgrade | null;
   inviteCode: string;
   isOwner: boolean;
   members: number;
@@ -120,27 +128,45 @@ type RawLeague = {
 
 export type RawPickRule = { league_id: string; scope: PickRule["scope"]; top_n: number | null };
 
-export function toMyLeagues(raw: RawLeague[], rules: RawPickRule[] = []): MyLeague[] {
+export type RawLeagueTier = {
+  league_id: string;
+  card_tier: LeagueTier;
+  tier_now: LeagueTier;
+  next_tier: LeagueTier | null;
+  next_season: number | null;
+};
+
+const setsOwnMinimum = (tier: LeagueTier | undefined) => tier === "pro" || tier === "hardcore";
+
+export function toMyLeagues(raw: RawLeague[], rules: RawPickRule[] = [], tiers: RawLeagueTier[] = []): MyLeague[] {
   const byLeague = new Map(rules.map((r) => [r.league_id, r]));
-  return raw.map((r) => ({
-    id: r.league_id,
-    name: r.name,
-    tier: r.tier,
-    rule:
-      r.tier === "pro" || r.tier === "hardcore"
-        ? (() => {
-            const x = byLeague.get(r.league_id);
-            return x ? { scope: x.scope, topN: x.top_n == null ? null : Number(x.top_n) } : { scope: "main_event", topN: null };
-          })()
-        : null,
-    inviteCode: r.invite_code.toUpperCase(),
-    isOwner: r.is_owner,
-    members: Number(r.members),
-    status: r.my_status,
-    rank: r.my_rank == null ? null : Number(r.my_rank),
-    record: recordOf(Number(r.wins), Number(r.losses), Number(r.draws)),
-    points: Number(r.points),
-  }));
+  const tierOf = new Map(tiers.map((t) => [t.league_id, t]));
+  return raw.map((r) => {
+    const t = tierOf.get(r.league_id);
+    const tier = t?.card_tier ?? r.tier;
+    const upgrade =
+      t?.next_tier && t.next_season != null ? { from: t.tier_now, tier: t.next_tier, season: Number(t.next_season) } : null;
+    const rule = byLeague.get(r.league_id);
+    return {
+      id: r.league_id,
+      name: r.name,
+      tier,
+      rule:
+        setsOwnMinimum(tier) || setsOwnMinimum(upgrade?.tier)
+          ? rule
+            ? { scope: rule.scope, topN: rule.top_n == null ? null : Number(rule.top_n) }
+            : { scope: "main_event", topN: null }
+          : null,
+      upgrade,
+      inviteCode: r.invite_code.toUpperCase(),
+      isOwner: r.is_owner,
+      members: Number(r.members),
+      status: r.my_status,
+      rank: r.my_rank == null ? null : Number(r.my_rank),
+      record: recordOf(Number(r.wins), Number(r.losses), Number(r.draws)),
+      points: Number(r.points),
+    };
+  });
 }
 
 type RawStanding = {
@@ -400,10 +426,19 @@ async function db() {
 
 export async function loadMyLeagues(): Promise<MyLeague[]> {
   const client = await db();
-  const [leagues, rules] = await Promise.all([client.rpc("my_leagues"), client.rpc("my_league_pick_rules")]);
+  const [leagues, rules, tiers] = await Promise.all([
+    client.rpc("my_leagues"),
+    client.rpc("my_league_pick_rules"),
+    client.rpc("my_league_tiers"),
+  ]);
   if (leagues.error) throw new Error(leagues.error.message);
-  // Before the rules exist on the server, every Pro league reads as main event only.
-  return toMyLeagues((leagues.data ?? []) as RawLeague[], rules.error ? [] : ((rules.data ?? []) as RawPickRule[]));
+  // Before the rules exist on the server, every Pro league reads as main event
+  // only; before the tiers do, each league plays its tier now.
+  return toMyLeagues(
+    (leagues.data ?? []) as RawLeague[],
+    rules.error ? [] : ((rules.data ?? []) as RawPickRule[]),
+    tiers.error ? [] : ((tiers.data ?? []) as RawLeagueTier[])
+  );
 }
 
 /** "Main card", "Top 6 fights", … */
@@ -506,6 +541,49 @@ export async function reportMember(
     : await (await db()).rpc("report_player", args);
   if (error) throw new Error(error.message);
   return data as boolean;
+}
+
+// --------------------------------------------------------------------------
+// Moving up a tier
+// --------------------------------------------------------------------------
+
+export type OpenTier = Exclude<LeagueTier, "hardcore">;
+
+const TIER_ORDER: OpenTier[] = ["casual", "amateur", "pro"];
+
+/** The open tiers above this one, lowest first. A league never moves down. */
+export function higherTiers(tier: LeagueTier): OpenTier[] {
+  const at = TIER_ORDER.indexOf(tier as OpenTier);
+  return at < 0 ? [] : TIER_ORDER.slice(at + 1);
+}
+
+/** What the owner confirms. In the pre-season the move is at once; in a
+ * season it waits for the next one, since a season plays at one tier. */
+export function tierUpgradeConfirm(league: string, tier: OpenTier, preseason: boolean): { title: string; body: string } {
+  return {
+    title: `Move ${league} up to ${TIER_LABEL[tier]} ${preseason ? "now" : "from next season"}?`,
+    body: `${TIER_BLURB[tier]} ${
+      preseason ? "Pre-season cards are scored again at the new tier." : "This season's cards stay as they are."
+    } You can't move back down.`,
+  };
+}
+
+/** The tier row in league settings: "Casual · Pro from Season 2". */
+export function tierLine(league: Pick<MyLeague, "tier" | "upgrade">): string {
+  const up = league.upgrade;
+  return up ? `${TIER_LABEL[up.from]} · ${TIER_LABEL[up.tier]} from Season ${up.season}` : TIER_LABEL[league.tier];
+}
+
+/** The season it starts from: 0 in the pre-season, where it applies at once. */
+export async function scheduleTierUpgrade(leagueId: string, tier: OpenTier): Promise<number> {
+  const { data, error } = await (await db()).rpc("schedule_tier_upgrade", { league: leagueId, tier });
+  if (error) throw new Error(error.message);
+  return Number(data);
+}
+
+export async function cancelTierUpgrade(leagueId: string): Promise<void> {
+  const { error } = await (await db()).rpc("cancel_tier_upgrade", { league: leagueId });
+  if (error) throw new Error(error.message);
 }
 
 export function inviteMessage(league: { name: string; inviteCode: string }): string {

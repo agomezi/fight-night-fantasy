@@ -1,5 +1,6 @@
 import {
   currentWeek,
+  higherTiers,
   matchupOutcome,
   matchupStreaks,
   outcomeText,
@@ -7,6 +8,8 @@ import {
   rankLabel,
   recordOf,
   toMemberProfile,
+  tierLine,
+  tierUpgradeConfirm,
   toMyLeagues,
   toStandings,
   toWeeks,
@@ -71,9 +74,41 @@ describe("toMyLeagues", () => {
       },
     ]);
     expect(league).toEqual({
-      id: "l1", name: "Alpha", tier: "casual", rule: null, inviteCode: "AB12CD34", isOwner: true, members: 5,
+      id: "l1", name: "Alpha", tier: "casual", rule: null, upgrade: null, inviteCode: "AB12CD34", isOwner: true, members: 5,
       status: "active", rank: 2, record: "3-1-1", points: 240,
     });
+  });
+
+  const casual = {
+    league_id: "l1", name: "Alpha", tier: "casual" as const, invite_code: "ab12cd34", is_owner: true, members: 5,
+    my_status: "active" as MemberStatus, my_rank: 2, wins: 3, losses: 1, draws: 1, points: 240,
+  };
+
+  test("plays the next card's tier and shows a move up that hasn't started", () => {
+    const [league] = toMyLeagues(
+      [casual],
+      [{ league_id: "l1", scope: "main_card", top_n: null }],
+      [{ league_id: "l1", card_tier: "pro", tier_now: "casual", next_tier: "pro", next_season: 2 }]
+    );
+    expect(league.tier).toBe("pro");
+    expect(league.upgrade).toEqual({ from: "casual", tier: "pro", season: 2 });
+    expect(league.rule).toEqual({ scope: "main_card", topN: null });
+  });
+
+  test("a league waiting to move up to Pro already has its minimum", () => {
+    const [league] = toMyLeagues(
+      [casual],
+      [{ league_id: "l1", scope: "whole_card", top_n: null }],
+      [{ league_id: "l1", card_tier: "casual", tier_now: "casual", next_tier: "pro", next_season: 3 }]
+    );
+    expect(league.tier).toBe("casual");
+    expect(league.rule).toEqual({ scope: "whole_card", topN: null });
+  });
+
+  test("without the tiers from the server, plays its tier now", () => {
+    const [league] = toMyLeagues([casual], [], []);
+    expect(league.tier).toBe("casual");
+    expect(league.upgrade).toBeNull();
   });
 });
 
@@ -148,7 +183,7 @@ describe("matchupOutcome", () => {
 
 describe("waitingLine", () => {
   const league = (members: number, status: MemberStatus = "active"): MyLeague => ({
-    id: "l", name: "L", tier: "casual", rule: null, inviteCode: "AB12CD34", isOwner: false, members, status,
+    id: "l", name: "L", tier: "casual", rule: null, upgrade: null, inviteCode: "AB12CD34", isOwner: false, members, status,
     rank: null, record: "0-0", points: 0,
   });
   const pre = toStandings([standing(null, "Me", { is_me: true, status: "active", season_label: "PRE-SEASON" })]);
@@ -262,5 +297,29 @@ describe("matchupStreaks", () => {
 
   test("nobody has a streak before a matchup finishes", () => {
     expect(matchupStreaks(toWeeks([matchup(1, "ann", "bob", { state: "upcoming", winner: null })], null))).toEqual({});
+  });
+});
+
+describe("moving up a tier", () => {
+  it("offers only the open tiers above, never down or Hardcore", () => {
+    expect(higherTiers("casual")).toEqual(["amateur", "pro"]);
+    expect(higherTiers("amateur")).toEqual(["pro"]);
+    expect(higherTiers("pro")).toEqual([]);
+    expect(higherTiers("hardcore")).toEqual([]);
+  });
+
+  it("says when it starts and that it can't be undone", () => {
+    const season = tierUpgradeConfirm("The Alpha League", "pro", false);
+    expect(season.title).toBe("Move The Alpha League up to Pro from next season?");
+    expect(season.body).toContain("This season's cards stay as they are.");
+    expect(season.body).toMatch(/You can't move back down\.$/);
+    const pre = tierUpgradeConfirm("The Alpha League", "amateur", true);
+    expect(pre.title).toBe("Move The Alpha League up to Amateur now?");
+    expect(pre.body).toContain("Pre-season cards are scored again at the new tier.");
+  });
+
+  it("shows the tier, and the move up waiting", () => {
+    expect(tierLine({ tier: "amateur", upgrade: null })).toBe("Amateur");
+    expect(tierLine({ tier: "pro", upgrade: { from: "casual", tier: "pro", season: 2 } })).toBe("Casual · Pro from Season 2");
   });
 });

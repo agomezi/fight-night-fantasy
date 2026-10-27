@@ -51,7 +51,7 @@ export default function LeaguePicksCard({ league }: { league: MyLeague }) {
   const picked = required.filter((b) => saved.has(b.id)).length;
   const missedLocked = required.filter((b) => !saved.has(b.id) && b.locksAt.getTime() <= next.now.getTime()).length;
   const done = picked === required.length;
-  const rule = league.rule ? pickRuleLabel(league.rule) : TIER_LABEL[league.tier];
+  const rule = league.rule && (league.tier === "pro" || league.tier === "hardcore") ? pickRuleLabel(league.rule) : TIER_LABEL[league.tier];
 
   return (
     <View style={{ marginTop: 22 }}>

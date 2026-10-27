@@ -17,6 +17,18 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-tier-upgrade",
+    date: "2026-10-28T12:00:00Z",
+    title: "Leagues can move up",
+    items: [
+      {
+        icon: "trending-up",
+        title: "Move your league up a tier",
+        body: "Owners can move a Casual or Amateur league up a tier in league settings. It starts next season, this season's cards stay as they are, and a league never moves back down.",
+      },
+    ],
+  },
+  {
     id: "2026-10-name-review",
     date: "2026-10-27T12:00:00Z",
     title: "Names under review",
