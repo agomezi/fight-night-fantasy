@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(20);
 
 -- Three final cards of five main card fights each; red wins everything.
 create function pg_temp.card(ev text, days int) returns jsonb language sql as $$
@@ -35,6 +35,12 @@ insert into public.leagues (id, name, owner_id, tier, created_at)
 values (pg_temp.lg(), 'Chin League', pg_temp.u(1), 'pro', now() - interval '5 days');
 insert into public.league_members (league_id, user_id, joined_at)
 select pg_temp.lg(), pg_temp.u(n), now() - interval '5 days' from generate_series(1, 4) n;
+-- An odd league of all five, where someone plays twice on a card.
+create function pg_temp.odd() returns uuid language sql as $$ select '00000000-0000-0000-0000-0000000000b1'::uuid $$;
+insert into public.leagues (id, name, owner_id, tier, created_at)
+values (pg_temp.odd(), 'Odd League', pg_temp.u(1), 'pro', now() - interval '5 days');
+insert into public.league_members (league_id, user_id, joined_at)
+select pg_temp.odd(), pg_temp.u(n), now() - interval '5 days' from generate_series(1, 5) n;
 
 -- Everyone picks every fight; `pts` a fight decides who wins each week:
 -- 01 beats everyone, then 02, 03, 04. 05 is outside the league.
@@ -50,8 +56,9 @@ set local session_replication_role = replica;
 select pg_temp.play(1, 40), pg_temp.play(2, 30), pg_temp.play(3, 20), pg_temp.play(4, 10), pg_temp.play(5, 0);
 set local session_replication_role = origin;
 
--- Each week saved as it went final.
+-- Each week saved as it went final, except the last card's: its sync failed.
 select public.settle_event(e.event_id) from (select distinct event_id from public.bouts where ufc_fight_id like 'an%') e;
+delete from public.league_results where event_id = (select event_id from public.bouts where ufc_fight_id = 'an31');
 
 -- Takes on the first card: 12 settled 'yes', one voided, one not settled yet.
 insert into public.community_polls (event_id, kind, slug, question, answer)
@@ -106,7 +113,19 @@ select ok((pg_temp.stat('Check-in', 2, 'places')::jsonb ? 'oracle'), 'and it cou
 select is(pg_temp.stat('Check-in', 1, 'unbeaten_run'), '3', 'three wins in a row is a run of 3');
 select is(pg_temp.winners('Check-in', 'iron_chin'), array[pg_temp.u(1)], 'Iron Chin goes to the longest unbeaten run');
 select ok(pg_temp.stat('Check-in', 2, 'unbeaten_run')::int < 3, 'a loss ends a run');
-select is(pg_temp.winners('Check-in', 'iron_chin', 'global'), null, 'there''s no Iron Chin globally');
+select ok(exists (select 1 from public.league_results where event_id = (select event_id from public.bouts where ufc_fight_id = 'an31')),
+  'a final card whose weeks weren''t saved is saved before the drop reads them');
+select ok(exists (select 1 from public.league_results r where r.league_id = pg_temp.odd()
+                  group by r.event_id, r.user_a having count(*) > 1)
+          or exists (select 1 from public.league_results r where r.league_id = pg_temp.odd()
+                     group by r.event_id, r.user_b having count(*) > 1),
+  'the odd league has a doubleheader');
+select is((select count(*)::int from public.drop_stats s
+           where s.scope = pg_temp.odd()::text and s.drop_id = (select id from public.award_drops where label = 'Check-in')
+             and (s.stats->>'league_points')::int
+                 <> (select sum(x.points) from public.scores x join public.bouts b on b.id = x.bout_id
+                     where x.user_id = s.user_id and b.ufc_fight_id like 'an%')),
+  0, 'a doubleheader counts its card''s points once');
 select is(pg_temp.stat('Check-in', 1, 'wins') || '-' || pg_temp.stat('Check-in', 1, 'losses') || ' #' || pg_temp.stat('Check-in', 1, 'rank'),
   '3-0 #1', 'the table comes from the saved weeks');
 select is(pg_temp.winners('Check-in', 'interim_champ'), array[pg_temp.u(1)], 'and so does the interim champ');

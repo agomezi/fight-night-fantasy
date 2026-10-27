@@ -11,8 +11,10 @@
 -- The schedule is worked out from today's members, so someone leaving or a
 -- purged account would otherwise reshuffle weeks already played. Ranked as
 -- the standings are: 3 a win, half that for a forfeit win, 1 a draw, over the
--- matchups played, then points scored in them. Only players still in the
--- league are ranked.
+-- matchups played, then points (each card once, so a doubleheader isn't
+-- counted twice; no Casual or Amateur floor), then accuracy, then head to
+-- head. Only players still in the league are ranked. A final card whose
+-- weeks haven't been saved yet is settled first.
 --
 -- Iron Chin: the longest run of league matchups without a loss this season,
 -- at least 3. A card with a win and a loss on it counts the win first.
@@ -32,6 +34,15 @@ begin
 
   delete from public.drop_awards a where a.drop_id = d.id;
   delete from public.drop_stats s where s.drop_id = d.id;
+
+  -- A results sync that failed to save a card's weeks would leave it out of
+  -- the table. settle_event is safe to run again.
+  perform public.settle_event(e.id)
+  from public.events e
+  where e.season_id is not distinct from d.season_id
+    and e.locks_at <= d.ran_at
+    and public.event_is_final(e.id)
+    and not exists (select 1 from public.league_results r where r.event_id = e.id);
 
   -- Stats, per player per scope.
   insert into public.drop_stats (drop_id, scope, user_id, stats)
@@ -96,15 +107,19 @@ begin
     group by z.scope, z.user_id
   ),
   -- Settled takes on the drop's cards, by the same players.
-  takes as (
-    select v.user_id, c.locks_at, v.option = o.outcome as right_call
+  settled_polls as materialized (
+    select cp.id, c.locks_at, o.outcome
     from public.community_polls cp
     join cards c on c.id = cp.event_id
-    join public.poll_votes v on v.poll_id = cp.id
     cross join lateral (select public.poll_outcome(cp.id) as outcome) o
-    join public.profiles p on p.id = v.user_id
     where o.outcome is not null and o.outcome <> 'void'
-      and p.deleted_at is null
+  ),
+  takes as (
+    select v.user_id, sp.locks_at, v.option = sp.outcome as right_call
+    from settled_polls sp
+    join public.poll_votes v on v.poll_id = sp.id
+    join public.profiles p on p.id = v.user_id
+    where p.deleted_at is null
       and (select ps.standing from public.player_standing(v.user_id) ps) is distinct from 'banned'
   ),
   takes_scoped as (
@@ -175,9 +190,14 @@ begin
            count(*) filter (where g.forfeit)::integer as forfeit_wins,
            count(*) filter (where g.outcome = 'L')::integer as losses,
            count(*) filter (where g.outcome = 'D')::integer as draws,
-           sum(g.pts)::integer as points,
            count(distinct g.event_id)::integer as weeks
     from stored_games g group by g.league_id, g.uid
+  ),
+  -- A doubleheader saves the card's points on both matchups; count them once.
+  card_pts as (
+    select c.league_id, c.uid, sum(c.pts)::integer as points
+    from (select distinct g.league_id, g.uid, g.event_id, g.pts from stored_games g) c
+    group by c.league_id, c.uid
   ),
   -- The longest stretch between losses, a card's wins and draws before its loss.
   runs as (
@@ -197,20 +217,38 @@ begin
     ) z
     group by z.league_id, z.uid
   ),
-  ranked as (
-    select rc.*, coalesce(u.best, 0) as unbeaten_run,
+  keyed as (
+    select rc.*, cp.points, coalesce(u.best, 0) as unbeaten_run,
            (3 * (rc.wins - rc.forfeit_wins) + 1.5 * rc.forfeit_wins + rc.draws)::numeric
              / (rc.wins + rc.losses + rc.draws) as pct,
-           exists (select 1 from public.drop_stats ds
-                   where ds.drop_id = d.id and ds.scope = rc.league_id::text and ds.user_id = rc.uid)
+           coalesce((ds.stats->>'hits')::numeric / nullif((ds.stats->>'picks')::numeric, 0), 0) as acc,
+           ds.user_id is not null
              and exists (select 1 from public.league_members m
                          where m.league_id = rc.league_id and m.user_id = rc.uid and m.left_at is null
                            and (d.season_id is null or m.status = 'active')) as ranked
     from rec rc
+    join card_pts cp on cp.league_id = rc.league_id and cp.uid = rc.uid
     left join unbeaten u on u.league_id = rc.league_id and u.uid = rc.uid
+    left join public.drop_stats ds
+      on ds.drop_id = d.id and ds.scope = rc.league_id::text and ds.user_id = rc.uid
+  ),
+  -- Head to head: net wins over the ranked players level on everything else.
+  h2h as (
+    select k.*,
+           case when k.ranked then (
+             select coalesce(sum(case g.outcome when 'W' then 1 when 'L' then -1 else 0 end), 0)
+             from stored_games g
+             join keyed o on o.league_id = g.league_id and o.uid = g.opp
+             where g.league_id = k.league_id and g.uid = k.uid and o.ranked
+               and o.pct = k.pct and o.points = k.points and o.acc = k.acc
+           ) else 0 end as h2h
+    from keyed k
   )
-  select k.*, case when k.ranked then rank() over (partition by k.league_id, k.ranked order by k.pct desc, k.points desc) end as rank
-  from ranked k;
+  select k.*,
+         case when k.ranked then rank() over (
+           partition by k.league_id, k.ranked order by k.pct desc, k.points desc, k.acc desc, k.h2h desc
+         ) end as rank
+  from h2h k;
 
   -- Leagues: the table and where it's heading. Projections go over the
   -- weeks each player played (a late joiner's few weeks project like
