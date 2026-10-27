@@ -17,6 +17,28 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-belts-badges",
+    date: "2026-10-28T12:00:00Z",
+    title: "Belts and badges",
+    items: [
+      {
+        icon: "fitness",
+        title: "Earn your belt",
+        body: "Your career rank is now a belt, white to red. Stripes on the tip show how close the next one is.",
+      },
+      {
+        icon: "medal",
+        title: "Rare badges",
+        body: "Gold badges for the rare stuff, like playing every card of a season or running a league through one. They sit on your profile card, and anyone who opens your card sees them.",
+      },
+      {
+        icon: "eye-off",
+        title: "Your locker",
+        body: "Edit Profile has a locker with a switch for your belt and each badge, if you'd rather not show one.",
+      },
+    ],
+  },
+  {
     id: "2026-10-profile-titles",
     date: "2026-10-28T12:00:00Z",
     title: "Wear your awards",
