@@ -5,12 +5,23 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(34);
 
 select is(public.underdog_of(-142, 120), 'blue'::public.corner, 'the plus-money side is the underdog');
 select is(public.underdog_of(130, -155), 'red'::public.corner, 'whichever corner it is in');
-select is(public.underdog_of(-108, -112), 'red'::public.corner, 'the smaller favourite is the underdog when both are minus');
-select is(public.underdog_of(-110, -110), null, 'a pick''em has no underdog');
+select is(public.underdog_of(-110, -110), null, 'a level line has no underdog');
+-- A pick'em: both sides at minus money, or even, has no underdog.
+select is(public.underdog_of(-108, -110), null, 'both minus is a pick''em');
+select is(public.underdog_of(-113, -106), null, 'whichever side is shorter');
+select is(public.underdog_of(-102, -118), null, 'even a 16-point gap at minus money');
+select is(public.underdog_of(100, -100), null, 'even money is a pick''em');
+select is(public.underdog_of(-121, 101), 'blue'::public.corner, 'plus money by a point is an underdog');
+select is(public.underdog_of(-148, 125), 'blue'::public.corner, 'a clear underdog');
+select is(public.underdog_of(397, -541), 'red'::public.corner, 'a long shot');
+select is(public.underdog_of(105, 102), 'red'::public.corner, 'both plus: the longer price');
+select is(public.underdog_of(100, -120), 'red'::public.corner, '+100 against a favourite is an underdog');
+select is(public.underdog_of(-100, -120), 'red'::public.corner, 'and so is even money stored as -100');
+select is(public.underdog_of(-100, -100), null, 'even against even is a pick''em');
 
 create function pg_temp.f(id text) returns jsonb language sql as $$
   select jsonb_build_object('ufcFighterId', id, 'name', 'Fighter ' || id, 'nickname', null)
@@ -56,6 +67,9 @@ select ok(not public.odds_sync_due(), 'a run in the last two hours before a lock
 
 select public.record_odds(jsonb_build_array(pg_temp.odds('od1', 110, -130)), '{}'::jsonb, 497);
 select is((pg_temp.b('od1')).underdog_corner, 'red'::public.corner, 'the underdog follows the line until the lock');
+select public.record_odds(jsonb_build_array(pg_temp.odds('od1', -108, -110)), '{}'::jsonb, 497);
+select is((pg_temp.b('od1')).underdog_corner, null, 'and goes away when the line becomes a pick''em');
+select public.record_odds(jsonb_build_array(pg_temp.odds('od1', 110, -130)), '{}'::jsonb, 497);
 
 -- A substitution on the main card before it locks.
 select public.sync_event_card(pg_temp.card('sub'));
@@ -69,6 +83,21 @@ update public.bouts set locks_at = now() - interval '1 minute' where ufc_fight_i
 select throws_ok($$update public.bouts set underdog_corner = 'blue' where ufc_fight_id = 'od2'$$,
   'P0001', null, 'a locked bout''s underdog cannot change');
 select is((pg_temp.b('od2')).underdog_corner, 'red'::public.corner, 'it stays what it was at the lock');
+set local role service_role;
+select is(public.record_odds(jsonb_build_array(pg_temp.odds('od2', -108, -110)), '{}'::jsonb, 496), 0,
+  'a pick''em line after the lock writes nothing');
+reset role;
+select is((pg_temp.b('od2')).underdog_corner, 'red'::public.corner, 'so the frozen underdog stays');
+
+-- A bout that froze with an underdog from a pick'em line, before this rule:
+-- it keeps that underdog, so a re-score of its card gives the same points.
+update public.bouts set locks_at = now() + interval '1 hour' where ufc_fight_id = 'od2';
+update public.bouts set red_odds = -108, blue_odds = -112, underdog_corner = 'red' where ufc_fight_id = 'od2';
+update public.bouts set locks_at = now() - interval '1 minute' where ufc_fight_id = 'od2';
+set local role service_role;
+select public.record_odds(jsonb_build_array(pg_temp.odds('od2', -108, -112)), '{}'::jsonb, 496);
+reset role;
+select is((pg_temp.b('od2')).underdog_corner, 'red'::public.corner, 'a card frozen under the old rule keeps its underdog');
 set local role service_role;
 select lives_ok($$select public.sync_event_card(pg_temp.card('sub'))$$, 'the card sync still runs over a locked bout');
 reset role;
