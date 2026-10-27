@@ -892,7 +892,8 @@ export default function Home() {
                     mark: <CardMark name="glove" color={mode === "dark" ? c.textMuted : c.red} opacity={1} top={44} />,
                     tag: lastScored.live ? "LIVE EVENT POINTS" : "LAST EVENT POINTS",
                     tagColor: lastScored.live ? c.red : c.textMuted,
-                    title: lastScored.points > 0 ? `+${lastScored.points}` : lastScored.points < 0 ? `−${-lastScored.points}` : "0",
+                    // A finished card's total is a score, not a change: no plus sign.
+                    title: lastScored.points > 0 ? (lastScored.live ? `+${lastScored.points}` : `${lastScored.points}`) : lastScored.points < 0 ? `−${-lastScored.points}` : "0",
                     titleUnit: "PTS",
                     titleSize: 50,
                     footer: (

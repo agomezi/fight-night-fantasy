@@ -403,41 +403,28 @@ export default function Picks() {
     ? leagueShortfalls(leagueRules, allFights, (id) => !!picks[id], next.now).find((s) => s.missed > 0)?.league
     : undefined;
 
-  /** Under a fight still to pick: which leagues need it, or that global does.
-   * Under one that locked unpicked: which leagues it cost. */
+  /** A one-word tag in place of a fight's chevron, so the card keeps its
+   * height: a league needs it, only global does, or it locked unpicked and
+   * cost a league its week. The league names sit on the section label. */
   const needTag = (fight: Fight) => {
     if (picks[fight.id]) return null;
     const n = needs[fight.id];
-    if (isLocked(fight) && !n?.leagues.length) return null;
-    if (!n || (!n.leagues.length && !n.global)) return null;
-    const names = n.leagues.length > 2 ? `${n.leagues.slice(0, 2).join(", ")} +${n.leagues.length - 2}` : n.leagues.join(", ");
+    if (!n) return null;
     if (isLocked(fight)) {
-      if (!picksLoaded) return null;
-      return (
-        <Text
-          style={{ textAlign: "center", fontSize: 9.5, fontWeight: "800", letterSpacing: 1, color: c.red, paddingBottom: 8, marginTop: -4 }}
-          numberOfLines={1}
-        >
-          {`MISSED · ${names.toUpperCase()}`}
-        </Text>
-      );
+      return n.leagues.length && picksLoaded ? <Text style={[styles.rowNeed, { color: c.red }]}>MISSED</Text> : null;
     }
-    return (
-      <Text
-        style={{
-          textAlign: "center",
-          fontSize: 9.5,
-          fontWeight: "800",
-          letterSpacing: 1,
-          color: n.leagues.length ? c.red : c.textFaint,
-          paddingBottom: 8,
-          marginTop: -4,
-        }}
-        numberOfLines={1}
-      >
-        {n.leagues.length ? `NEEDED FOR ${names.toUpperCase()}` : "COUNTS FOR GLOBAL"}
-      </Text>
-    );
+    if (n.leagues.length) return <Text style={[styles.rowNeed, { color: c.red }]}>NEEDED</Text>;
+    return n.global ? <Text style={styles.rowNeed}>GLOBAL</Text> : null;
+  };
+  /** Leagues still waiting on an open, unpicked fight in this part of the card. */
+  const segmentNeeds = (segment: Fight["segment"]) => {
+    const names = new Set<string>();
+    for (const f of allFights) {
+      if (f.segment !== segment || picks[f.id] || isLocked(f)) continue;
+      for (const name of needs[f.id]?.leagues ?? []) names.add(name);
+    }
+    const list = [...names];
+    return list.length > 2 ? `${list.slice(0, 2).join(", ")} +${list.length - 2}` : list.join(", ");
   };
   const mainPicked = !!MAIN_EVENT && !!picks[MAIN_EVENT.id];
   const canLockIn = mainPicked && need.missing.length === 0;
@@ -634,9 +621,11 @@ export default function Picks() {
                 MAIN EVENT{"  "}
                 <Text style={{ color: c.red }}>{MAIN_EVENT.division}</Text>
               </Text>
-              <Chevron open={!!expanded[MAIN_EVENT.id]} />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                {needTag(MAIN_EVENT)}
+                <Chevron open={!!expanded[MAIN_EVENT.id]} />
+              </View>
             </PressableScale>
-            {needTag(MAIN_EVENT)}
 
             {expanded[MAIN_EVENT.id] && (
               <Animated.View
@@ -686,17 +675,25 @@ export default function Picks() {
             : i === 0 && fight.segment === "main"
               ? SEGMENT_LABELS.main
               : null;
+          const neededBy = label ? segmentNeeds(fight.segment) : "";
           return (
             <View key={fight.id}>
               {label && (
-                <Text style={[styles.groupLabel, { marginTop: 14 }]}>
-                  {label}
-                  {isLocked(fight) ? (
-                    <Text style={{ color: c.red }}>  · LOCKED</Text>
-                  ) : (
-                    `  · LOCKS ${startLabel(fight.locksAt).split(" · ")[1]}`
+                <View style={{ flexDirection: "row", alignItems: "baseline", gap: 8, marginTop: 14 }}>
+                  <Text style={[styles.groupLabel, { marginTop: 0, flexShrink: 0 }]}>
+                    {label}
+                    {isLocked(fight) ? (
+                      <Text style={{ color: c.red }}>  · LOCKED</Text>
+                    ) : (
+                      `  · LOCKS ${startLabel(fight.locksAt).split(" · ")[1]}`
+                    )}
+                  </Text>
+                  {!!neededBy && (
+                    <Text style={[styles.groupLabel, { marginTop: 0, flex: 1, textAlign: "right", color: c.red }]} numberOfLines={1}>
+                      {`FOR ${neededBy.toUpperCase()}`}
+                    </Text>
                   )}
-                </Text>
+                </View>
               )}
               <Animated.View
                 entering={appear(Math.min(i + 1, 6))}
@@ -731,7 +728,7 @@ export default function Picks() {
                         VS
                       </Animated.Text>
                     )}
-                    <Chevron open={!!isOpen} size={12} />
+                    {needTag(fight) ?? <Chevron open={!!isOpen} size={12} />}
                   </View>
 
                   <View style={[styles.rowFighter, { justifyContent: "flex-end" }]}>
@@ -748,7 +745,6 @@ export default function Picks() {
                     <Avatar initials={fight.b.initials} photoUrl={fight.b.photoUrl} selected={picked === fight.b.id} dog={fight.b.dog} size={36} />
                   </View>
                 </PressableScale>
-                {needTag(fight)}
 
                 {isOpen && (
                   <Animated.View

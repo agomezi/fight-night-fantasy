@@ -58,6 +58,8 @@ export default function Leagues() {
   const { session } = useAuth();
   // The league mate whose profile is open.
   const [viewing, setViewing] = useState<string | null>(null);
+  // A global top-five player whose profile is open; they may not share a league.
+  const [viewingGlobal, setViewingGlobal] = useState<string | null>(null);
   const [showRules, setShowRules] = useState(false);
 
   // The global table: the top five and, if you're further down, you.
@@ -102,11 +104,19 @@ export default function Leagues() {
         <Text style={{ color: c.red, fontSize: 11, fontWeight: "800", letterSpacing: 1.2 }}>{board.season}</Text>
       </View>
       {board.rows.map((row, i) => (
-        <LeaderboardRow key={row.userId} row={row} index={i} last={i === board.rows.length - 1} animate={animateBoard} />
+        <LeaderboardRow
+          key={row.userId}
+          row={row}
+          index={i}
+          last={i === board.rows.length - 1}
+          animate={animateBoard}
+          onPress={() => setViewingGlobal(row.userId)}
+        />
       ))}
       <PressableScale onPress={() => router.push("/leaderboard")} style={{ paddingTop: 12, alignItems: "center" }}>
         <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: "700" }}>See the full leaderboard →</Text>
       </PressableScale>
+      <MemberProfileSheet leagueId={null} userId={viewingGlobal} onClose={() => setViewingGlobal(null)} />
     </Animated.View>
   );
 
