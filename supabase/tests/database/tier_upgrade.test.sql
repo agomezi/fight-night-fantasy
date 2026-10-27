@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(49);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -191,6 +191,20 @@ select is(pg_temp.tier(pg_temp.b()), 'amateur', 'Season 2 opens B at Amateur');
 select is(pg_temp.told(pg_temp.b(), 'started'), array[1, 5], 'everyone, owner too, hears it started');
 select is(public.league_tier_for(pg_temp.b(), pg_temp.ev('tu-s1-5')), 'casual', 'Season 1''s cards still play Casual');
 select is(public.league_tier_for(pg_temp.b(), pg_temp.ev('tu-next')), 'amateur', 'Season 2''s play Amateur');
+
+-- Player 05 scores on a main-card bout and a prelim in each season: Season 1's
+-- table counts only the main card, at Casual points; Season 2's the prelim too.
+insert into public.bouts (event_id, fight_order, card_segment, red_fighter_id, blue_fighter_id)
+select pg_temp.ev('tu-s1-5'), b.fight_order, b.card_segment, b.red_fighter_id, b.blue_fighter_id
+from public.bouts b where b.event_id = pg_temp.ev('tu-next') and b.fight_order in (1, 3);
+insert into public.scores (user_id, bout_id, points, casual_points, breakdown, correct, counts_for_accuracy)
+select pg_temp.u(5), b.id, case b.fight_order when 1 then 20 else 40 end, case b.fight_order when 1 then 10 else 20 end,
+       '{"fighter": 50, "method": 0, "round": 0, "underdogBonus": 0}'::jsonb, true, true
+from public.bouts b where b.event_id in (pg_temp.ev('tu-s1-5'), pg_temp.ev('tu-next')) and b.fight_order in (1, 3);
+select is((select points from public.league_season_totals(pg_temp.b(), (select id from public.seasons where number = 1))
+           where user_id = pg_temp.u(5)), 10, 'Season 1''s table still plays Casual: the main card, at Casual points');
+select is((select points from public.league_season_totals(pg_temp.b(), (select id from public.seasons where number = 2))
+           where user_id = pg_temp.u(5)), 60, 'Season 2''s plays Amateur: the prelim counts, at full points');
 
 set local role authenticated;
 select pg_temp.as_user(1);

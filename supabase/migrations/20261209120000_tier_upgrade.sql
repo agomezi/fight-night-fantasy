@@ -134,7 +134,7 @@ as $$
   );
 $$;
 
--- The tier the league plays a card at.
+-- The tier the league plays a card at; null for no card.
 create function public.league_tier_for(league uuid, event uuid)
 returns public.league_tier
 language sql
@@ -142,7 +142,9 @@ stable
 security definer
 set search_path = ''
 as $$
-  select public.league_tier_at(league, public.card_season_number(event));
+  select public.league_tier_at(league, x.n)
+  from (select public.card_season_number(event) as n) x
+  where x.n is not null;
 $$;
 
 -- The tier the league plays a season at; null is the pre-season.
@@ -1261,4 +1263,113 @@ as $$
   from lg
   where (select count(*) from totals) >= case when kind = 'jobber' then 5 else 3 end
     and (kind <> 'craftiest' or exists (select 1 from craftiest));
+$$;
+
+-- The tier column is the tier the league's next card plays, which is what
+-- builds before my_league_tiers use it for: the picks a card requires. It
+-- differs from the tier now only between a season's last card and the next
+-- season's first, after a move up.
+create or replace function public.my_leagues()
+returns table (
+  league_id    uuid,
+  name         text,
+  tier         public.league_tier,
+  invite_code  text,
+  is_owner     boolean,
+  members      integer,
+  my_status    text,
+  my_rank      bigint,
+  wins         integer,
+  losses       integer,
+  draws        integer,
+  points       integer
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with card as (
+    select e.id from public.events e
+    where e.status in ('scheduled', 'live')
+    order by e.starts_at limit 1
+  )
+  select l.id, l.name,
+         coalesce(public.league_tier_for(l.id, (select c.id from card c)), l.tier),
+         l.invite_code, l.owner_id = (select auth.uid()),
+         (select count(*)::integer from public.league_members x
+           where x.league_id = l.id and x.left_at is null),
+         me.status, me.rank, me.wins, me.losses, me.draws, me.points
+  from public.league_members m
+  join public.leagues l on l.id = m.league_id
+  cross join lateral (
+    select s.status, s.rank, s.wins, s.losses, s.draws, s.points
+    from public.league_standings(l.id) s where s.is_me
+  ) me
+  where m.user_id = (select auth.uid()) and m.left_at is null
+  order by m.joined_at;
+$$;
+
+-- As before, with the tier the next card plays, so someone joining just
+-- before a move up reads the rules they'll play.
+create or replace function public.league_preview(code text)
+returns table (
+  name           text,
+  tier           public.league_tier,
+  members        int,
+  max_members    int,
+  scope          text,
+  top_n          smallint,
+  already_member boolean,
+  queued         boolean,
+  is_full        boolean
+)
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  uid    uuid := (select auth.uid());
+  season uuid := public.current_season();
+  cap    int := (select x.max_members::int from public.league_limits() x);
+begin
+  if uid is null then
+    raise exception 'Sign in first.' using errcode = 'P0001', hint = 'not_signed_in';
+  end if;
+  perform public.require_good_standing(uid);
+  perform public.check_input_limit(uid, 'invite_code');
+  if not exists (select 1 from public.leagues l where l.invite_code = lower(btrim(coalesce(code, '')))) then
+    perform public.record_input_attempt(uid, 'invite_code');
+    return;
+  end if;
+
+  return query
+  with card as (
+    select e.id, e.locks_at from public.events e
+    where e.status = 'scheduled' and e.locks_at > now()
+    order by e.locks_at limit 1
+  ),
+  lg as (
+    select l.id, l.name, coalesce(public.league_tier_for(l.id, (select c.id from card c)), l.tier) as tier
+    from public.leagues l
+    where l.invite_code = lower(btrim(coalesce(code, '')))
+  )
+  select lg.name,
+         lg.tier,
+         (select count(*)::int from public.league_members m
+          where m.league_id = lg.id
+            and case when season is not null then m.status = 'active' else m.left_at is null end),
+         cap,
+         case when lg.tier in ('pro', 'hardcore') then r.scope end,
+         case when lg.tier in ('pro', 'hardcore') then r.top_n end,
+         exists (select 1 from public.league_members m
+                 where m.league_id = lg.id and m.user_id = uid and m.left_at is null),
+         season is not null,
+         (select count(*)::int from public.league_members m where m.league_id = lg.id and m.left_at is null) >= cap
+  from lg
+  cross join lateral public.league_pick_rule(
+    lg.id, coalesce((select c.locks_at from card c), 'infinity'::timestamptz)
+  ) r;
+end;
 $$;

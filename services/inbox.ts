@@ -77,14 +77,19 @@ async function db() {
   return (await import("./supabase")).supabase;
 }
 
+// The v3 RPCs are for a server from before tier news, which has none to show.
 export async function loadInbox(maxRows = 50): Promise<InboxItem[]> {
-  const { data, error } = await (await db()).rpc("inbox_items_v4", { max_rows: maxRows });
+  const client = await db();
+  let { data, error } = await client.rpc("inbox_items_v4", { max_rows: maxRows });
+  if (error) ({ data, error } = await client.rpc("inbox_items_v3", { max_rows: maxRows }));
   if (error) throw new Error(error.message);
   return toInbox((data ?? []) as RawInboxItem[]);
 }
 
 export async function loadUnreadCount(): Promise<number> {
-  const { data, error } = await (await db()).rpc("inbox_unread_count_v4");
+  const client = await db();
+  let { data, error } = await client.rpc("inbox_unread_count_v4");
+  if (error) ({ data, error } = await client.rpc("inbox_unread_count_v3"));
   if (error) throw new Error(error.message);
   return (data as number | null) ?? 0;
 }
