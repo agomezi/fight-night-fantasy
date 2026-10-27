@@ -12,7 +12,8 @@ import AnimatedBar from "../components/AnimatedBar";
 import BottomNav from "../components/BottomNav";
 import EmptyState from "../components/EmptyState";
 import PinnedCalls from "../components/PinnedCalls";
-import BadgesBlock from "../components/BadgesBlock";
+import BadgeMedals from "../components/BadgeMedals";
+import RankBelt from "../components/RankBelt";
 import ResultRow from "../components/ResultRow";
 import HeaderBar from "../components/HeaderBar";
 import { useAuth } from "../context/AuthContext";
@@ -28,7 +29,7 @@ import { readCache, writeCache } from "../services/screenCache";
 import { loadMyLeagueRecords, loadRecordHistory, rankLabel, type LeagueRecord, type SeasonRecord } from "../services/leagues";
 import { loadCareer, type Career } from "../services/career";
 import { loadPinnedCalls, MAX_PINNED_CALLS, movePinToTop, shareCallText, unpinCall, type PinnedCall } from "../services/pins";
-import { loadBadges, type Badge } from "../services/awards";
+import { beltFor, loadLocker, shown, type Locker } from "../services/locker";
 import { profileLine, titleName } from "../services/titles";
 
 export default function Profile() {
@@ -73,18 +74,22 @@ export default function Profile() {
     }, [refreshTitle])
   );
 
-  // Awards you've locked in at the end of a season.
-  const [badges, setBadges] = useState<Badge[]>([]);
+  // Your belt and badges, less anything you've hidden in the locker.
+  const lockerKey = `locker:${session?.user.id}`;
+  const [locker, setLocker] = useState<Locker | null>(() => readCache<Locker>(lockerKey) ?? null);
   useFocusEffect(
     useCallback(() => {
       if (!session?.user.id) return;
       let current = true;
-      loadBadges(session.user.id).then((v) => current && setBadges(v)).catch(() => {});
+      loadLocker(session.user.id)
+        .then((v) => current && setLocker(writeCache(lockerKey, v)))
+        .catch(() => {});
       return () => {
         current = false;
       };
-    }, [session?.user.id])
+    }, [session?.user.id, lockerKey])
   );
+  const onCard = shown(locker);
 
   // Your pinned calls, which anyone who opens your card sees.
   const myId = session?.user.id;
@@ -211,16 +216,21 @@ export default function Profile() {
             <View style={styles.usernameBar} />
           </View>
           <Text style={styles.levelText}>{career ? career.rank.toUpperCase() : "—"}</Text>
-          {/* How close the next rank is, without saying what it is. */}
-          {career?.nextRank != null && (
+          {/* Your belt: its stripes show how close the next rank is, without saying what it is. */}
+          {career != null && !locker?.hidden.includes("belt") && (
             <View style={styles.rankProgress}>
-              <AnimatedBar percent={career.progress * 100} height={3} style={{ alignSelf: "stretch" }} />
+              <RankBelt {...beltFor(career.points)} />
             </View>
           )}
           <Text style={styles.memberLine}>
             {/* Nothing about your record until it has loaded. */}
             {profileLine(career, titleName(profile.title)) ?? "\u00a0"}
           </Text>
+          {!!onCard?.badges.length && (
+            <View style={styles.medalRow}>
+              <BadgeMedals badges={onCard.badges} />
+            </View>
+          )}
         </Animated.View>
 
         <View style={styles.statGrid}>
@@ -262,15 +272,6 @@ export default function Profile() {
             <AnimatedBar percent={accuracy ?? 0} height={4} style={{ marginTop: 10 }} />
           </Animated.View>
         </View>
-
-        {badges.length > 0 && (
-          <>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>BADGES</Text>
-            </View>
-            <BadgesBlock badges={badges} />
-          </>
-        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>PINNED CALLS</Text>

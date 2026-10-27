@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ActionSheet, { type SheetAction } from "../components/ActionSheet";
+import BadgeMedals from "../components/BadgeMedals";
+import RankBelt from "../components/RankBelt";
 import ClearableInput from "../components/ClearableInput";
 import PressableScale from "../components/PressableScale";
 import { DIVISIONS } from "../constants/divisions";
@@ -13,6 +15,7 @@ import { loadBadges, type AwardId } from "../services/awards";
 import { loadNameReview } from "../services/nameReview";
 import { cleanHandle, HandleBlockedError, handleProblem, HandleTakenError, HandleTooSoonError, HANDLE_MAX } from "../services/profile";
 import { titleName, titleOptions, type TitleOption } from "../services/titles";
+import { beltLabel, loadLocker, setLockerItem, type Locker, type LockerItem } from "../services/locker";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -123,6 +126,40 @@ export default function EditProfile() {
       current = false;
     };
   }, [myId]);
+  // The locker: each switch saves straight away, like the ones in Settings.
+  const [locker, setLocker] = useState<Locker | null>(null);
+  useEffect(() => {
+    if (!myId) return;
+    let current = true;
+    loadLocker(myId)
+      .then((v) => current && setLocker(v))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [myId]);
+  const toggleItem = (item: LockerItem, show: boolean) => {
+    const hide = (l: Locker, h: boolean) => ({ ...l, hidden: h ? [...l.hidden.filter((x) => x !== item), item] : l.hidden.filter((x) => x !== item) });
+    setLocker((l) => (l ? hide(l, !show) : l));
+    setLockerItem(item, show).catch((e) => {
+      setLocker((l) => (l ? hide(l, show) : l));
+      Alert.alert("Couldn't save that", e instanceof Error ? e.message : "Please try again.");
+    });
+  };
+  const lockerRows = locker
+    ? [
+        ...(locker.belt
+          ? [{ item: "belt" as const, ...beltLabel(locker.belt), art: <RankBelt {...locker.belt} width={40} /> }]
+          : []),
+        ...locker.badges.map((b) => ({
+          item: b.id,
+          title: b.title,
+          sub: b.blurb,
+          art: <BadgeMedals badges={[b]} />,
+        })),
+      ]
+    : [];
+
   const titleActions: SheetAction[] = [
     ...(titles ?? []).map((t) => ({
       label: t.title,
@@ -245,6 +282,32 @@ export default function EditProfile() {
               ? "Titles are earned at award drops. Join a league and make your picks to earn your first one."
               : " "}
         </Text>
+
+        {lockerRows.length > 0 && (
+          <>
+            <Text style={styles.fieldLabel}>LOCKER</Text>
+            <View style={styles.card}>
+              {lockerRows.map((row, i) => (
+                <View key={row.item} style={[styles.row, { gap: 12 }, i > 0 && { borderTopWidth: 1, borderTopColor: c.border }]}>
+                  <View style={{ width: 40, alignItems: "center" }}>{row.art}</View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowLabel}>{row.title}</Text>
+                    <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>{row.sub}</Text>
+                  </View>
+                  <Switch
+                    value={!locker?.hidden.includes(row.item)}
+                    onValueChange={(v) => toggleItem(row.item, v)}
+                    trackColor={{ false: c.borderStrong, true: c.red }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor={c.borderStrong}
+                    accessibilityLabel={`Show ${row.title} on my profile`}
+                  />
+                </View>
+              ))}
+            </View>
+            <Text style={styles.hint}>Switched on shows on your profile and to anyone who opens your card.</Text>
+          </>
+        )}
 
         <Text style={styles.fieldLabel}>FAVORITE DIVISION</Text>
         <DivisionPicker value={favDivision} onChange={setFavDivision} />

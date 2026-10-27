@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { blockPlayer, unblockPlayer } from "../../services/blocks";
 import { reportMember, loadMemberProfile, type MemberProfile } from "../../services/leagues";
 import { loadTitle } from "../../services/titles";
+import { loadLocker, toLocker } from "../../services/locker";
 import MemberProfileSheet from "../MemberProfileSheet";
 
 // Animation and presses are stood in for, so these test what shows and what is sent.
@@ -31,6 +32,7 @@ jest.mock("../../services/leagues", () => ({
 }));
 
 jest.mock("../../services/blocks", () => ({ blockPlayer: jest.fn(), unblockPlayer: jest.fn() }));
+jest.mock("../../services/locker", () => ({ ...jest.requireActual("../../services/locker"), loadLocker: jest.fn() }));
 jest.mock("../../services/titles", () => ({ ...jest.requireActual("../../services/titles"), loadTitle: jest.fn() }));
 
 const load = loadMemberProfile as jest.MockedFunction<typeof loadMemberProfile>;
@@ -38,6 +40,7 @@ const block = blockPlayer as jest.MockedFunction<typeof blockPlayer>;
 const unblock = unblockPlayer as jest.MockedFunction<typeof unblockPlayer>;
 const report = reportMember as jest.MockedFunction<typeof reportMember>;
 const title = loadTitle as jest.MockedFunction<typeof loadTitle>;
+const locker = loadLocker as jest.MockedFunction<typeof loadLocker>;
 
 const ben: MemberProfile = {
   name: "Ben",
@@ -55,6 +58,7 @@ beforeEach(() => {
   block.mockReset().mockResolvedValue();
   unblock.mockReset().mockResolvedValue();
   title.mockReset().mockResolvedValue(null);
+  locker.mockReset().mockResolvedValue(null);
 });
 
 async function open(profile: MemberProfile | null, onClose = jest.fn()) {
@@ -85,6 +89,23 @@ describe("MemberProfileSheet", () => {
     await screen.findByText("Ben");
     await waitFor(() => expect(title).toHaveBeenCalled());
     expect(screen.queryByText("Round Sniper")).toBeNull();
+  });
+
+  it("shows their belt and badges", async () => {
+    locker.mockResolvedValue(toLocker({ points: 7, badges: [{ id: "og" }], hidden: [] }));
+    await open(ben);
+    expect(await screen.findByLabelText("Contender belt, 1 stripe")).toBeTruthy();
+    expect(screen.getByLabelText("OG badge")).toBeTruthy();
+    expect(screen.getByText("BADGES")).toBeTruthy();
+  });
+
+  it("leaves out what you've hidden when it's your own card", async () => {
+    locker.mockResolvedValue(toLocker({ points: 7, badges: [{ id: "og" }], hidden: ["og", "belt"] }));
+    await open({ ...ben, isMe: true });
+    await screen.findByText("Ben");
+    await waitFor(() => expect(locker).toHaveBeenCalled());
+    expect(screen.queryByLabelText("OG badge")).toBeNull();
+    expect(screen.queryByLabelText(/belt/)).toBeNull();
   });
 
   it("lays the stats out inside the card, not pinned over the name", async () => {

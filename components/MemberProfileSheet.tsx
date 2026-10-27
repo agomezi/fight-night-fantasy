@@ -16,8 +16,9 @@ import {
 } from "../services/leagues";
 import { loadPinnedCalls, type PinnedCall } from "../services/pins";
 import PinnedCalls from "./PinnedCalls";
-import BadgesBlock from "./BadgesBlock";
-import { loadBadges, type Badge } from "../services/awards";
+import BadgeMedals from "./BadgeMedals";
+import RankBelt from "./RankBelt";
+import { loadLocker, shown, type Locker } from "../services/locker";
 import { loadTitle, titleName } from "../services/titles";
 import PressableScale from "./PressableScale";
 import { StatBox, StatBoxRow } from "./StatBox";
@@ -51,7 +52,7 @@ export default function MemberProfileSheet({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pins, setPins] = useState<PinnedCall[]>([]);
-  const [badges, setBadges] = useState<Badge[]>([]);
+  const [locker, setLocker] = useState<Locker | null>(null);
   const [title, setTitle] = useState<string | null>(null);
 
   useEffect(() => {
@@ -71,9 +72,9 @@ export default function MemberProfileSheet({
     loadPinnedCalls(userId)
       .then((v) => current && setPins(v))
       .catch(() => {});
-    setBadges([]);
-    loadBadges(userId)
-      .then((v) => current && setBadges(v))
+    setLocker(null);
+    loadLocker(userId)
+      .then((v) => current && setLocker(v))
       .catch(() => {});
     setTitle(null);
     loadTitle(userId)
@@ -111,6 +112,9 @@ export default function MemberProfileSheet({
       loadTitle(userId)
         .then((v) => setTitle(titleName(v)))
         .catch(() => {});
+      loadLocker(userId)
+        .then(setLocker)
+        .catch(() => {});
     } catch {
       setError("Couldn't unblock this player. Please try again.");
     } finally {
@@ -141,6 +145,8 @@ export default function MemberProfileSheet({
       return <Text style={[muted, { textAlign: "center", paddingVertical: 24 }]}>Couldn&apos;t load this profile.</Text>;
     }
     if (!profile) return <ScreenSkeleton variant="sheet" />;
+    // Your own comes with what you've hidden; the card shows what others see.
+    const onCard = profile.isMe ? shown(locker) : locker;
 
     if (step === "sent" || step === "already") {
       return (
@@ -307,6 +313,11 @@ export default function MemberProfileSheet({
                 {title}
               </Text>
             )}
+            {!!onCard?.belt && !profile.blocked && (
+              <View style={{ marginTop: 6 }}>
+                <RankBelt {...onCard.belt} width={70} />
+              </View>
+            )}
             {profile.isMe && <Text style={{ color: c.textFaint, fontSize: 12, marginTop: 2 }}>That&apos;s you</Text>}
           </View>
           {profile.canReport && (
@@ -387,12 +398,12 @@ export default function MemberProfileSheet({
         {profile.accuracy == null && profile.favoriteDivision == null && (
           <Text style={[muted, { marginTop: 12, fontSize: 12.5 }]}>No scored picks yet. Stats fill in after a few cards.</Text>
         )}
-        {badges.length > 0 && !profile.blocked && (
+        {!!onCard?.badges.length && !profile.blocked && (
           <View style={{ marginTop: 18 }}>
             <Text style={{ color: c.textMuted, fontSize: 11, fontWeight: "800", letterSpacing: 1.4, marginBottom: 10 }}>
               BADGES
             </Text>
-            <BadgesBlock badges={badges} />
+            <BadgeMedals badges={onCard.badges} />
           </View>
         )}
         {pins.length > 0 && !profile.blocked && (
