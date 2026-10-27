@@ -81,7 +81,15 @@ export const AWARD_ORDER: AwardId[] = [
   "gun_shy",
 ];
 
-export type DropInfo = { id: string; label: string; kind: "checkin" | "midseason" | "final"; ranAt?: string };
+export type DropInfo = {
+  id: string;
+  label: string;
+  kind: "checkin" | "midseason" | "final";
+  ranAt?: string;
+  publishedAt?: string;
+  /** When the first card after it locks; null when none is scheduled yet. */
+  nextLockAt?: string | null;
+};
 
 export type AwardWin = { award: AwardId; userId: string; name: string; value: number | null };
 
@@ -194,6 +202,51 @@ export function shareText(leagueName: string, d: LeagueDrop): string {
   return [`${leagueName} · ${d.drop.label} awards 🏆`, "", ...lines, "", "Fight Night Fantasy"].join("\n");
 }
 
+/** How long a drop's card stays on the league page after it's published. */
+export const DROP_SHOWN_DAYS = 7;
+
+/** When the drop's card leaves the league page: a week after it's published,
+ * or when the next card locks if that's later, so a midweek drop is still up
+ * for the weekend. Null without a publish time, which keeps it up. */
+export function dropShownUntil(drop: DropInfo): Date | null {
+  if (!drop.publishedAt) return null;
+  const week = new Date(drop.publishedAt).getTime() + DROP_SHOWN_DAYS * 24 * 60 * 60 * 1000;
+  const lock = drop.nextLockAt ? new Date(drop.nextLockAt).getTime() : null;
+  return new Date(lock != null && lock > week ? lock : week);
+}
+
+export function showsOnLeaguePage(drop: DropInfo, now: Date): boolean {
+  const until = dropShownUntil(drop);
+  return until == null || now.getTime() < until.getTime();
+}
+
+type RawDrop = {
+  id: string;
+  label: string;
+  kind: DropInfo["kind"];
+  ran_at: string;
+  published_at?: string | null;
+  next_lock_at?: string | null;
+};
+
+export function toDropInfo(r: RawDrop): DropInfo {
+  return {
+    id: r.id,
+    label: r.label,
+    kind: r.kind,
+    ranAt: r.ran_at,
+    publishedAt: r.published_at ?? undefined,
+    nextLockAt: r.next_lock_at ?? null,
+  };
+}
+
+/** "Oct 25": the day a drop was published (or run, before that was known), in ET. */
+export function dropDate(drop: DropInfo): string {
+  const at = drop.publishedAt ?? drop.ranAt;
+  if (!at) return "";
+  return new Date(at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
+}
+
 /** An award won at a season's final drop, kept on the profile for good. */
 export type Badge = { award: AwardId; title: string; icon: AwardInfo["icon"]; joke: boolean; scope: string; season: string };
 
@@ -222,10 +275,17 @@ async function db() {
 }
 
 export async function loadLatestDrop(): Promise<DropInfo | null> {
-  const { data, error } = await (await db()).rpc("latest_award_drop");
+  const { data, error } = await (await db()).rpc("latest_award_drop_v2");
   if (error) return null; // Before the server has awards, there are none.
-  const row = (data ?? [])[0] as { id: string; label: string; kind: DropInfo["kind"]; ran_at: string } | undefined;
-  return row ? { id: row.id, label: row.label, kind: row.kind, ranAt: row.ran_at } : null;
+  const row = (data ?? [])[0] as RawDrop | undefined;
+  return row ? toDropInfo(row) : null;
+}
+
+/** This season's drops with something for the league, newest first. */
+export async function loadLeagueDrops(leagueId: string): Promise<DropInfo[]> {
+  const { data, error } = await (await db()).rpc("league_award_drops", { league: leagueId });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as RawDrop[]).map(toDropInfo);
 }
 
 export async function loadLeagueDrop(leagueId: string, dropId?: string): Promise<LeagueDrop | null> {

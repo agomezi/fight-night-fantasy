@@ -1,4 +1,4 @@
-import { AWARDS, shareText, toBadges, toLeagueDrop, yourLine } from "../awards";
+import { AWARDS, dropDate, dropShownUntil, shareText, showsOnLeaguePage, toBadges, toDropInfo, toLeagueDrop, yourLine } from "../awards";
 import { notificationText } from "../notificationText";
 
 const raw = {
@@ -64,4 +64,41 @@ test("the awards push opens Leagues", () => {
   const m = notificationText("awards", { label: "Pre-season check-in", kind: "checkin", dropId: "d1" });
   expect(m.title).toBe("Pre-season check-in: the awards are in");
   expect(m.data).toEqual({ screen: "leagues" });
+});
+
+describe("how long a drop stays on the league page", () => {
+  // Published on a Wednesday afternoon (ET).
+  const published = "2026-10-21T18:00:00Z";
+  const at = (iso: string) => new Date(iso);
+
+  test("a week after it's published, when the next card locks sooner", () => {
+    const drop = toDropInfo({ id: "d1", label: "Check-in", kind: "checkin", ran_at: published, published_at: published, next_lock_at: "2026-10-24T22:00:00Z" });
+    expect(dropShownUntil(drop)).toEqual(at("2026-10-28T18:00:00Z"));
+    expect(showsOnLeaguePage(drop, at("2026-10-28T17:59:00Z"))).toBe(true);
+    expect(showsOnLeaguePage(drop, at("2026-10-28T18:00:00Z"))).toBe(false);
+  });
+
+  test("until the next card locks, when that's later than a week", () => {
+    const drop = toDropInfo({ id: "d1", label: "Check-in", kind: "checkin", ran_at: published, published_at: published, next_lock_at: "2026-11-07T22:00:00Z" });
+    expect(dropShownUntil(drop)).toEqual(at("2026-11-07T22:00:00Z"));
+    expect(showsOnLeaguePage(drop, at("2026-11-01T12:00:00Z"))).toBe(true);
+    expect(showsOnLeaguePage(drop, at("2026-11-07T22:00:01Z"))).toBe(false);
+  });
+
+  test("a week when no card is scheduled yet", () => {
+    const drop = toDropInfo({ id: "d1", label: "Check-in", kind: "checkin", ran_at: published, published_at: published, next_lock_at: null });
+    expect(dropShownUntil(drop)).toEqual(at("2026-10-28T18:00:00Z"));
+  });
+
+  test("stays up without a publish time", () => {
+    const drop = toDropInfo({ id: "d1", label: "Check-in", kind: "checkin", ran_at: published });
+    expect(dropShownUntil(drop)).toBeNull();
+    expect(showsOnLeaguePage(drop, at("2030-01-01T00:00:00Z"))).toBe(true);
+  });
+
+  test("lists by the day it was published, in ET", () => {
+    // 1 AM UTC on the 26th is still the 25th in New York.
+    const drop = toDropInfo({ id: "d1", label: "UFC 333 Check-in", kind: "checkin", ran_at: "2026-10-25T20:00:00Z", published_at: "2026-10-26T01:00:00Z" });
+    expect(dropDate(drop)).toBe("Oct 25");
+  });
 });
