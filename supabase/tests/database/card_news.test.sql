@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(42);
+select plan(45);
 
 -- A Saturday 8 PM Eastern main card. The schedule checks run as of two days
 -- before it, so the test doesn't depend on today's weekday.
@@ -92,22 +92,28 @@ select pg_temp.odds(1, 150, -170);
 reset role;
 select is(pg_temp.sent('odds'), 6, 'flipping back is told once, and a line wobbling back again isn''t');
 
--- Red, level, blue.
-set local role service_role;
-select pg_temp.odds(2, -150, 130);
-select pg_temp.odds(2, -110, -110);
-reset role;
-select is((select last_underdog_corner::text from public.bouts where id = pg_temp.bid(2)), 'blue', 'a level line keeps the last underdog');
-
+-- Blue, a pick'em, then red.
 set local session_replication_role = replica;
 insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
 select pg_temp.u(1), b.id, b.version, b.red_fighter_id, 'ANY' from public.bouts b where b.id = pg_temp.bid(2);
 set local session_replication_role = origin;
 set local role service_role;
+select pg_temp.odds(2, -150, 130);
+select pg_temp.odds(2, -110, -110);
+reset role;
+select is((select last_underdog_corner::text from public.bouts where id = pg_temp.bid(2)), 'blue', 'a level line keeps the last underdog');
+set local role service_role;
+select pg_temp.odds(2, -108, -112);
+reset role;
+select is((select underdog_corner from public.bouts where id = pg_temp.bid(2)), null, 'a pick''em line has no underdog');
+select is((select last_underdog_corner::text from public.bouts where id = pg_temp.bid(2)), 'blue', 'and keeps the last one');
+select is((select count(*)::int from public.notifications_sent where kind = 'odds' and payload ->> 'boutId' = pg_temp.bid(2)::text), 0,
+  'an underdog becoming a pick''em sends nothing');
+set local role service_role;
 select pg_temp.odds(2, 150, -170);
 reset role;
 select is((select count(*)::int from public.notifications_sent where kind = 'odds' and payload ->> 'boutId' = pg_temp.bid(2)::text), 1,
-  'blue to level to red is a flip');
+  'blue to a pick''em to red is a flip');
 
 -- One sync over a whole card is one push call.
 delete from public.notifications_sent where kind = 'odds';
