@@ -19,7 +19,8 @@ type LocalProfile = Omit<Profile, "username">;
 
 const DEFAULT_LOCAL: LocalProfile = {
   title: "Tactical Specialist",
-  favDivision: "Heavyweight",
+  // Empty until the player picks one, so nobody gets a division they never chose.
+  favDivision: "",
   bio: "Never missed a main event. Locked in since UFC 280.",
 };
 
