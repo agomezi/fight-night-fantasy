@@ -110,7 +110,7 @@ set search_path = ''
 as $$
   with ranks (name, at, next_at) as (
     values ('Prospect', 0, 5), ('Contender', 5, 15), ('Ranked', 15, 35),
-           ('Title Challenger', 35, 60), ('Champion', 60, 150), ('Legend', 150, null::integer)
+           ('Title Challenger', 35, 75), ('Champion', 75, 155), ('Legend', 155, null::integer)
   )
   select jsonb_build_object(
            'rank', r.name,
@@ -180,7 +180,7 @@ as $$
   earned (item, detail) as (
     select 'og', null::jsonb from who where who.preseason_tester
     union all
-    select 'legend', null from who where who.points >= 150
+    select 'legend', null from who where who.points >= 155
     union all
     select 'season_veteran', jsonb_build_object('seasons', jsonb_agg(v.number order by v.number))
     from veteran v having count(*) > 0

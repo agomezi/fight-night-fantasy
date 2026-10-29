@@ -48,7 +48,7 @@ select pg_temp.act(2);
 select is(pg_temp.locker(1)->'badges', '[]'::jsonb, 'nothing for a season still being played');
 
 reset role;
--- Season 902 starts, so 901 is over. Player 3 reaches Legend (150 points)
+-- Season 902 starts, so 901 is over. Player 3 reaches Legend (156 points)
 -- and was a pre-season tester.
 insert into public.seasons (id, number, starts_at) values ('00000000-0000-0000-0000-0000000000f2', 902, now() - interval '10 days');
 -- Season 905, the newest, started long ago and has ended (its end, not a later season, finishes it): player 2 played its one card.
@@ -62,7 +62,7 @@ values ('00000000-0000-0000-0000-0000000000e5', pg_temp.u(2), 5, 1, 3, 'L');
 
 insert into public.events (id, name, starts_at, locks_at, season_id)
 select gen_random_uuid(), 'Legend card ' || n, now() - interval '5 days', now() - interval '5 days', null
-from generate_series(1, 75) n;
+from generate_series(1, 78) n;
 insert into public.card_results (event_id, user_id, points, main_event_points, field, result)
 select e.id, pg_temp.u(3), 10, 3, 3, 'W' from public.events e where e.name like 'Legend card %';
 update public.profiles set preseason_tester = true where id = pg_temp.u(3);
