@@ -20,6 +20,8 @@ import LeagueRulesSheet from "../components/LeagueRulesSheet";
 import LeaguePicksCard from "../components/LeaguePicksCard";
 import LeaguePickStatus from "../components/LeaguePickStatus";
 import SwipeableCards from "../components/SwipeableCards";
+import { TitleBelt } from "../components/RankMark";
+import { ChampRow, TitleShotLine, TITLE_GOLD } from "../components/TitleRows";
 import { appear } from "../constants/motion";
 import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -38,6 +40,7 @@ import {
   TIER_LABEL,
   waitingLine,
 } from "../services/leagues";
+import { matchupTitle, titleShotCut } from "../services/titleFights";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 import ScreenSkeleton from "../components/ScreenSkeleton";
@@ -213,6 +216,11 @@ export default function Leagues() {
   const week = currentWeek(weeks);
   const mine = week?.matchups.filter((m) => m.isMine) ?? [];
   const myMatchup = mine[0] ?? null;
+  const title = state.title ?? null;
+  // A title fight or a title shot: the belt above the VS, the tag in gold.
+  const titleBout = myMatchup ? matchupTitle(title, myMatchup, league.name) : null;
+  const showTitle = !!title && !title.preseason && !!standings?.ranked;
+  const cut = showTitle && !title.seedsFinal ? titleShotCut(title) : null;
 
   const invite = () => {
     Share.share({ message: inviteMessage(league) }).catch(() => {});
@@ -272,8 +280,10 @@ export default function Leagues() {
           ...(week && myMatchup
             ? [
                 {
-                  tag: week.state === "live" ? "LIVE NOW" : week.state === "final" ? `WEEK ${week.week} RESULT` : "THIS WEEK",
-                  tagColor: c.red,
+                  tag: titleBout
+                    ? titleBout.tag
+                    : week.state === "live" ? "LIVE NOW" : week.state === "final" ? `WEEK ${week.week} RESULT` : "THIS WEEK",
+                  tagColor: titleBout ? TITLE_GOLD : c.red,
                   mark: <CardBackdrop variant="octagon" />,
                   content: (
                     <View style={{ gap: 12 }}>
@@ -286,10 +296,20 @@ export default function Leagues() {
                           {week.eventName}
                         </Text>
                       ) : null}
+                      {titleBout && (
+                        <View style={{ alignItems: "center", marginBottom: -6 }}>
+                          <TitleBelt height={30} />
+                        </View>
+                      )}
                       {/* Narrower than the card, so the octagon on the right has room. */}
                       <View style={{ width: "74%", alignSelf: "center" }}>
                         <MatchupCard matchup={myMatchup} onPressPlayer={setViewing} bare />
                       </View>
+                      {titleBout && (
+                        <Text style={{ color: TITLE_GOLD, fontSize: 12, fontWeight: "700", textAlign: "center" }}>
+                          {titleBout.line}
+                        </Text>
+                      )}
                       {mine.length > 1 && (
                         <Text style={{ color: c.text2, fontSize: 12, textAlign: "center" }}>
                           Doubleheader week — you also play {mine[1].b.name}
@@ -404,16 +424,20 @@ export default function Leagues() {
               <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER</Text>
               <Text style={styles.columnLabel}>W-L</Text>
             </View>
+            {showTitle && <ChampRow title={title} myId={session?.user.id} onPress={setViewing} />}
             {standings.rows.slice(0, 4).map((row, i) => (
-              <LeagueStandingRow
-                key={row.userId}
-                row={row}
-                index={i}
-                move={state.moves[row.userId]}
-                streak={streaks[row.userId]}
-                animate={animateStandings}
-                onPress={() => setViewing(row.userId)}
-              />
+              <View key={row.userId}>
+                <LeagueStandingRow
+                  row={row}
+                  index={i}
+                  move={state.moves[row.userId]}
+                  streak={streaks[row.userId]}
+                  animate={animateStandings}
+                  crowned={showTitle && !!title.champion}
+                  onPress={() => setViewing(row.userId)}
+                />
+                {cut != null && i === cut - 1 && i < standings.rows.length - 1 && <TitleShotLine />}
+              </View>
             ))}
           </>
         ) : (

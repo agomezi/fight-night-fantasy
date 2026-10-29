@@ -1,0 +1,109 @@
+// A league's title: the Champion in the C slot above the table, the field of
+// four or five that makes the title shot after card 8, and the bracket on
+// cards 9 to 11. The server works it all out; the shaping here is pure so
+// jest can test it.
+
+import type { Matchup } from "./leagues";
+
+export type TitleStage = "play_in" | "semi" | "title";
+
+export type LeagueTitle = {
+  /** The pre-season has no title. */
+  preseason: boolean;
+  champion: { userId: string; name: string; defenses: number } | null;
+  /** False while the field is only the table as it stands (until card 9 locks). */
+  seedsFinal: boolean;
+  /** Best first; empty below four ranked players. */
+  seeds: { seed: number; userId: string }[];
+  /** The bracket's matchups so far, saved or upcoming. */
+  bracket: { stage: TitleStage; week: number; eventId: string | null; a: string; b: string }[];
+};
+
+type RawTitle = {
+  season: string | null;
+  champion: { userId: string; name: string; defenses: number } | null;
+  seedsFinal: boolean;
+  seeds: { seed: number; userId: string }[] | null;
+  bracket: { stage: TitleStage; week: number; eventId: string | null; a: string; b: string }[] | null;
+};
+
+export function toLeagueTitle(raw: RawTitle): LeagueTitle {
+  return {
+    preseason: raw.season == null,
+    champion: raw.champion ?? null,
+    seedsFinal: !!raw.seedsFinal,
+    seeds: raw.seeds ?? [],
+    bracket: raw.bracket ?? [],
+  };
+}
+
+export type MatchupTitle = {
+  tag: "TITLE FIGHT" | "TITLE SHOT";
+  /** The line under the matchup. */
+  line: string;
+  /** Who holds the belt in this matchup, if either does. */
+  championId: string | null;
+};
+
+const seedOf = (title: LeagueTitle, userId: string) => title.seeds.find((s) => s.userId === userId)?.seed;
+
+/** What a matchup means for the title: a bracket round (a title shot until
+ * card 11's title fight), or the Champion's matchup. Null for any other. */
+export function matchupTitle(
+  title: LeagueTitle | null,
+  matchup: Pick<Matchup, "eventId" | "a" | "b" | "isMine">,
+  leagueName: string,
+): MatchupTitle | null {
+  if (!title || title.preseason) return null;
+  const { a, b } = matchup;
+  const champ = title.champion;
+  const championId = champ && (champ.userId === a.userId || champ.userId === b.userId) ? champ.userId : null;
+
+  const round = title.bracket.find(
+    (r) =>
+      r.eventId === matchup.eventId &&
+      ((r.a === a.userId && r.b === b.userId) || (r.a === b.userId && r.b === a.userId)),
+  );
+  if (round) {
+    if (round.stage === "title") return { tag: "TITLE FIGHT", line: `For the ${leagueName} belt`, championId };
+    const sa = seedOf(title, a.userId);
+    const sb = seedOf(title, b.userId);
+    const seeds = sa != null && sb != null ? ` · #${Math.min(sa, sb)} vs #${Math.max(sa, sb)}` : "";
+    return round.stage === "play_in"
+      ? { tag: "TITLE SHOT", line: `Play-in${seeds} · the winner goes to the semis`, championId }
+      : { tag: "TITLE SHOT", line: `Semifinal${seeds} · the winner fights for the belt`, championId };
+  }
+
+  if (!championId || !champ) return null;
+  if (matchup.isMine && championId === a.userId) {
+    return { tag: "TITLE FIGHT", line: `You defend the ${leagueName} belt`, championId };
+  }
+  return { tag: "TITLE FIGHT", line: `${champ.name} defends the ${leagueName} belt`, championId };
+}
+
+/** How many ranked places make the title shot: the line goes under that row.
+ * Null in the pre-season or without a field. */
+export function titleShotCut(title: LeagueTitle | null): number | null {
+  if (!title || title.preseason || title.seeds.length < 4) return null;
+  return title.seeds.length;
+}
+
+/** What the C slot says under the name. */
+export function champLine(title: LeagueTitle): string {
+  const champ = title.champion;
+  if (!champ) return "DECIDED ON THE TITLE FIGHT, CARD 11";
+  if (champ.defenses === 0) return "CHAMPION";
+  return `CHAMPION · ${champ.defenses} ${champ.defenses === 1 ? "DEFENSE" : "DEFENSES"}`;
+}
+
+/* ------------------------------------------------------------------ *
+ * Database
+ * ------------------------------------------------------------------ */
+
+/** Null from a server from before title fights. */
+export async function loadLeagueTitle(leagueId: string): Promise<LeagueTitle | null> {
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.rpc("league_title", { league: leagueId });
+  if (error || !data) return null;
+  return toLeagueTitle(data as RawTitle);
+}

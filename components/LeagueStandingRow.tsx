@@ -23,6 +23,8 @@ export default function LeagueStandingRow({
   move,
   streak,
   animate = true,
+  crowned,
+  seed,
   onPress,
 }: {
   row: LeagueStanding;
@@ -32,11 +34,15 @@ export default function LeagueStandingRow({
   streak?: string;
   /** False once the table has shown: a refresh must not replay the entrance. */
   animate?: boolean;
+  /** A Champion holds the belt above the table: 1st takes a gold medal. */
+  crowned?: boolean;
+  /** Their seed for the title shot, once the field is set. */
+  seed?: number;
   onPress?: () => void;
 }) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
-  const note = STATUS_NOTE[row.status];
+  const note = STATUS_NOTE[row.status] ?? (seed != null ? `TITLE SHOT · #${seed} SEED` : undefined);
   const ranked = row.rank != null;
   const streakColor = streak?.startsWith("W") ? c.green : streak?.startsWith("L") ? c.red : c.textFaint;
 
@@ -50,7 +56,7 @@ export default function LeagueStandingRow({
       >
         <View style={styles.rankCell}>
           <View style={styles.rankMark}>
-            <RankMark rank={row.rank} move={move} size={18} />
+            <RankMark rank={row.rank} move={move} size={18} crowned={crowned} />
           </View>
           <Text style={[styles.rank, !row.isMe && (row.rank == null || row.rank > 3) && styles.rankMuted]}>
             {rankLabel(row.rank, row.tied)}

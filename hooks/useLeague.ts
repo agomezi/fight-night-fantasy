@@ -12,6 +12,7 @@ import {
 } from "../services/leagues";
 import { trackMoves, type RankSnapshot } from "../services/rankMoves";
 import { readCache, writeCache } from "../services/screenCache";
+import { loadLeagueTitle, type LeagueTitle } from "../services/titleFights";
 import { useLiveRefresh } from "./useLiveRefresh";
 
 type Ready = {
@@ -21,6 +22,8 @@ type Ready = {
   league: MyLeague | null;
   standings: LeagueStandings | null;
   weeks: Week[];
+  /** The Champion, the field and the bracket; null from an older server. */
+  title: LeagueTitle | null;
   /** Places each player climbed (negative: dropped) since before the latest
    * card, by user id; missing when there is nothing to compare. */
   moves: Record<string, number>;
@@ -81,11 +84,11 @@ export function useLeague(leagueId?: string) {
         leagues.find((l) => l.id === stored) ??
         leagues[0] ??
         null;
-      const [standings, weeks] = league
-        ? await Promise.all([loadStandings(league.id), loadWeeks(league.id, userId)])
-        : [null, []];
+      const [standings, weeks, title] = league
+        ? await Promise.all([loadStandings(league.id), loadWeeks(league.id, userId), loadLeagueTitle(league.id)])
+        : [null, [], null];
       const moves = league && standings ? await rankMoves(userId, league.id, standings, weeks) : {};
-      setState(writeCache<Ready>(cacheKey, { status: "ready", leagues, league, standings, weeks, moves }));
+      setState(writeCache<Ready>(cacheKey, { status: "ready", leagues, league, standings, weeks, title, moves }));
     } catch (e) {
       // Keep what is on screen if a refresh fails.
       setState((prev) => (prev.status === "ready" ? prev : { status: "error", message: (e as Error).message }));
