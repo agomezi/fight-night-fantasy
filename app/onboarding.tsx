@@ -19,11 +19,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useProfile } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { cleanHandle, HandleBlockedError, handleProblem, handleStatus, HandleTakenError, HANDLE_MAX } from "../services/profile";
+import { DIVISIONS } from "../constants/divisions";
+import { RANKS } from "../services/career";
 import { DEDUCTIONS, POINTS, UNDERDOG_MULTIPLIER } from "../services/scoring";
 import { CAP, CAP_TOP, GUTTER, LEFT_BEARING, makeLoginStyles } from "../styles/login";
 
 /*
- * First run: a short tour of how the game works, then a name. Same poster
+ * First run: a short tour of how the game works, then a favorite division
+ * (optional) and a name. Same poster
  * language as the login screen — Anton headlines stacked tight, the red band
  * behind the last line, ruled rows instead of cards, one big button.
  *
@@ -68,26 +71,41 @@ const SLIDES: Slide[] = [
   {
     eyebrow: "LEAGUES",
     lines: ["BRING YOUR", "CREW"],
-    body: "Start a private league with friends. Everyone plays the same rules, and you face a different member every card.",
+    body: "Start a private league with friends and face a new member every card. The owner sets the minimum picks; miss it and you forfeit the week.",
     rows: [
       { label: "League size", value: "4–12" },
       { label: "Tiers", value: "CASUAL · AMATEUR · PRO" },
       { label: "Every card", value: "NEW OPPONENT" },
+      { label: "Minimum picks", value: "SET BY THE OWNER" },
     ],
   },
   {
     eyebrow: "LEADERBOARDS",
     lines: ["CLIMB THE", "RANKS"],
-    body: "Every card adds to your season. Points show how much you won; accuracy shows how often you were right.",
+    body: "Global ranks you by edge: points above the average player on the same fights. A card counts once you pick the whole main card.",
     rows: [
       { label: "Season", value: "11 CARDS" },
-      { label: "Ranked by", value: "POINTS + ACCURACY" },
+      { label: "Ranked by", value: "EDGE" },
+      { label: "Counts when", value: "MAIN CARD PICKED" },
+    ],
+  },
+  {
+    eyebrow: "YOUR CAREER",
+    lines: ["BUILD A", "CAREER"],
+    body: "Every card is a fight on your pro record. Finish in the top half and it's a W. Your record never resets, and every card moves you up the ranks.",
+    rows: [
+      { label: "Pro record", value: "TOP HALF = W" },
+      { label: "Career points", value: "1 A CARD + 1 A WIN" },
+      { label: RANKS[1].rank, value: `${RANKS[1].at} PTS` },
+      { label: RANKS[RANKS.length - 1].rank, value: `${RANKS[RANKS.length - 1].at} PTS` },
     ],
   },
 ];
 
-const NAME_STEP = SLIDES.length;
-const STEPS = SLIDES.length + 1;
+// The name goes last: saving it ends onboarding.
+const DIVISION_STEP = SLIDES.length;
+const NAME_STEP = SLIDES.length + 1;
+const STEPS = SLIDES.length + 2;
 
 /** Two Anton lines set tight like the login title, red band behind the second. */
 function Headline({ lines, size, ink, red }: { lines: [string, string]; size: number; ink: string; red: string }) {
@@ -121,7 +139,7 @@ export default function Onboarding() {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLoginStyles);
   const { width } = useWindowDimensions();
-  const { setUsername } = useProfile();
+  const { profile, setUsername, updateProfile } = useProfile();
   const list = useRef<FlatList<number>>(null);
   const [step, setStep] = useState(0);
 
@@ -130,6 +148,10 @@ export default function Onboarding() {
   const rule = c.statusBar === "light" ? "#2A2A2A" : "#D9D5CD";
   // Sized so the longest headline line ("BRING YOUR") fits the screen.
   const headlineSize = Math.min(72, (width - GUTTER * 2) / 4.3);
+
+  // --- division -------------------------------------------------------------
+  // Optional; tapping the chosen one again clears it.
+  const [division, setDivision] = useState("");
 
   // --- name -----------------------------------------------------------------
   const [name, setName] = useState("");
@@ -162,6 +184,7 @@ export default function Onboarding() {
     if (!canFinish) return;
     setSaving(true);
     try {
+      if (division) updateProfile({ title: profile.title, favDivision: division, bio: profile.bio });
       await setUsername(name);
       router.replace("/home");
     } catch (e) {
@@ -198,7 +221,55 @@ export default function Onboarding() {
   const refused = !!problem || availability === "taken" || availability === "blocked";
   const hintColor = refused ? c.red : availability === "free" ? c.green : muted;
 
+  const chip = (value: string, label: string) => {
+    const on = division === value;
+    return (
+      <TouchableOpacity
+        key={value}
+        onPress={() => setDivision(on ? "" : value)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: on }}
+        accessibilityLabel={value}
+        style={{
+          borderWidth: 1,
+          borderColor: on ? c.red : rule,
+          backgroundColor: on ? c.red : "transparent",
+          borderRadius: 999,
+          paddingHorizontal: 14,
+          paddingVertical: 9,
+        }}
+      >
+        <Text style={{ color: on ? "#FFFFFF" : ink, fontSize: 13, fontWeight: "700", letterSpacing: 0.5 }}>
+          {label.toUpperCase()}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+  const groupLabel = (text: string) => (
+    <Text style={{ color: muted, fontSize: 12, fontWeight: "700", letterSpacing: 1.5, marginTop: 22, marginBottom: 10 }}>
+      {text}
+    </Text>
+  );
+
   const renderSlide = (index: number) => {
+    if (index === DIVISION_STEP) {
+      return (
+        <View style={{ width, paddingHorizontal: GUTTER }}>
+          <Headline lines={["YOUR", "DIVISION"]} size={headlineSize} ink={ink} red={c.red} />
+          <Text style={[styles.subheading, { marginTop: 22, fontSize: 17, lineHeight: 24 }]}>
+            League mates see it on your card. You can change it any time.
+          </Text>
+          {groupLabel("MEN")}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {DIVISIONS.men.map((d) => chip(d, d))}
+          </View>
+          {groupLabel("WOMEN")}
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {DIVISIONS.women.map((d) => chip(d, d.replace("Women's ", "")))}
+          </View>
+        </View>
+      );
+    }
     if (index === NAME_STEP) {
       return (
         <View style={{ width, paddingHorizontal: GUTTER }}>
@@ -283,11 +354,16 @@ export default function Onboarding() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
               <View style={styles.eyebrowMark} />
               <Animated.Text key={step} entering={FadeIn.duration(160)} style={styles.eyebrowText}>
-                {onName ? "LAST STEP" : SLIDES[step].eyebrow}
+                {onName ? "LAST STEP" : step === DIVISION_STEP ? "SETUP" : SLIDES[step].eyebrow}
               </Animated.Text>
             </View>
             {!onName && (
-              <TouchableOpacity onPress={() => goTo(NAME_STEP)} hitSlop={12} accessibilityRole="button">
+              // From the tour, Skip goes to setup; from the division, on to the name.
+              <TouchableOpacity
+                onPress={() => goTo(step < DIVISION_STEP ? DIVISION_STEP : NAME_STEP)}
+                hitSlop={12}
+                accessibilityRole="button"
+              >
                 <Text style={{ color: muted, fontSize: 14, fontWeight: "600" }}>Skip</Text>
               </TouchableOpacity>
             )}
