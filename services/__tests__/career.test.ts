@@ -18,9 +18,10 @@ describe("rankFor", () => {
     expect(rankFor(5)).toBe("Contender");
     expect(rankFor(15)).toBe("Ranked");
     expect(rankFor(35)).toBe("Title Challenger");
-    expect(rankFor(59)).toBe("Title Challenger");
-    expect(rankFor(60)).toBe("Champion");
-    expect(rankFor(150)).toBe("Legend");
+    expect(rankFor(74)).toBe("Title Challenger");
+    expect(rankFor(75)).toBe("Champion");
+    expect(rankFor(154)).toBe("Champion");
+    expect(rankFor(155)).toBe("Legend");
     expect(rankFor(999)).toBe("Legend");
   });
 });
@@ -46,6 +47,11 @@ describe("toCareer", () => {
   it("measures progress through the current rank", () => {
     const c = toCareer([raw({ career_points: 25 })]);
     expect(c).toMatchObject({ rank: "Ranked", nextRank: "Title Challenger", toNext: 10, progress: 0.5 });
+  });
+
+  it("doubles the climb from each rank to the next", () => {
+    expect(toCareer([raw({ career_points: 35 })])).toMatchObject({ rank: "Title Challenger", toNext: 40 });
+    expect(toCareer([raw({ career_points: 75 })])).toMatchObject({ rank: "Champion", toNext: 80 });
   });
 
   it("has nowhere to go at Legend", () => {

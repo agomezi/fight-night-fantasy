@@ -7,14 +7,15 @@ import { recordOf } from "./leagues";
 export type CareerRank = "Prospect" | "Contender" | "Ranked" | "Title Challenger" | "Champion" | "Legend";
 
 /** Career points each rank starts at: a point per card, another per win.
+ * Each rank takes twice the points of the one before.
  * Must match the ranks in the database's my_career(). */
 export const RANKS: { rank: CareerRank; at: number }[] = [
   { rank: "Prospect", at: 0 },
   { rank: "Contender", at: 5 },
   { rank: "Ranked", at: 15 },
   { rank: "Title Challenger", at: 35 },
-  { rank: "Champion", at: 60 },
-  { rank: "Legend", at: 150 },
+  { rank: "Champion", at: 75 },
+  { rank: "Legend", at: 155 },
 ];
 
 export type Career = {
