@@ -40,7 +40,7 @@ import {
   TIER_LABEL,
   waitingLine,
 } from "../services/leagues";
-import { matchupTitle, titleShotCut } from "../services/titleFights";
+import { hasTitle, matchupTitle, titleShotCut } from "../services/titleFights";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 import ScreenSkeleton from "../components/ScreenSkeleton";
@@ -214,13 +214,16 @@ export default function Leagues() {
   const ranked = standings?.rows.filter((r) => r.rank != null).length ?? 0;
   const waiting = waitingLine(league, standings, weeks);
   const week = currentWeek(weeks);
-  const mine = week?.matchups.filter((m) => m.isMine) ?? [];
-  const myMatchup = mine[0] ?? null;
   const title = state.title ?? null;
+  // In a doubleheader, a title fight or title shot leads.
+  const mine = (week?.matchups.filter((m) => m.isMine) ?? []).sort(
+    (x, y) => Number(!!matchupTitle(title, y, league.name)) - Number(!!matchupTitle(title, x, league.name))
+  );
+  const myMatchup = mine[0] ?? null;
   // A title fight or a title shot: the belt above the VS, the tag in gold.
   const titleBout = myMatchup ? matchupTitle(title, myMatchup, league.name) : null;
-  const showTitle = !!title && !title.preseason && !!standings?.ranked;
-  const cut = showTitle && !title.seedsFinal ? titleShotCut(title) : null;
+  const showTitle = hasTitle(title) && !!standings?.ranked;
+  const cut = showTitle ? titleShotCut(title) : null;
 
   const invite = () => {
     Share.share({ message: inviteMessage(league) }).catch(() => {});
@@ -436,7 +439,7 @@ export default function Leagues() {
                   crowned={showTitle && !!title.champion}
                   onPress={() => setViewing(row.userId)}
                 />
-                {cut != null && i === cut - 1 && i < standings.rows.length - 1 && <TitleShotLine />}
+                {cut === row.userId && i < standings.rows.length - 1 && <TitleShotLine />}
               </View>
             ))}
           </>

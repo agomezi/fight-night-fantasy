@@ -88,7 +88,13 @@ export function useLeague(leagueId?: string) {
         ? await Promise.all([loadStandings(league.id), loadWeeks(league.id, userId), loadLeagueTitle(league.id)])
         : [null, [], null];
       const moves = league && standings ? await rankMoves(userId, league.id, standings, weeks) : {};
-      setState(writeCache<Ready>(cacheKey, { status: "ready", leagues, league, standings, weeks, title, moves }));
+      // A failed title read keeps the last one for the same league, so the C
+      // slot doesn't blink out on a slow refresh.
+      setState((prev) => {
+        const kept =
+          title ?? (prev.status === "ready" && prev.league?.id === league?.id ? prev.title ?? null : null);
+        return writeCache<Ready>(cacheKey, { status: "ready", leagues, league, standings, weeks, title: kept, moves });
+      });
     } catch (e) {
       // Keep what is on screen if a refresh fails.
       setState((prev) => (prev.status === "ready" ? prev : { status: "error", message: (e as Error).message }));

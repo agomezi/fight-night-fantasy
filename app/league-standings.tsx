@@ -14,7 +14,7 @@ import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { useLeague } from "../hooks/useLeague";
 import { inviteMessage, matchupStreaks, TIER_LABEL } from "../services/leagues";
-import { titleShotCut } from "../services/titleFights";
+import { hasTitle, titleShotCut } from "../services/titleFights";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 import ScreenSkeleton from "../components/ScreenSkeleton";
@@ -38,9 +38,9 @@ export default function LeagueStandings() {
   const animate = useEntranceOnce(state.status === "ready");
   const { session } = useAuth();
   const title = state.status === "ready" ? state.title ?? null : null;
-  const showTitle = !!title && !title.preseason && !!standings?.ranked;
+  const showTitle = hasTitle(title) && !!standings?.ranked;
   // Until the field is set, a line under the places that would make it.
-  const cut = showTitle && !title.seedsFinal ? titleShotCut(title) : null;
+  const cut = showTitle ? titleShotCut(title) : null;
   const seedOf = (userId: string) =>
     showTitle && title.seedsFinal ? title.seeds.find((s) => s.userId === userId)?.seed : undefined;
 
@@ -115,7 +115,7 @@ export default function LeagueStandings() {
                       seed={seedOf(row.userId)}
                       onPress={() => setViewing(row.userId)}
                     />
-                    {cut != null && i === cut - 1 && i < rows.length - 1 && <TitleShotLine />}
+                    {cut === row.userId && i < rows.length - 1 && <TitleShotLine />}
                   </View>
                 ))}
               </>

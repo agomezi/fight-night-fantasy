@@ -75,6 +75,8 @@ declare
   since   uuid;
   checked uuid;
   crowned uuid;
+  -- The card of the last defense: a doubleheader counts once.
+  defended uuid;
 begin
   if target is null then
     return query select null::uuid, 0, null::uuid;
@@ -112,8 +114,10 @@ begin
     if champ is not null and champ in (r.user_a, r.user_b) and r.winner is not null then
       if r.winner = champ then
         -- A forfeit win keeps the belt without a defense.
-        if public.met_league_picks(league, case when r.user_a = champ then r.user_b else r.user_a end, r.event_id) then
+        if public.met_league_picks(league, case when r.user_a = champ then r.user_b else r.user_a end, r.event_id)
+           and defended is distinct from r.event_id then
           wins := wins + 1;
+          defended := r.event_id;
         end if;
       else
         champ := null; wins := 0; since := null;
@@ -126,15 +130,16 @@ begin
         case when coalesce(r.seed_a, 99) <= coalesce(r.seed_b, 99) then r.user_a else r.user_b end
       );
       if champ is distinct from crowned then
-        champ := crowned; wins := 0; since := r.event_id;
+        champ := crowned; wins := 0; since := r.event_id; defended := null;
       end if;
     end if;
   end loop;
 
-  if through >= 9 and champ is not null
-     and exists (select 1 from public.league_seeds ls where ls.league_id = league and ls.season_id = season)
-     and not exists (select 1 from public.league_seeds ls
-                     where ls.league_id = league and ls.season_id = season and ls.user_id = champ) then
+  -- Going into card 9 the field is set (or, until card 9 locks, as the table
+  -- stands): a Champion outside it has given the title up.
+  if through >= 8 and champ is not null
+     and exists (select 1 from public.league_season_seeds(league, season))
+     and not exists (select 1 from public.league_season_seeds(league, season) sd where sd.user_id = champ) then
     champ := null;
   end if;
 
@@ -158,8 +163,8 @@ $$;
 
 revoke execute on function public.league_title_state(uuid, uuid, integer) from public, anon, authenticated;
 
--- The seeds, best first: the saved field, or while the current season's card 9
--- hasn't locked, the table as it stands. Empty below four ranked players.
+-- The seeds, best first: the saved field, or until card 9's week is saved,
+-- the table after card 8 as it stands. Empty below four ranked players.
 create function public.league_season_seeds(league uuid, season uuid)
 returns table (seed integer, user_id uuid)
 language plpgsql
@@ -182,7 +187,16 @@ begin
     return;
   end if;
 
-  if season is null or season is distinct from public.current_season() then
+  -- Only while card 9's week isn't saved in this league (then the field was
+  -- too small, or is being saved now), and never while the table behind it
+  -- is being read.
+  if season is null or season is distinct from public.current_season()
+     or coalesce(current_setting('fnf.seeding', true), '') = 'on'
+     or exists (
+       select 1 from public.league_weeks lw
+       join public.events e on e.id = lw.event_id
+       where lw.league_id = league and e.season_id = season and e.season_index >= 9
+     ) then
     return;
   end if;
 
@@ -190,7 +204,8 @@ begin
   where m.league_id = league and m.status = 'active';
 
   -- The table works out the schedule, whose last weeks would need these
-  -- seeds; while they're being read, those weeks are left to the rotation.
+  -- seeds; while they're being read, the schedule stops after card 8, so the
+  -- table is the one after card 8 however late this runs.
   prev := current_setting('fnf.seeding', true);
   perform set_config('fnf.seeding', 'on', true);
   ranked := array(
@@ -400,6 +415,9 @@ begin
     select * from preseason_cards
     order by 1
   loop
+    -- Reading the table for the seeds: the season up to card 8 only.
+    exit when season is not null and c.w >= 9 and coalesce(current_setting('fnf.seeding', true), '') = 'on';
+
     wk_a := null;
     if c.id is not null then
       select array_agg(lw.user_a), array_agg(lw.user_b), array_agg(lw.doubleheader), array_agg(lw.stage)
@@ -430,7 +448,7 @@ begin
 
       -- The bracket's matchups this week, if any.
       fx_a := '{}'::uuid[]; fx_b := '{}'::uuid[]; fx_s := '{}'::text[];
-      if season is not null and c.w >= 9 and coalesce(current_setting('fnf.seeding', true), '') <> 'on'
+      if season is not null and c.w >= 9
          and not (c.id is not null and c.locks_at <= now() and c.locks_at < since) then
         seeds := array(select sd.user_id from public.league_season_seeds(league, season) sd order by sd.seed);
         k := cardinality(seeds);
@@ -578,6 +596,15 @@ begin
   end if;
   slot := (select e.season_index from public.events e where e.id = event);
 
+  -- The field and each bracket round come from the card before, so a
+  -- bracket card waits for it to be final (the job tries again every
+  -- minute), for a day at most.
+  if s.season is not null and slot between 9 and 11 and ev.locks_at > now() - interval '1 day'
+     and not coalesce((select public.event_is_final(e.id) from public.events e
+                       where e.season_id = s.season and e.season_index = slot - 1), true) then
+    raise exception 'card % of the season waits for card % to be final', slot, slot - 1;
+  end if;
+
   for lg in select l.id from public.leagues l loop
     if s.season is not null and slot = 9 then
       insert into public.league_seeds (league_id, season_id, seed, user_id)
@@ -618,6 +645,8 @@ as $$
 declare
   season uuid := public.current_season();
   champ  record;
+  seeds  jsonb;
+  played integer;
 begin
   perform public.require_league_member(league);
 
@@ -627,6 +656,11 @@ begin
   end if;
 
   select * into champ from public.league_title_state(league, season, 11);
+  seeds := coalesce((
+    select jsonb_agg(jsonb_build_object('seed', sd.seed, 'userId', sd.user_id) order by sd.seed)
+    from public.league_season_seeds(league, season) sd
+  ), '[]'::jsonb);
+  played := (select coalesce(max(e.season_index), 0) from public.events e where e.season_id = season);
 
   return jsonb_build_object(
     'season', season,
@@ -636,16 +670,25 @@ begin
       'defenses', champ.defenses
     ) end,
     'seedsFinal', exists (select 1 from public.league_seeds ls where ls.league_id = league and ls.season_id = season),
-    'seeds', coalesce((
-      select jsonb_agg(jsonb_build_object('seed', sd.seed, 'userId', sd.user_id) order by sd.seed)
-      from public.league_season_seeds(league, season) sd
-    ), '[]'::jsonb),
+    'seeds', seeds,
+    -- The saved rounds, and the next card's while it's a bracket card. The
+    -- schedule is only worked out for that.
     'bracket', coalesce((
       select jsonb_agg(jsonb_build_object(
-        'stage', p.stage, 'week', p.week, 'eventId', p.card_id, 'a', p.user_a, 'b', p.user_b
-      ) order by p.week, p.user_a)
-      from public.league_pairings(league, season) p
-      where p.stage is not null
+        'stage', b.stage, 'week', b.week, 'eventId', b.event_id, 'a', b.user_a, 'b', b.user_b
+      ) order by b.week, b.user_a)
+      from (
+        select lw.stage, e.season_index::integer as week, lw.event_id, lw.user_a, lw.user_b
+        from public.league_weeks lw
+        join public.events e on e.id = lw.event_id
+        where lw.league_id = league and lw.season_id = season and lw.stage is not null
+        union all
+        select p.stage, p.week, p.card_id, p.user_a, p.user_b
+        from public.league_pairings(league, season) p
+        where jsonb_array_length(seeds) >= 4 and played between 8 and 10
+          and p.week = played + 1 and p.stage is not null
+          and not exists (select 1 from public.league_weeks lw where lw.league_id = league and lw.event_id = p.card_id)
+      ) b
     ), '[]'::jsonb)
   );
 end;
@@ -666,6 +709,7 @@ alter table public.notifications_sent
 
 -- Once a card is final, each league's title news from it: the Champion lost
 -- (the title is vacant) or defended, a bracket round won, a new Champion.
+-- Nothing about a player you've blocked, or who blocked you.
 create function public.claim_title_notifications(event uuid)
 returns table (user_id uuid, kind text, payload jsonb, tokens text[], wanted boolean)
 language sql
@@ -677,7 +721,6 @@ as $$
            l.name as league_name
     from public.league_results lr
     join public.leagues l on l.id = lr.league_id
-    join public.events e on e.id = lr.event_id
     left join public.league_weeks lw
       on lw.league_id = lr.league_id and lw.event_id = lr.event_id
      and lw.user_a = lr.user_a and lw.user_b = lr.user_b
@@ -696,34 +739,35 @@ as $$
     cross join lateral public.league_title_state(w.league_id, w.season_id, w.week) a
   ),
   sided as (
-    select g.*, b.before, b.after, b.defenses,
-           x.me, x.opp
+    select g.*, b.before, b.after, b.defenses, x.me, x.opp
     from games g
     join belts b on b.league_id = g.league_id
     cross join lateral (values (g.user_a, g.user_b), (g.user_b, g.user_a)) x(me, opp)
   ),
   news as (
-    -- The Champion lost a matchup that wasn't the title fight.
-    select s.me as uid, s.league_id, s.league_name, 'lost_title' as type, s.opp as about, null::text as stage, null::integer as defenses
+    -- The Champion lost a matchup, the title fight included.
+    select s.me as uid, s.league_id, s.league_name, 'lost_title' as type, s.opp as about,
+           s.stage, null::integer as defenses, false as drawn
     from sided s
-    where s.me = s.before and s.winner = s.opp and s.stage is distinct from 'title'
+    where s.me = s.before and s.after is distinct from s.me
+      and (s.winner = s.opp or (s.stage = 'title' and s.after = s.opp))
     union all
-    select s.me, s.league_id, s.league_name, 'beat_champ', s.opp, null, null
+    select s.me, s.league_id, s.league_name, 'beat_champ', s.opp, null, null, false
     from sided s
     where s.opp = s.before and s.winner = s.me and s.stage is distinct from 'title'
     union all
-    select s.me, s.league_id, s.league_name, 'defended', s.opp, null, s.defenses
+    select s.me, s.league_id, s.league_name, 'defended', s.opp, null, s.defenses, false
     from sided s
     where s.me = s.before and s.winner = s.me and s.after = s.me and s.stage is distinct from 'title'
       and public.met_league_picks(s.league_id, s.opp, s.event_id)
     union all
-    select s.me, s.league_id, s.league_name, 'advanced', s.opp, s.stage, null
+    select s.me, s.league_id, s.league_name, 'advanced', s.opp, s.stage, null, s.winner is null
     from sided s
     where s.stage in ('play_in', 'semi')
       and s.me = public.bracket_advance(s.league_id, s.season_id, s.stage, s.user_a, s.user_b)
     union all
     select s.me, s.league_id, s.league_name, case when s.me = s.before then 'retained' else 'champion' end,
-           s.opp, 'title', s.defenses
+           s.opp, 'title', s.defenses, s.winner is null
     from sided s
     where s.stage = 'title' and s.me = s.after
   ),
@@ -731,11 +775,15 @@ as $$
     select distinct on (n.uid, n.league_id, n.type)
            n.uid as user_id, n.league_id || ':' || claim_title_notifications.event || ':' || n.type as key,
            jsonb_build_object('type', n.type, 'league', n.league_name, 'leagueId', n.league_id,
-                              'opponent', public.league_display_name(n.about),
-                              'stage', n.stage, 'defenses', n.defenses) as payload
+                              'opponent', public.league_display_name(n.about), 'opponentId', n.about,
+                              'stage', n.stage, 'defenses', n.defenses, 'drawn', n.drawn) as payload
     from news n
     join public.league_members m on m.league_id = n.league_id and m.user_id = n.uid and m.left_at is null
     join public.profiles p on p.id = n.uid and p.deleted_at is null
+    where not exists (
+      select 1 from public.player_blocks pb
+      where (pb.blocker = n.uid and pb.blocked = n.about) or (pb.blocker = n.about and pb.blocked = n.uid)
+    )
     order by n.uid, n.league_id, n.type
   ),
   claimed as (
@@ -755,8 +803,10 @@ $$;
 revoke execute on function public.claim_title_notifications(uuid) from public, anon, authenticated;
 grant execute on function public.claim_title_notifications(uuid) to service_role;
 
--- Within the hour before a season card locks: who has a title fight or a
--- bracket round on it, once each.
+-- Within the hour before a season's next card locks: who has a title fight
+-- or a bracket round on it, once each. The next card has no season slot
+-- until it locks. Only leagues with a field or a past result in a season
+-- are looked at.
 create function public.claim_title_reminders()
 returns table (user_id uuid, kind text, payload jsonb, tokens text[], wanted boolean)
 language sql
@@ -764,23 +814,37 @@ security definer
 set search_path = ''
 as $$
   with cards as (
-    select e.id, e.season_id from public.events e
-    where e.status = 'scheduled' and e.season_id is not null
+    select e.id, coalesce(e.season_id, public.current_season()) as season_id
+    from public.events e
+    where e.status = 'scheduled'
       and e.locks_at > now() and e.locks_at <= now() + interval '60 minutes'
+      and coalesce(e.season_id, public.current_season()) is not null
   ),
-  games as (
-    select l.id as league_id, l.name as league_name, c.id as event_id, p.week, p.user_a, p.user_b, p.stage,
-           (select ts.holder from public.league_title_state(l.id, c.season_id, p.week - 1) ts) as champ
+  leagues as materialized (
+    select l.id, l.name, c.id as event_id, c.season_id
     from cards c
     cross join public.leagues l
-    cross join lateral public.league_pairings(l.id, c.season_id) p
-    where p.card_id = c.id
+    where exists (select 1 from public.league_seeds ls where ls.league_id = l.id and ls.season_id = c.season_id)
+       or exists (select 1 from public.league_results lr where lr.league_id = l.id and lr.season_id is not null)
+  ),
+  games as materialized (
+    select lg.id as league_id, lg.name as league_name, lg.event_id, lg.season_id, p.week, p.user_a, p.user_b, p.stage
+    from leagues lg
+    cross join lateral public.league_pairings(lg.id, lg.season_id) p
+    where p.card_id = lg.event_id
+  ),
+  -- The Champion going into the card, once per league.
+  champs as materialized (
+    select w.league_id, ts.holder as champ
+    from (select distinct g.league_id, g.season_id, g.week from games g) w
+    cross join lateral public.league_title_state(w.league_id, w.season_id, w.week - 1) ts
   ),
   sided as (
-    select g.*, x.me, x.opp
+    select g.*, ch.champ, x.me, x.opp
     from games g
+    left join champs ch on ch.league_id = g.league_id
     cross join lateral (values (g.user_a, g.user_b), (g.user_b, g.user_a)) x(me, opp)
-    where g.stage is not null or g.champ in (g.user_a, g.user_b)
+    where g.stage is not null or ch.champ in (g.user_a, g.user_b)
   ),
   candidates as (
     -- A bracket round before a defense, if someone has both.
@@ -788,12 +852,16 @@ as $$
            s.me as user_id, s.league_id || ':' || s.event_id || ':tonight' as key,
            jsonb_build_object(
              'type', 'tonight', 'league', s.league_name, 'leagueId', s.league_id,
-             'opponent', public.league_display_name(s.opp),
+             'opponent', public.league_display_name(s.opp), 'opponentId', s.opp,
              'stage', coalesce(s.stage, case when s.me = s.champ then 'defense' else 'challenge' end)
            ) as payload
     from sided s
     join public.league_members m on m.league_id = s.league_id and m.user_id = s.me and m.left_at is null
     join public.profiles p on p.id = s.me and p.deleted_at is null
+    where not exists (
+      select 1 from public.player_blocks pb
+      where (pb.blocker = s.me and pb.blocked = s.opp) or (pb.blocker = s.opp and pb.blocked = s.me)
+    )
     order by s.me, s.league_id, s.stage is null
   ),
   claimed as (
@@ -843,6 +911,15 @@ as $$
       then jsonb_set(n.payload, '{opponent}', '"Blocked player"')
       when n.kind = 'matchup' and public.name_hidden(split_part(n.key, ':', 3)::uuid)
       then jsonb_set(n.payload, '{opponent}', to_jsonb(public.hidden_name(split_part(n.key, ':', 3)::uuid)))
+      when n.kind = 'title' and n.payload ? 'opponentId'
+       and exists (
+         select 1 from public.player_blocks b
+         where b.blocker = n.user_id and b.blocked::text = n.payload->>'opponentId'
+       )
+      then jsonb_set(n.payload, '{opponent}', '"Blocked player"')
+      when n.kind = 'title' and n.payload ? 'opponentId'
+       and public.name_hidden((n.payload->>'opponentId')::uuid)
+      then jsonb_set(n.payload, '{opponent}', to_jsonb(public.hidden_name((n.payload->>'opponentId')::uuid)))
       else n.payload
     end,
     n.sent_at, n.read_at is not null
@@ -947,7 +1024,7 @@ grant execute on function public.inbox_items_v5(integer), public.inbox_unread_co
 -- Season awards
 -------------------------------------------------------------------------------
 
--- As before (20261209), with the title: see the league titles step.
+-- As before (20261213), with the title: see the league titles step.
 create or replace function public.compute_award_drop(drop uuid)
 returns void
 language plpgsql

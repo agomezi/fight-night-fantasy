@@ -81,11 +81,17 @@ export function matchupTitle(
   return { tag: "TITLE FIGHT", line: `${champ.name} defends the ${leagueName} belt`, championId };
 }
 
-/** How many ranked places make the title shot: the line goes under that row.
- * Null in the pre-season or without a field. */
-export function titleShotCut(title: LeagueTitle | null): number | null {
-  if (!title || title.preseason || title.seeds.length < 4) return null;
-  return title.seeds.length;
+/** Whether there's a title to show: a Champion, or a field (projected or
+ * set). A league too small for a bracket shows none. */
+export function hasTitle(title: LeagueTitle | null): title is LeagueTitle {
+  return !!title && !title.preseason && (!!title.champion || title.seeds.length >= 4);
+}
+
+/** The player whose row the title shot line goes under, until the field is
+ * set: the last of the projected seeds. Null without a projected field. */
+export function titleShotCut(title: LeagueTitle | null): string | null {
+  if (!title || title.preseason || title.seedsFinal || title.seeds.length < 4) return null;
+  return title.seeds[title.seeds.length - 1].userId;
 }
 
 /** What the C slot says under the name. */

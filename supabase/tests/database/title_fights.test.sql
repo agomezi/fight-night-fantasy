@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(50);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-00000000c1' || lpad(n::text, 2, '0'))::uuid
@@ -118,7 +118,11 @@ select is((select count(*)::int from public.league_pairings(pg_temp.lg('00b5'), 
           'a league of five has no play-in');
 
 select pg_temp.lock('1-9');
-select ok(public.save_league_week_pairings(pg_temp.ev('1-9')) > 0, 'card 9 saves when it locks');
+update public.events set status = 'live' where ufc_event_id = 'tf-1-8';
+select throws_ok($$select public.save_league_week_pairings(pg_temp.ev('1-9'))$$, null, null,
+  'card 9 isn''t saved while card 8 isn''t final, so the field is the table after card 8');
+update public.events set status = 'complete' where ufc_event_id = 'tf-1-8';
+select ok(public.save_league_week_pairings(pg_temp.ev('1-9')) > 0, 'card 9 saves once it is');
 select is((select count(*)::int from public.league_seeds where league_id = pg_temp.lg('00b6')), 5,
           'and saves the field with it');
 select is((select stage from public.league_weeks
@@ -130,6 +134,11 @@ update public.league_seeds set user_id = pg_temp.u(99) where league_id = pg_temp
 select is((select right(s.user_id::text, 2) from public.league_season_seeds(pg_temp.lg('00b6'), pg_temp.sn(1)) s where s.seed = 5),
           '99', 'saved seeds are read back as saved');
 update public.league_seeds set user_id = pg_temp.u(5) where league_id = pg_temp.lg('00b6') and seed = 5;
+create temp table b6_seeds as select * from public.league_seeds where league_id = pg_temp.lg('00b6');
+delete from public.league_seeds where league_id = pg_temp.lg('00b6');
+select is((select count(*)::int from public.league_season_seeds(pg_temp.lg('00b6'), pg_temp.sn(1))), 0,
+          'a league whose card 9 was saved without a field gets none later');
+insert into public.league_seeds select * from b6_seeds;
 
 -------------------------------------------------------------------------------
 -- Semifinals and the title fight
@@ -141,6 +150,7 @@ select is(pg_temp.week(pg_temp.lg('00b6'), pg_temp.sn(1), 10), '01-05:semi,02-03
           'card 10: #1 vs the play-in winner, #2 vs #3');
 
 select pg_temp.lock('1-10');
+update public.events set status = 'complete' where ufc_event_id = 'tf-1-9';
 select ok(public.save_league_week_pairings(pg_temp.ev('1-10')) > 0, 'card 10 saves');
 -- While card 10 isn't final, nobody has gone through on a draw of zero
 -- points: the better seeds lead.
@@ -156,6 +166,7 @@ select is((select holder from public.league_title_state(pg_temp.lg('00b6'), pg_t
           'the title is vacant in Season 1 until the title fight');
 
 select pg_temp.lock('1-11');
+update public.events set status = 'complete' where ufc_event_id = 'tf-1-10';
 select ok(public.save_league_week_pairings(pg_temp.ev('1-11')) > 0, 'card 11 saves');
 select pg_temp.result('00b6', 1, 11, 1, 3, 3);
 select is((select right(holder::text, 2) || '/' || defenses from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(1), 11)),
@@ -193,8 +204,10 @@ select is((select payload->>'type' from public.claim_title_notifications(pg_temp
 
 insert into public.seasons (number, starts_at) values (2, now() - interval '1 day');
 insert into public.events (ufc_event_id, name, starts_at, locks_at, status, season_id, season_index)
-select 'tf-2-' || i, 'Card ' || i, now() + i * interval '7 days', now() + i * interval '7 days', 'scheduled', pg_temp.sn(2), i
-from generate_series(1, 11) i;
+select 'tf-2-' || i, 'Card ' || i, now() - (6 - i) * interval '1 hour', now() - (6 - i) * interval '1 hour', 'complete', pg_temp.sn(2), i
+from generate_series(1, 5) i;
+insert into public.events (ufc_event_id, name, starts_at, locks_at, status)
+values ('tf-2-6', 'Card 6', now() + interval '30 minutes', now() + interval '30 minutes', 'scheduled');
 -- Opening a season settles the last one's cards again from their scores,
 -- which these tests don't have: put the results back.
 select pg_temp.win('00b6', 1, 9, 4, 5, 5), pg_temp.win('00b6', 1, 10, 1, 5, null),
@@ -203,7 +216,9 @@ select pg_temp.win('00b6', 1, 9, 4, 5, 5), pg_temp.win('00b6', 1, 10, 1, 5, null
 select is((select right(holder::text, 2) from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(2), 0)),
           '03', 'the Champion carries the belt into the next season');
 select pg_temp.result('00b6', 2, 1, 3, 1, 3);
-select is((select defenses from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(2), 1)), 1, 'a win is a defense');
+select pg_temp.result('00b6', 2, 1, 3, 6, 3);
+select is((select defenses from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(2), 1)), 1,
+          'a win is a defense, once a card in a doubleheader');
 select pg_temp.result('00b6', 2, 2, 3, 2, null);
 select is((select right(holder::text, 2) || '/' || defenses from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(2), 2)),
           '03/1', 'a draw keeps the belt, with no defense');
@@ -235,15 +250,41 @@ select is((select count(*)::int from public.league_pairings(pg_temp.lg('00b5'), 
            where p.doubleheader and p.user_b = pg_temp.u(11)), 0,
           'in an odd league the Champion never plays the extra matchup');
 
+create temp table reminded as select * from public.claim_title_reminders();
+select is((select payload->>'stage' from reminded where user_id = pg_temp.u(11)), 'defense',
+          'within the hour before the next, unslotted card, the Champion hears they defend');
+select is((select count(*)::int from reminded r join public.league_pairings(pg_temp.lg('00b5'), pg_temp.sn(2)) p
+           on p.card_id = pg_temp.ev('2-6') and r.user_id in (p.user_a, p.user_b) and pg_temp.u(11) in (p.user_a, p.user_b)), 2,
+          'and so does their opponent');
+select is((select count(*)::int from public.claim_title_reminders()), 0, 'once');
+
+-- A Champion outside next season's field gives the title up going into card 9.
+insert into public.league_seeds (league_id, season_id, seed, user_id)
+select pg_temp.lg('00b5'), pg_temp.sn(2), i, pg_temp.u(11 + i) from generate_series(1, 4) i;
+select is((select right(holder::text, 2) from public.league_title_state(pg_temp.lg('00b5'), pg_temp.sn(2), 7)), '11',
+          'a Champion outside the field holds the belt until the field is set');
+select is((select holder from public.league_title_state(pg_temp.lg('00b5'), pg_temp.sn(2), 8)), null,
+          'and gives it up going into card 9');
+delete from public.league_seeds where league_id = pg_temp.lg('00b5') and season_id = pg_temp.sn(2);
+
 -------------------------------------------------------------------------------
 -- Who reads what
 -------------------------------------------------------------------------------
 
+update public.events set status = 'live' where ufc_event_id = 'tf-2-4';
 select is((select payload->>'type' from public.claim_title_notifications(pg_temp.ev('2-4')) where user_id = pg_temp.u(3)),
           null, 'nothing is sent for a card that isn''t final');
 update public.events set status = 'complete' where ufc_event_id = 'tf-2-4';
-select is((select payload->>'type' from public.claim_title_notifications(pg_temp.ev('2-4')) where user_id = pg_temp.u(3)),
+insert into public.player_blocks (blocker, blocked) values (pg_temp.u(4), pg_temp.u(3));
+select is((select count(*)::int from public.claim_title_notifications(pg_temp.ev('2-4'))
+           where user_id in (pg_temp.u(3), pg_temp.u(4))), 0,
+          'nothing about a player you blocked, or who blocked you');
+delete from public.player_blocks where blocker = pg_temp.u(4);
+create temp table vacated as select * from public.claim_title_notifications(pg_temp.ev('2-4'));
+select is((select payload->>'type' from vacated where user_id = pg_temp.u(3)),
           'lost_title', 'the Champion hears the title is vacant');
+select is((select payload->>'type' from vacated where user_id = pg_temp.u(4)),
+          'beat_champ', 'and whoever beat them');
 
 set local role authenticated;
 select pg_temp.act(2);

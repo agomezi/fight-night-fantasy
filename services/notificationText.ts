@@ -400,8 +400,11 @@ export type TitlePayload = {
   league: string;
   leagueId: string;
   opponent: string | null;
+  opponentId?: string;
   stage: "play_in" | "semi" | "title" | "defense" | "challenge" | null;
   defenses: number | null;
+  /** A drawn bracket round or title fight, won on seed. */
+  drawn?: boolean;
 };
 
 const ROUND_NAME: Record<string, string> = { play_in: "play-in", semi: "semifinal", title: "title fight" };
@@ -426,6 +429,9 @@ function titleNews(p: TitlePayload): Message {
         data,
       };
     case "lost_title":
+      if (p.stage === "title") {
+        return { title: `You lost the ${p.league} belt`, body: `${vs} won the title fight and is the new Champion.`, data };
+      }
       return { title: `You lost the ${p.league} belt`, body: `${vs} beat you. The title is vacant until the next title fight.`, data };
     case "beat_champ":
       return { title: `You beat the ${p.league} Champion`, body: `${vs} loses the belt. The title is vacant until the next title fight.`, data };
@@ -433,16 +439,28 @@ function titleNews(p: TitlePayload): Message {
       const n = p.defenses ?? 1;
       return { title: `Defended. You keep the ${p.league} belt`, body: `${n} ${n === 1 ? "defense" : "defenses"} and counting.`, data };
     }
-    case "advanced":
+    case "advanced": {
+      const how = p.drawn ? `You drew with ${vs} and go through as the better seed.` : `You beat ${vs}.`;
       return {
         title: `You're through in ${p.league}`,
-        body: p.stage === "semi" ? `You beat ${vs}. Next: the title fight.` : `You beat ${vs}. Next: the semifinals.`,
+        body: `${how} Next: ${p.stage === "semi" ? "the title fight" : "the semifinals"}.`,
         data,
       };
+    }
     case "retained":
-      return { title: `Still Champion. You keep the ${p.league} belt`, body: `You beat ${vs} in the title fight.`, data };
+      return {
+        title: `Still Champion. You keep the ${p.league} belt`,
+        body: p.drawn ? `The title fight with ${vs} was a draw, and the better seed keeps it.` : `You beat ${vs} in the title fight.`,
+        data,
+      };
     default:
-      return { title: `New Champion. You won the ${p.league} belt`, body: `You beat ${vs} in the title fight. Defend it every card.`, data };
+      return {
+        title: `New Champion. You won the ${p.league} belt`,
+        body: p.drawn
+          ? `The title fight with ${vs} was a draw, and the better seed takes it. Defend it every card.`
+          : `You beat ${vs} in the title fight. Defend it every card.`,
+        data,
+      };
   }
 }
 

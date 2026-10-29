@@ -152,8 +152,13 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   // Career rank-ups once the card is final, apart for the same reason.
   const { data: ranked, error: rankError } = await db.rpc("claim_rank_notifications", { event: eventId });
   const ranks = rankError ? { error: rankError.message } : await notify(db, (ranked ?? []) as Claimed[]);
-  // League title news once the card is final, apart and caught, so it can
-  // never hold up a result or a push.
+  const hasProvisional = results.some(r => r.status === "provisional");
+  const dueAt = new Date(Date.now() + nextPollIn(card, hasProvisional)).toISOString();
+  const { error: dueError } = await db.rpc("set_results_due", { event_id: eventId, due_at: dueAt });
+  if (dueError) throw new Error(dueError.message);
+  // League title news once the card is final, apart and caught, and after
+  // the next poll is booked, so it never holds up a result, a push or the
+  // polling.
   let titles: Record<string, unknown>;
   try {
     const { data: crowned, error: titleError } = await db.rpc("claim_title_notifications", { event: eventId });
@@ -161,10 +166,6 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   } catch (error) {
     titles = { error: error instanceof Error ? error.message : String(error) };
   }
-  const hasProvisional = results.some(r => r.status === "provisional");
-  const dueAt = new Date(Date.now() + nextPollIn(card, hasProvisional)).toISOString();
-  const { error: dueError } = await db.rpc("set_results_due", { event_id: eventId, due_at: dueAt });
-  if (dueError) throw new Error(dueError.message);
   // Fight stats last, after the next poll is booked, so a slow stats file
   // never holds up a result or a push.
   const stats = await syncStats(db, eventId);
