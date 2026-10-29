@@ -1,14 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ActionSheet, { type SheetAction } from "../components/ActionSheet";
+import BadgeMedals from "../components/BadgeMedals";
+import RankBelt from "../components/RankBelt";
 import ClearableInput from "../components/ClearableInput";
 import PressableScale from "../components/PressableScale";
 import { DIVISIONS } from "../constants/divisions";
+import { useAuth } from "../context/AuthContext";
 import { getInitials, useProfile } from "../context/ProfileContext";
+import { loadBadges, type AwardId } from "../services/awards";
 import { loadNameReview } from "../services/nameReview";
 import { cleanHandle, HandleBlockedError, handleProblem, HandleTakenError, HandleTooSoonError, HANDLE_MAX } from "../services/profile";
+import { titleName, titleOptions, type TitleOption } from "../services/titles";
+import { beltLabel, loadLocker, setLockerItem, type Locker, type LockerItem } from "../services/locker";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { makeSettingsStyles } from "../styles/settings";
 
@@ -70,8 +77,9 @@ export default function EditProfile() {
   const router = useRouter();
   const { c } = useTheme();
   const styles = useThemedStyles(makeSettingsStyles);
-  const { profile, updateProfile, setUsername: saveUsername, renameUnderReview, refreshName, nameChangeableAt } =
+  const { profile, updateProfile, setTitle, setUsername: saveUsername, renameUnderReview, refreshName, nameChangeableAt } =
     useProfile();
+  const { session } = useAuth();
   // While reports hide your name, the first rename skips the weekly limit.
   const [underReview, setUnderReview] = useState(false);
   const nameLocked = !!nameChangeableAt && !underReview;
@@ -101,6 +109,77 @@ export default function EditProfile() {
   }, [profile.username]);
   const [favDivision, setFavDivision] = useState(profile.favDivision);
 
+  // Titles are the awards you've won; null until they've loaded.
+  const [titles, setTitles] = useState<TitleOption[] | null>(null);
+  // Undefined until a title is picked, so a title still loading isn't cleared.
+  const [picked, setTitleChoice] = useState<AwardId | null | undefined>(undefined);
+  const title = picked === undefined ? profile.title : picked;
+  const [choosingTitle, setChoosingTitle] = useState(false);
+  const myId = session?.user.id;
+  useEffect(() => {
+    if (!myId) return;
+    let current = true;
+    loadBadges(myId)
+      .then((b) => current && setTitles(titleOptions(b)))
+      .catch(() => current && setTitles([]));
+    return () => {
+      current = false;
+    };
+  }, [myId]);
+  // The locker: each switch saves straight away, like the ones in Settings.
+  const [locker, setLocker] = useState<Locker | null>(null);
+  const [lockerFailed, setLockerFailed] = useState(false);
+  useEffect(() => {
+    if (!myId) return;
+    let current = true;
+    loadLocker(myId)
+      .then((v) => current && setLocker(v))
+      .catch(() => current && setLockerFailed(true));
+    return () => {
+      current = false;
+    };
+  }, [myId]);
+  // One save at a time per item, so quick taps reach the server in order.
+  const lockerSaves = useRef<Partial<Record<LockerItem, Promise<void>>>>({});
+  const toggleItem = (item: LockerItem, show: boolean) => {
+    const hide = (l: Locker, h: boolean) => ({ ...l, hidden: h ? [...l.hidden.filter((x) => x !== item), item] : l.hidden.filter((x) => x !== item) });
+    setLocker((l) => (l ? hide(l, !show) : l));
+    const prev = lockerSaves.current[item] ?? Promise.resolve();
+    const last = prev
+      .catch(() => {})
+      .then(() => setLockerItem(item, show))
+      .catch((e) => {
+        // Only the newest tap decides what the switch shows.
+        if (lockerSaves.current[item] !== last) return;
+        setLocker((l) => (l ? hide(l, show) : l));
+        Alert.alert("Couldn't save that", e instanceof Error ? e.message : "Please try again.");
+      });
+    lockerSaves.current[item] = last;
+  };
+  const lockerRows = locker
+    ? [
+        ...(locker.belt
+          ? [{ item: "belt" as const, ...beltLabel(locker.belt), art: <RankBelt {...locker.belt} width={40} /> }]
+          : []),
+        ...locker.badges.map((b) => ({
+          item: b.id,
+          title: b.title,
+          sub: b.blurb,
+          art: <BadgeMedals badges={[b]} />,
+        })),
+      ]
+    : [];
+
+  const titleActions: SheetAction[] = [
+    ...(titles ?? []).map((t) => ({
+      label: t.title,
+      icon: t.icon,
+      note: t.award === title ? "Wearing" : t.where,
+      onPress: () => setTitleChoice(t.award),
+    })),
+    { label: "No title", icon: "remove-circle-outline", note: title == null ? "Wearing" : undefined, onPress: () => setTitleChoice(null) },
+  ];
+
   const save = async () => {
     if (saving) return;
     // The name lives on the server and has rules; the rest stays on this phone.
@@ -128,7 +207,18 @@ export default function EditProfile() {
         return;
       }
     }
-    updateProfile({ title: profile.title, favDivision, bio: profile.bio });
+    // Sent even when it looks unchanged: the title on this phone may be stale.
+    if (picked !== undefined) {
+      setSaving(true);
+      try {
+        await setTitle(picked);
+      } catch (e) {
+        Alert.alert("Couldn't save your title", e instanceof Error ? e.message : "Please try again.");
+        setSaving(false);
+        return;
+      }
+    }
+    updateProfile({ favDivision, bio: profile.bio });
     router.back();
   };
 
@@ -182,12 +272,58 @@ export default function EditProfile() {
         </Text>
 
         <Text style={styles.fieldLabel}>TITLE</Text>
-        <TextInput
-          style={[styles.input, styles.inputDisabled]}
-          value={profile.title}
-          editable={false}
-        />
-        <Text style={styles.hint}>Titles are earned from your picks. Coming soon.</Text>
+        {titles?.length ? (
+          <PressableScale
+            onPress={() => setChoosingTitle(true)}
+            style={[styles.input, { flexDirection: "row", alignItems: "center", justifyContent: "space-between" }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Title: ${titleName(title) ?? "none"}`}
+          >
+            <Text style={{ color: title ? c.text : c.textFaint, fontSize: 15 }}>{titleName(title) ?? "No title"}</Text>
+            <Ionicons name="chevron-down" size={18} color={c.textFaint} />
+          </PressableScale>
+        ) : (
+          <TextInput style={[styles.input, styles.inputDisabled]} value={titleName(title) ?? ""} editable={false} />
+        )}
+        <Text style={styles.hint}>
+          {titles?.length
+            ? "Wear an award you've won. It shows next to your pro record, and to anyone who opens your card."
+            : titles && !title
+              ? "Titles are earned at award drops. Join a league and make your picks to earn your first one."
+              : " "}
+        </Text>
+
+        {lockerFailed && (
+          <>
+            <Text style={styles.fieldLabel}>LOCKER</Text>
+            <Text style={[styles.hint, { marginTop: 0 }]}>Couldn&apos;t load your locker. Open Edit Profile again to retry.</Text>
+          </>
+        )}
+        {lockerRows.length > 0 && (
+          <>
+            <Text style={styles.fieldLabel}>LOCKER</Text>
+            <View style={styles.card}>
+              {lockerRows.map((row, i) => (
+                <View key={row.item} style={[styles.row, { gap: 12 }, i > 0 && { borderTopWidth: 1, borderTopColor: c.border }]}>
+                  <View style={{ width: 40, alignItems: "center" }}>{row.art}</View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowLabel}>{row.title}</Text>
+                    <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 2 }}>{row.sub}</Text>
+                  </View>
+                  <Switch
+                    value={!locker?.hidden.includes(row.item)}
+                    onValueChange={(v) => toggleItem(row.item, v)}
+                    trackColor={{ false: c.borderStrong, true: c.red }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor={c.borderStrong}
+                    accessibilityLabel={`Show ${row.title} on my profile`}
+                  />
+                </View>
+              ))}
+            </View>
+            <Text style={styles.hint}>Switched on shows on your profile and to anyone who opens your card.</Text>
+          </>
+        )}
 
         <Text style={styles.fieldLabel}>FAVORITE DIVISION</Text>
         <DivisionPicker value={favDivision} onChange={setFavDivision} />
@@ -202,6 +338,7 @@ export default function EditProfile() {
         />
         <Text style={styles.hint}>Your email is used for sign-in and can&apos;t be changed here.</Text>
       </ScrollView>
+      <ActionSheet visible={choosingTitle} title="YOUR TITLE" actions={titleActions} onClose={() => setChoosingTitle(false)} />
     </SafeAreaView>
   );
 }

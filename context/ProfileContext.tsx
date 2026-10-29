@@ -3,22 +3,24 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { LEGACY_PROFILE_KEY, profileStorageKey } from "../constants/storage";
 import { renameUnderReview as saveRenameUnderReview } from "../services/nameReview";
 import { fetchDisplayName, nextNameChange, saveDisplayName, saveFavDivision } from "../services/profile";
+import type { AwardId } from "../services/awards";
+import { loadTitle, saveTitle } from "../services/titles";
 import { useAuth } from "./AuthContext";
 
 export type Profile = {
   /** The handle on the Supabase profile. Empty until onboarding sets it. */
   username: string;
-  title: string;
+  /** The award worn as a title, from the server; null with none. */
+  title: AwardId | null;
   favDivision: string;
   bio: string;
 };
 
 /** The parts of the profile kept on this phone, per account. The favorite
  * division is also saved to the server, where league mates see it. */
-type LocalProfile = Omit<Profile, "username">;
+type LocalProfile = Omit<Profile, "username" | "title">;
 
 const DEFAULT_LOCAL: LocalProfile = {
-  title: "Tactical Specialist",
   // Empty until the player picks one, so nobody gets a division they never chose.
   favDivision: "",
   bio: "Never missed a main event. Locked in since UFC 280.",
@@ -28,6 +30,10 @@ type ProfileContextValue = {
   profile: Profile;
   /** Saves the on-phone fields. */
   updateProfile: (next: LocalProfile) => void;
+  /** Wears an award you've won as your title; null takes it off. */
+  setTitle: (award: AwardId | null) => Promise<void>;
+  /** Reads the title again, as after its award is taken back. */
+  refreshTitle: () => void;
   /** Saves the handle to Supabase; throws HandleTakenError if it is taken. */
   setUsername: (name: string) => Promise<void>;
   /** A rename while your name is hidden by reports. */
@@ -50,6 +56,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [local, setLocal] = useState<LocalProfile>(DEFAULT_LOCAL);
   const [username, setUsernameState] = useState<string | null>(null);
   const [nameChangedAt, setNameChangedAt] = useState<Date | null>(null);
+  const [title, setTitleState] = useState<AwardId | null>(null);
   const [ready, setReady] = useState(false);
 
   // Reload whenever the signed-in account changes, so one account's profile
@@ -59,6 +66,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setLocal(DEFAULT_LOCAL);
     setUsernameState(null);
     setNameChangedAt(null);
+    setTitleState(null);
     if (!userId) {
       setReady(true);
       return;
@@ -68,8 +76,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const saved = AsyncStorage.getItem(profileStorageKey(userId))
       .then((raw) => {
         if (!raw) return null;
-        // Older saves also held a username; the handle now lives on the server.
-        const { username: _old, ...rest } = JSON.parse(raw);
+        // Older saves also held a username and a title; both live on the server now.
+        const { username: _old, title: _oldTitle, ...rest } = JSON.parse(raw);
         const stored: LocalProfile = { ...DEFAULT_LOCAL, ...rest };
         if (current) setLocal(stored);
         return stored;
@@ -88,6 +96,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         if (current) setUsernameState("");
         return null;
       });
+    loadTitle(userId)
+      .then((t) => current && setTitleState(t))
+      .catch(() => {});
     Promise.all([saved, name])
       .then(([stored, server]) => {
         if (!current || !server) return;
@@ -140,6 +151,25 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [userId]);
 
+  // Bumped on every save, so a read started before it can't undo it.
+  const titleSaves = useRef(0);
+  const setTitle = useCallback(
+    async (award: AwardId | null) => {
+      titleSaves.current += 1;
+      await saveTitle(award);
+      if (accountRef.current === userId) setTitleState(award);
+    },
+    [userId]
+  );
+
+  const refreshTitle = useCallback(() => {
+    if (!userId) return;
+    const saves = titleSaves.current;
+    loadTitle(userId)
+      .then((t) => accountRef.current === userId && saves === titleSaves.current && setTitleState(t))
+      .catch(() => {});
+  }, [userId]);
+
   const renameUnderReview = useCallback(async (name: string) => {
     await saveRenameUnderReview(name);
     setUsernameState(name);
@@ -148,8 +178,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<ProfileContextValue>(
     () => ({
-      profile: { ...local, username: username ?? "" },
+      profile: { ...local, username: username ?? "", title },
       updateProfile,
+      setTitle,
+      refreshTitle,
       setUsername,
       renameUnderReview,
       refreshName,
@@ -157,7 +189,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       ready,
       needsOnboarding: !!userId && ready && username === null,
     }),
-    [local, username, nameChangedAt, updateProfile, setUsername, renameUnderReview, refreshName, ready, userId]
+    [local, username, title, nameChangedAt, updateProfile, setTitle, refreshTitle, setUsername, renameUnderReview, refreshName, ready, userId]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
