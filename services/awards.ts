@@ -20,6 +20,8 @@ export type AwardId =
   | "method_man"
   | "iron_man"
   | "call_of_night"
+  | "oracle"
+  | "iron_chin"
   | "pro_can"
   | "gun_shy";
 
@@ -52,6 +54,13 @@ export const AWARDS: Record<AwardId, AwardInfo> = {
   method_man: { title: "Method Man", blurb: "Calls how it ends", icon: "hammer", stat: count("method right", "methods right") },
   iron_man: { title: "Journeyman", blurb: "Picks the most fights", icon: "walk", stat: count("pick", "picks") },
   call_of_night: { title: "Call of the Night", blurb: "The best single call (underdog bonus included)", icon: "star", stat: (v) => `${signed(v)} pts` },
+  oracle: { title: "The Oracle", blurb: "Calls the hot takes", icon: "sparkles", stat: (v) => `${pct(v)} of takes right` },
+  iron_chin: {
+    title: "Iron Chin",
+    blurb: "The longest unbeaten run of matchups",
+    icon: "shield-checkmark",
+    stat: count("matchup unbeaten", "matchups unbeaten"),
+  },
   pro_can: {
     title: "Professional Can",
     blurb: "Last in the league on card after card",
@@ -67,7 +76,9 @@ export const AWARD_ORDER: AwardId[] = [
   "interim_champ",
   "champ",
   "p4p",
+  "iron_chin",
   "sharpshooter",
+  "oracle",
   "finisher",
   "judge",
   "dog",

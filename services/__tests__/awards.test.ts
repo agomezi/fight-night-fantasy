@@ -27,6 +27,9 @@ describe("a league's award drop", () => {
     expect(AWARDS.finisher.stat(1)).toBe("100% finish calls");
     expect(AWARDS.dog.stat(4)).toBe("4 underdog wins");
     expect(AWARDS.p4p.stat(212)).toBe("+212 edge");
+    expect(AWARDS.oracle.stat(9 / 11)).toBe("82% of takes right");
+    expect(AWARDS.iron_chin.stat(5)).toBe("5 matchups unbeaten");
+    expect(AWARDS.iron_chin.stat(1)).toBe("1 matchup unbeaten");
   });
 
   test("says what you won, or your best placing, never the joke", () => {
@@ -38,6 +41,19 @@ describe("a league's award drop", () => {
   test("shares as text", () => {
     expect(shareText("Test1", drop)).toContain("Interim Champ: Ayden");
     expect(shareText("Test1", drop)).toContain("Upset Artist: Soggy (4 underdog wins)");
+  });
+
+  test("shows The Oracle and Iron Chin as real awards, after the title", () => {
+    const withNew = toLeagueDrop({
+      ...raw,
+      awards: [
+        ...raw.awards,
+        { award: "oracle" as const, userId: "u3", name: "Player C", value: 0.8 },
+        { award: "iron_chin" as const, userId: "u3", name: "Player C", value: 4 },
+      ],
+    })!;
+    expect(withNew.awards.map((a) => a.award)).toEqual(["interim_champ", "iron_chin", "oracle", "finisher", "dog", "gun_shy"]);
+    expect(yourLine(withNew, "u3")).toBe("You won Iron Chin, The Oracle.");
   });
 
   test("has no drop before one is published", () => {
