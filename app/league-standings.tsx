@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import EmptyState from "../components/EmptyState";
 import LeagueStandingRow from "../components/LeagueStandingRow";
 import MemberProfileSheet from "../components/MemberProfileSheet";
+import PastAwards from "../components/PastAwards";
 import PressableScale from "../components/PressableScale";
 import { EmptyScorecard } from "../components/Scorecard";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
@@ -119,6 +120,9 @@ export default function LeagueStandings() {
             <Text style={styles.primaryButtonText}>INVITE FRIENDS</Text>
           </PressableScale>
         )}
+
+        {/* This season's award drops, kept once they leave the league page. */}
+        {league && <PastAwards key={league.id} leagueId={league.id} leagueName={league.name} />}
       </ScrollView>
 
       <View style={{ height: insets.bottom }} />

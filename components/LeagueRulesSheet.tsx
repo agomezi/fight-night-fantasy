@@ -1,18 +1,12 @@
-import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../context/ThemeContext";
-import type { RuleRow, RulesSheet } from "../services/leagueOnboarding";
+import type { RulesSheet } from "../services/leagueOnboarding";
+import LeagueRuleRows from "./LeagueRuleRows";
 import PressableScale from "./PressableScale";
 
-const ICON: Record<RuleRow["icon"], keyof typeof Ionicons.glyphMap> = {
-  people: "people-outline",
-  doubleheader: "copy-outline",
-  minimum: "list-outline",
-};
-
-/** A league's rules in a sheet from the bottom: before joining, with the join
- * button, or from the league page, with just a close. */
+/** A league's rules in a sheet from the bottom, before joining, with the join
+ * button. */
 export default function LeagueRulesSheet({
   sheet,
   actionLabel,
@@ -61,26 +55,7 @@ export default function LeagueRulesSheet({
             </Text>
             <Text style={{ color: c.textMuted, fontSize: 13.5, lineHeight: 19, marginTop: 4 }}>{sheet.intro}</Text>
 
-            {sheet.rows.map((row) => (
-              <View key={row.icon} style={{ flexDirection: "row", gap: 14, marginTop: 18 }}>
-                <View
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    backgroundColor: c.redTint,
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Ionicons name={ICON[row.icon]} size={20} color={c.red} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: c.text, fontSize: 15, fontWeight: "800" }}>{row.title}</Text>
-                  <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 18, marginTop: 2 }}>{row.body}</Text>
-                </View>
-              </View>
-            ))}
+            <LeagueRuleRows rows={sheet.rows} />
 
             {error ? (
               <Text style={{ color: c.red, fontSize: 13.5, fontWeight: "700", marginTop: 18, textAlign: "center" }}>{error}</Text>
