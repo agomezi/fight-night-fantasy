@@ -9,11 +9,13 @@ import MemberProfileSheet from "../components/MemberProfileSheet";
 import PickRuleSetting from "../components/PickRuleSetting";
 import PressableScale from "../components/PressableScale";
 import ScoringRules from "../components/ScoringRules";
+import TierUpgradeSetting from "../components/TierUpgradeSetting";
 import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useLeague } from "../hooks/useLeague";
 import {
+  higherTiers,
   inviteMessage,
   isPreseason,
   leaveLeague,
@@ -171,6 +173,13 @@ export default function LeagueSettings() {
           <Text style={{ color: c.text2, fontSize: 13.5, lineHeight: 19, marginBottom: 10 }}>{TIER_BLURB[league.tier]}</Text>
         )}
         <ScoringRules />
+
+        {(league.upgrade || (league.isOwner && higherTiers(league.tier).length > 0)) && (
+          <>
+            <Text style={sectionLabel}>TIER</Text>
+            <TierUpgradeSetting league={league} preseason={preseason} onChanged={state.reload} />
+          </>
+        )}
 
         {league.rule && (
           <>

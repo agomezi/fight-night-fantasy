@@ -141,7 +141,8 @@ select is((select (m.a_points, m.b_points)::text
   '(40,40)', 'with the points they scored');
 
 reset role;
-update public.leagues set tier = 'casual' where id = pg_temp.gym();
+-- The tier the card is played at.
+update public.league_tiers set tier = 'casual' where league_id = pg_temp.gym();
 set local role authenticated;
 select pg_temp.act(pg_temp.u(1));
 select is((select array_agg(m.fight_order)

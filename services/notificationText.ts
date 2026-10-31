@@ -15,7 +15,8 @@ export type NotificationKind =
   | "rank"
   | "poll"
   | "name_restored"
-  | "name_kept";
+  | "name_kept"
+  | "tier";
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
@@ -356,6 +357,38 @@ function awards(p: AwardsPayload): Message {
   };
 }
 
+/** A league moving up a tier: coming at the start of `season`, called off,
+ * or started. `tier` is the tier it moves to, or for "cancelled" the one it
+ * stays at. */
+export type TierPayload = {
+  league: string;
+  leagueId: string;
+  tier: "casual" | "amateur" | "pro" | "hardcore";
+  phase: "scheduled" | "cancelled" | "started";
+  season: number;
+};
+
+const TIER_NAME: Record<TierPayload["tier"], string> = { casual: "Casual", amateur: "Amateur", pro: "Pro", hardcore: "Hardcore" };
+
+const TIER_RULES: Record<TierPayload["tier"], string> = {
+  casual: "The main card counts, with half deductions.",
+  amateur: "The main card and the last 3 prelims count, with full deductions and a floor at 0.",
+  pro: "The whole card counts, with full deductions and no floor, and the owner sets the minimum picks.",
+  hardcore: "Every fight counts, with full deductions and no floor.",
+};
+
+function tier(p: TierPayload): Message {
+  const name = TIER_NAME[p.tier] ?? p.tier;
+  const data = { screen: "league-standings", leagueId: p.leagueId };
+  if (p.phase === "cancelled") {
+    return { title: `${p.league} stays ${name}`, body: "The owner called off moving up a tier.", data };
+  }
+  if (p.phase === "scheduled") {
+    return { title: `${p.league} moves up to ${name} from Season ${p.season}`, body: TIER_RULES[p.tier] ?? "", data };
+  }
+  return { title: `${p.league} is now ${name}`, body: TIER_RULES[p.tier] ?? "", data };
+}
+
 function leagueJoin(p: LeagueJoinPayload): Message {
   return {
     title: `${p.member} joined ${p.league}`,
@@ -444,6 +477,7 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "final") return final(payload as FinalPayload);
   if (kind === "name_restored") return nameRestored(payload as NameRestoredPayload);
   if (kind === "name_kept") return nameKept(payload as NameKeptPayload);
+  if (kind === "tier") return tier(payload as TierPayload);
   // A kind from a newer server than this build.
   return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };
 }

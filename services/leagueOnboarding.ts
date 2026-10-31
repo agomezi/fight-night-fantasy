@@ -75,7 +75,7 @@ export function leagueChecklist(league: MyLeague, ticks: ChecklistTicks, started
     {
       id: "tier",
       title: `Tier set: ${TIER_LABEL[league.tier]}`,
-      detail: "The tier is set for good once the league is made.",
+      detail: "You can move up a tier between seasons, never down.",
       done: true,
     },
     own
