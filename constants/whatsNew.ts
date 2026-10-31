@@ -34,6 +34,35 @@ export const WHATS_NEW: WhatsNewEntry[] = [
     ],
   },
   {
+    id: "2026-10-title-fights",
+    date: "2026-10-29T12:00:00Z",
+    title: "Title fights",
+    items: [
+      {
+        icon: "trophy",
+        title: "A belt for every league",
+        body: "After card 8 the top five get a title shot: a play-in on card 9, semifinals on card 10, and the title fight on card 11. A tie goes to the better seed. Leagues of four or five send their top four straight to the semis.",
+      },
+      {
+        icon: "shield",
+        title: "Defend it every card",
+        body: "The Champion sits above the table and carries the belt into next season. Every matchup they play is a title fight: win and it's a defense, lose and the title is vacant. While it's vacant, the mid-season review names the table's #1 Interim Champ, and card 11's title fight crowns the next Champion.",
+      },
+    ],
+  },
+  {
+    id: "2026-10-tier-upgrade",
+    date: "2026-10-28T12:00:00Z",
+    title: "Leagues can move up",
+    items: [
+      {
+        icon: "trending-up",
+        title: "Move your league up a tier",
+        body: "Owners can move a Casual or Amateur league up a tier in league settings. It starts next season, this season's cards stay as they are, and a league never moves back down.",
+      },
+    ],
+  },
+  {
     id: "2026-10-belts-badges",
     date: "2026-10-28T12:00:00Z",
     title: "Belts and badges",

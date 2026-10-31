@@ -9,10 +9,13 @@ import MemberProfileSheet from "../components/MemberProfileSheet";
 import PastAwards from "../components/PastAwards";
 import PressableScale from "../components/PressableScale";
 import { EmptyScorecard } from "../components/Scorecard";
+import { ChampRow, TitleShotLine } from "../components/TitleRows";
+import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { useLeague } from "../hooks/useLeague";
 import { inviteMessage, matchupStreaks, TIER_LABEL } from "../services/leagues";
+import { hasTitle, titleShotCut } from "../services/titleFights";
 import { makeCommonStyles } from "../styles/common";
 import { makeLeaguesStyles } from "../styles/leagues";
 import ScreenSkeleton from "../components/ScreenSkeleton";
@@ -34,6 +37,13 @@ export default function LeagueStandings() {
   const weeks = state.status === "ready" ? state.weeks : null;
   const streaks = useMemo(() => (weeks ? matchupStreaks(weeks) : {}), [weeks]);
   const animate = useEntranceOnce(state.status === "ready");
+  const { session } = useAuth();
+  const title = state.status === "ready" ? state.title ?? null : null;
+  const showTitle = hasTitle(title) && !!standings?.ranked;
+  // Until the field is set, a line under the places that would make it.
+  const cut = showTitle ? titleShotCut(title) : null;
+  const seedOf = (userId: string) =>
+    showTitle && title.seedsFinal ? title.seeds.find((s) => s.userId === userId)?.seed : undefined;
 
   const invite = () => {
     if (league) Share.share({ message: inviteMessage(league) }).catch(() => {});
@@ -66,7 +76,9 @@ export default function LeagueStandings() {
               : "No league joined"}
         </Text>
         <Text style={styles.screenNote}>
-          Ranked by record. Ties go to most points, then accuracy, then head-to-head.
+          Ranked by record. Ties go to most points, then accuracy, then head-to-head. After card 8 the top five
+          (top four in a league of four or five) get a title shot: a bracket over cards 9 and 10, then the title
+          fight on card 11.
         </Text>
 
         {state.status === "loading" && <ScreenSkeleton variant="list" rows={8} />}
@@ -91,16 +103,22 @@ export default function LeagueStandings() {
                   <Text style={[styles.columnLabel, { flex: 1, marginLeft: 12 }]}>PLAYER</Text>
                   <Text style={styles.columnLabel}>W-L</Text>
                 </View>
+                {showTitle && <ChampRow title={title} myId={session?.user.id} onPress={setViewing} />}
                 {rows.map((row, i) => (
-                  <LeagueStandingRow
-                    key={row.userId}
-                    row={row}
-                    index={i}
-                    move={state.moves[row.userId]}
-                    streak={streaks[row.userId]}
-                    animate={animate}
-                    onPress={() => setViewing(row.userId)}
-                  />
+                  <View key={row.userId}>
+                    <LeagueStandingRow
+                      row={row}
+                      index={i}
+                      move={state.moves[row.userId]}
+                      streak={streaks[row.userId]}
+                      animate={animate}
+                      crowned={showTitle && !!title.champion}
+                      seed={seedOf(row.userId)}
+                      interim={!!standings?.ranked && title?.interim?.userId === row.userId}
+                      onPress={() => setViewing(row.userId)}
+                    />
+                    {cut === row.userId && i < rows.length - 1 && <TitleShotLine />}
+                  </View>
                 ))}
               </>
             )}

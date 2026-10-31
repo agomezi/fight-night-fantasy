@@ -156,6 +156,16 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
   const dueAt = new Date(Date.now() + nextPollIn(card, hasProvisional)).toISOString();
   const { error: dueError } = await db.rpc("set_results_due", { event_id: eventId, due_at: dueAt });
   if (dueError) throw new Error(dueError.message);
+  // League title news once the card is final, apart and caught, and after
+  // the next poll is booked, so it never holds up a result, a push or the
+  // polling.
+  let titles: Record<string, unknown>;
+  try {
+    const { data: crowned, error: titleError } = await db.rpc("claim_title_notifications", { event: eventId });
+    titles = titleError ? { error: titleError.message } : await notify(db, (crowned ?? []) as Claimed[]);
+  } catch (error) {
+    titles = { error: error instanceof Error ? error.message : String(error) };
+  }
   // Fight stats last, after the next poll is booked, so a slow stats file
   // never holds up a result or a push.
   const stats = await syncStats(db, eventId);
@@ -170,6 +180,7 @@ async function syncEvent(db: Db, feed: string, eventId: string, ufcEventId: stri
     notifications,
     matchups,
     ranks,
+    titles,
     stats,
     nextPoll: dueAt,
     ...(issues.length ? { issues } : {}),
@@ -197,6 +208,17 @@ Deno.serve(async request => {
       rankFailed = rankError != null;
       standings = rankError ? { error: rankError.message } : await notify(db, (ranks ?? []) as Claimed[]);
     }
+    // Title fights and bracket rounds on the card about to lock, last and
+    // caught: a failure only shows in the report.
+    let titles: Record<string, unknown> | undefined;
+    if (mode === "reminders") {
+      try {
+        const { data: due, error: titleError } = await db.rpc("claim_title_reminders");
+        titles = titleError ? { error: titleError.message } : await notify(db, (due ?? []) as Claimed[]);
+      } catch (error) {
+        titles = { error: error instanceof Error ? error.message : String(error) };
+      }
+    }
     const reports = mode === "activity" ? await emailReports(db) : undefined;
     // New community questions, last and apart: a failure here only shows in
     // the report, and never fails the run.
@@ -209,7 +231,7 @@ Deno.serve(async request => {
         polls = { error: error instanceof Error ? error.message : String(error) };
       }
     }
-    const report = { ...pushed, ...(standings ? { standings } : {}), ...(reports ? { reports } : {}), ...(polls ? { polls } : {}) };
+    const report = { ...pushed, ...(standings ? { standings } : {}), ...(titles ? { titles } : {}), ...(reports ? { reports } : {}), ...(polls ? { polls } : {}) };
     const failed = error != null || (reports != null && "error" in reports) || rankFailed;
     console.log(JSON.stringify(report));
     return Response.json(report, { status: failed ? 500 : 200 });
