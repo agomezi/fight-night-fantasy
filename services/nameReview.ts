@@ -33,6 +33,15 @@ export function nameReviewCopy(alias: number | null) {
   };
 }
 
+/** The card for a player whose name was removed. */
+export const NAME_REMOVED_COPY = {
+  eyebrow: "USERNAME REMOVED",
+  title: "Pick a new username",
+  body: "Your username broke our name rules, so it was removed. Choose a different one to keep playing.",
+  warning: "Repeated offensive names will get your account banned.",
+  action: "SAVE NAME",
+};
+
 /** The message for a rename that didn't go through. */
 export function renameErrorMessage(e: unknown): string {
   if (e instanceof HandleTakenError) return "That name is taken. Try another one.";
