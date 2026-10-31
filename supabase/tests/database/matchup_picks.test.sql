@@ -114,7 +114,8 @@ select is(pg_temp.theirs(2, 3), null, 'a pick on a bout that changed since doesn
 
 reset role;
 -- Casual plays only the main card, and at casual points.
-update public.leagues set tier = 'casual' where id = pg_temp.gym();
+-- The tier the card is played at.
+update public.league_tiers set tier = 'casual' where league_id = pg_temp.gym();
 set local role authenticated;
 select pg_temp.act(1);
 select is((select array_agg(m.fight_order) from public.matchup_picks(pg_temp.gym(), pg_temp.ev(), pg_temp.u(2)) m),

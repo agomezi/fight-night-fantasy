@@ -9,6 +9,7 @@ import type { Ionicons } from "@expo/vector-icons";
 export type AwardId =
   | "interim_champ"
   | "champ"
+  | "top_seed"
   | "p4p"
   | "finisher"
   | "judge"
@@ -42,7 +43,8 @@ const count = (one: string, many: string) => (v: number) => `${Math.round(v)} ${
 
 export const AWARDS: Record<AwardId, AwardInfo> = {
   interim_champ: { title: "Interim Champ", blurb: "#1 in the league at the review", icon: "trophy", stat: () => "" },
-  champ: { title: "Champ", blurb: "#1 in the league at season's end", icon: "trophy", stat: () => "" },
+  champ: { title: "Champ", blurb: "Holds the league's belt at season's end", icon: "trophy", stat: () => "" },
+  top_seed: { title: "Top Seed", blurb: "#1 in the league table at season's end", icon: "medal", stat: () => "" },
   p4p: { title: "P4P #1", blurb: "The best edge on the global board", icon: "podium", stat: (v) => `${signed(v)} edge` },
   finisher: { title: "The Finisher", blurb: "Almost never calls a decision", icon: "flash", stat: (v) => `${pct(v)} finish calls` },
   judge: { title: "Decision Merchant", blurb: "Sees it going the distance", icon: "document-text", stat: (v) => `${pct(v)} decision calls` },
@@ -75,6 +77,7 @@ export const AWARDS: Record<AwardId, AwardInfo> = {
 export const AWARD_ORDER: AwardId[] = [
   "interim_champ",
   "champ",
+  "top_seed",
   "p4p",
   "iron_chin",
   "sharpshooter",

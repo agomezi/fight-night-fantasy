@@ -1,8 +1,9 @@
 import Svg, { G, Path, Polygon, Rect, Text as SvgText } from "react-native-svg";
 
 /*
- * What sits beside a place in a league table: the title belt for 1st, silver
- * and bronze medals for 2nd and 3rd, and from 4th down an arrow for which way
+ * What sits beside a place in a league table: the title belt for 1st (a gold
+ * medal while a Champion holds the belt above the table), silver and bronze
+ * medals for 2nd and 3rd, and from 4th down an arrow for which way
  * the last card moved you (a dash when it didn't). The home league card holds
  * up the league trophy from 4th down instead of an arrow.
  *
@@ -20,6 +21,7 @@ function octagon(cx: number, cy: number, r: number): string {
 }
 
 const METALS = {
+  gold: { base: "#FFCA3A", dark: "#C8901A", ink: "#5A3A05" },
   silver: { base: "#C9CED6", dark: "#868C96", ink: "#33373E" },
   bronze: { base: "#D2894B", dark: "#8E5226", ink: "#3F220C" },
 };
@@ -101,8 +103,8 @@ export function LeagueTrophy({ height = 60 }: { height?: number }) {
 }
 
 /** An octagon medal on the red stripe folded into a ribbon. */
-export function Medal({ place, size = 20 }: { place: 2 | 3; size?: number }) {
-  const m = place === 2 ? METALS.silver : METALS.bronze;
+export function Medal({ place, size = 20 }: { place: 1 | 2 | 3; size?: number }) {
+  const m = place === 1 ? METALS.gold : place === 2 ? METALS.silver : METALS.bronze;
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64">
       <Polygon points="14,2 27,2 37,27 24,27" fill="#9E0029" />
@@ -139,10 +141,21 @@ export function MoveArrow({ move, size = 20 }: { move: number | undefined; size?
   );
 }
 
-/** The mark for a place: belt, medal, or movement arrow. Nothing unranked. */
-export default function RankMark({ rank, move, size = 20 }: { rank: number | null; move?: number; size?: number }) {
+/** The mark for a place: belt, medal, or movement arrow. Nothing unranked.
+ * `crowned`: a Champion holds the belt, so 1st takes a gold medal. */
+export default function RankMark({
+  rank,
+  move,
+  size = 20,
+  crowned,
+}: {
+  rank: number | null;
+  move?: number;
+  size?: number;
+  crowned?: boolean;
+}) {
   if (rank == null) return null;
-  if (rank === 1) return <TitleBelt height={size * 0.8} />;
+  if (rank === 1) return crowned ? <Medal place={1} size={size} /> : <TitleBelt height={size * 0.8} />;
   if (rank === 2 || rank === 3) return <Medal place={rank} size={size} />;
   return <MoveArrow move={move} size={size} />;
 }

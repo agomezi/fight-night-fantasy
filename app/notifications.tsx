@@ -29,6 +29,8 @@ const KIND: Record<NotificationKind, { icon: keyof typeof Ionicons.glyphMap; tin
   poll: { icon: "chatbubbles", tint: (c) => c.blue },
   name_restored: { icon: "person-circle", tint: (c) => c.green },
   name_kept: { icon: "person-circle", tint: (c) => c.textMuted },
+  tier: { icon: "trending-up", tint: (c) => c.gold },
+  title: { icon: "trophy", tint: (c) => c.gold },
 };
 
 type State = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; items: InboxItem[] };
