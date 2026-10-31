@@ -6,7 +6,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(49);
+select plan(51);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -139,11 +139,28 @@ select is(public.card_season_number(pg_temp.ev('tu-s1-11')) || ':' || public.car
 update public.events set season_id = (select id from public.seasons where number = 1), season_index = 11
 where ufc_event_id = 'tu-s1-11';
 
+-- With Season 2's first card locking within two days, its picks are being
+-- made under Casual, so the move waits a season more.
+update public.events set locks_at = now() + interval '1 day' where ufc_event_id = 'tu-next';
+set local role authenticated;
+select pg_temp.as_user(1);
+select is(public.schedule_tier_upgrade(pg_temp.b(), 'pro'), 3, 'a move up asked for just before a season''s first card waits for the one after');
+reset role;
+delete from public.league_tiers where league_id = pg_temp.b() and from_season = 3;
+delete from public.league_pick_rules where league_id = pg_temp.b();
+delete from public.notifications_sent where kind = 'tier' and payload ->> 'leagueId' = pg_temp.b()::text;
+update public.events set locks_at = now() + interval '3 days' where ufc_event_id = 'tu-next';
+select set_config('fnf.test_code', (select invite_code from public.leagues where id = pg_temp.b()), true);
+
 set local role authenticated;
 select pg_temp.as_user(1);
 
 select is(public.schedule_tier_upgrade(pg_temp.b(), 'pro'), 2, 'during a season it waits for the next');
 select is(pg_temp.tier(pg_temp.b()), 'casual', 'B is still Casual');
+select pg_temp.as_user(2);
+select is((select tier::text from public.league_preview(current_setting('fnf.test_code'))), 'pro',
+  'someone joining mid-season, who waits for Season 2, reads its Pro rules');
+select pg_temp.as_user(1);
 select results_eq(
   $$ select card_tier::text, tier_now::text, next_tier::text, next_season from public.my_league_tiers() where league_id = pg_temp.b() $$,
   $$ values ('pro'::text, 'casual'::text, 'pro'::text, 2) $$,
