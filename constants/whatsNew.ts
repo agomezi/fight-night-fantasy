@@ -29,7 +29,7 @@ export const WHATS_NEW: WhatsNewEntry[] = [
       {
         icon: "shield",
         title: "Defend it every card",
-        body: "The Champion sits above the table and carries the belt into next season. Every matchup they play is a title fight: win and it's a defense, lose and the title is vacant until the next title fight.",
+        body: "The Champion sits above the table and carries the belt into next season. Every matchup they play is a title fight: win and it's a defense, lose and the title is vacant. While it's vacant, the mid-season review names the table's #1 Interim Champ, and card 11's title fight crowns the next Champion.",
       },
     ],
   },

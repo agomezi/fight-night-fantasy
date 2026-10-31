@@ -14,7 +14,9 @@
 -- replayed from the saved results each time it's read, so a rescore moves it.
 --
 -- The season's final award drop names the belt holder Champ and the table's
--- #1 Top Seed. The midseason Interim Champ goes.
+-- #1 Top Seed. A midseason review names the table's #1 Interim Champ while
+-- the belt is vacant: a label until they lose a matchup or card 11 crowns a
+-- Champion, with no defenses and no title fights.
 
 -------------------------------------------------------------------------------
 -- Seeds and bracket rounds
@@ -697,6 +699,7 @@ declare
   champ  record;
   seeds  jsonb;
   played integer;
+  interim uuid;
 begin
   perform public.require_league_member(league);
 
@@ -709,6 +712,27 @@ begin
   -- As of the cards played so far: a Champion low in the table early on
   -- keeps the belt until the field is set after card 8.
   select * into champ from public.league_title_state(league, season, least(played, 11));
+  -- The Interim Champ from this season's latest published review, while the
+  -- belt is vacant, they're still in the league and haven't lost since.
+  if champ.holder is null then
+    select a.user_id into interim
+    from public.award_drops d
+    join public.drop_awards a on a.drop_id = d.id and a.scope = league::text and a.award = 'interim_champ'
+    where d.season_id = season and d.kind = 'midseason' and d.published_at is not null
+      and exists (select 1 from public.league_members m
+                  where m.league_id = league and m.user_id = a.user_id and m.status = 'active' and m.left_at is null)
+      and not exists (
+        select 1 from public.league_results lr
+        join public.events e on e.id = lr.event_id
+        where lr.league_id = league and lr.season_id = season and e.locks_at > d.ran_at
+          and a.user_id in (lr.user_a, lr.user_b) and lr.winner is not null and lr.winner <> a.user_id
+      )
+      and not exists (select 1 from public.award_drops later
+                      where later.season_id = season and later.kind = 'midseason'
+                        and later.published_at is not null and later.ran_at > d.ran_at)
+    limit 1;
+  end if;
+
   seeds := coalesce((
     select jsonb_agg(jsonb_build_object('seed', sd.seed, 'userId', sd.user_id) order by sd.seed)
     from public.league_season_seeds(league, season) sd
@@ -721,6 +745,8 @@ begin
       'name', public.league_display_name(champ.holder),
       'defenses', champ.defenses
     ) end,
+    'interim', case when interim is null then null
+                    else jsonb_build_object('userId', interim, 'name', public.league_display_name(interim)) end,
     'seedsFinal', exists (select 1 from public.league_seeds ls where ls.league_id = league and ls.season_id = season),
     'seeds', seeds,
     -- The saved rounds, and the next card's while it's a bracket card. The
@@ -1406,7 +1432,7 @@ begin
   -- League titles. In the pre-season, the #1: Interim Champ at a review,
   -- Champ at a final one. In a season, a final drop names the belt holder
   -- Champ (their defenses as the value) and the table's #1 Top Seed; a
-  -- review names neither.
+  -- midseason review names the #1 Interim Champ where the belt is vacant.
   if d.season_id is null then
     insert into public.drop_awards (drop_id, scope, award, user_id, value)
     select d.id, ds.scope, case when d.kind = 'final' then 'champ' else 'interim_champ' end, ds.user_id, null
@@ -1424,6 +1450,16 @@ begin
     select d.id, ds.scope, 'top_seed', ds.user_id, null
     from public.drop_stats ds
     where ds.drop_id = d.id and ds.scope <> 'global' and (ds.stats->>'rank')::int = 1;
+  elsif d.kind = 'midseason' then
+    insert into public.drop_awards (drop_id, scope, award, user_id, value)
+    select d.id, ds.scope, 'interim_champ', ds.user_id, null
+    from public.drop_stats ds
+    where ds.drop_id = d.id and ds.scope <> 'global' and (ds.stats->>'rank')::int = 1
+      and (select ts.holder from public.league_title_state(
+             ds.scope::uuid, d.season_id,
+             (select coalesce(max(e.season_index), 0)::integer from public.events e
+              where e.season_id = d.season_id and e.locks_at <= d.ran_at)
+           ) ts) is null;
   end if;
 
   -- Global: P4P by edge, rankable players only.

@@ -6,6 +6,7 @@ const side = (userId: string, name = userId) => ({ userId, name, points: null })
 const base = (over: Partial<LeagueTitle> = {}): LeagueTitle => ({
   preseason: false,
   champion: null,
+  interim: null,
   seedsFinal: true,
   seeds: [1, 2, 3, 4, 5].map((seed) => ({ seed, userId: `u${seed}` })),
   bracket: [],
@@ -17,10 +18,24 @@ describe("toLeagueTitle", () => {
     expect(toLeagueTitle({ season: null, champion: null, seedsFinal: false, seeds: null, bracket: null })).toEqual({
       preseason: true,
       champion: null,
+      interim: null,
       seedsFinal: false,
       seeds: [],
       bracket: [],
     });
+  });
+});
+
+describe("the Interim Champ", () => {
+  it("is read while the belt is vacant, and never next to a Champion", () => {
+    const raw = { season: "s", seedsFinal: false, seeds: null, bracket: null, interim: { userId: "u2", name: "B" } };
+    expect(toLeagueTitle({ ...raw, champion: null }).interim).toEqual({ userId: "u2", name: "B" });
+    expect(toLeagueTitle({ ...raw, champion: { userId: "u1", name: "A", defenses: 0 } }).interim).toBeNull();
+    expect(toLeagueTitle({ ...raw, champion: null, interim: undefined }).interim).toBeNull();
+  });
+  it("defends nothing: their matchups aren't title fights", () => {
+    const title = base({ interim: { userId: "u2", name: "B" } });
+    expect(matchupTitle(title, { eventId: "e1", a: side("u2"), b: side("u7"), isMine: false }, "Test1")).toBeNull();
   });
 });
 
@@ -97,10 +112,10 @@ describe("hasTitle", () => {
 });
 
 describe("champLine", () => {
-  it("says vacant until the title fight, then the defenses", () => {
-    expect(champLine(base())).toBe("DECIDED ON THE TITLE FIGHT, CARD 11");
-    expect(champLine(base({ champion: { userId: "u1", name: "A", defenses: 0 } }))).toBe("CHAMPION");
-    expect(champLine(base({ champion: { userId: "u1", name: "A", defenses: 3 } }))).toBe("CHAMPION · 3 DEFENSES");
+  it("says the Champion's defenses", () => {
+    expect(champLine({ defenses: 0 })).toBe("CHAMPION");
+    expect(champLine({ defenses: 1 })).toBe("CHAMPION · 1 DEFENSE");
+    expect(champLine({ defenses: 3 })).toBe("CHAMPION · 3 DEFENSES");
   });
 });
 

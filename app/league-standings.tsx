@@ -113,6 +113,7 @@ export default function LeagueStandings() {
                       animate={animate}
                       crowned={showTitle && !!title.champion}
                       seed={seedOf(row.userId)}
+                      interim={!!standings?.ranked && title?.interim?.userId === row.userId}
                       onPress={() => setViewing(row.userId)}
                     />
                     {cut === row.userId && i < rows.length - 1 && <TitleShotLine />}

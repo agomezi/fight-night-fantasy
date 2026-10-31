@@ -1,4 +1,5 @@
-// A league's title: the Champion in the C slot above the table, the field of
+// A league's title: the Champion in the C slot above the table (none while
+// the belt is vacant), the Interim Champ named at a midseason review, the field of
 // four or five that makes the title shot after card 8, and the bracket on
 // cards 9 to 11. The server works it all out; the shaping here is pure so
 // jest can test it.
@@ -11,6 +12,9 @@ export type LeagueTitle = {
   /** The pre-season has no title. */
   preseason: boolean;
   champion: { userId: string; name: string; defenses: number } | null;
+  /** Named at a midseason review while the belt is vacant: a label on their
+   * row until they lose a matchup or card 11 crowns a Champion. */
+  interim: { userId: string; name: string } | null;
   /** False while the field is only the table as it stands (until card 9 locks). */
   seedsFinal: boolean;
   /** Best first; empty below four ranked players. */
@@ -22,6 +26,7 @@ export type LeagueTitle = {
 type RawTitle = {
   season: string | null;
   champion: { userId: string; name: string; defenses: number } | null;
+  interim?: { userId: string; name: string } | null;
   seedsFinal: boolean;
   seeds: { seed: number; userId: string }[] | null;
   bracket: { stage: TitleStage; week: number; eventId: string | null; a: string; b: string }[] | null;
@@ -31,6 +36,7 @@ export function toLeagueTitle(raw: RawTitle): LeagueTitle {
   return {
     preseason: raw.season == null,
     champion: raw.champion ?? null,
+    interim: raw.champion ? null : (raw.interim ?? null),
     seedsFinal: !!raw.seedsFinal,
     seeds: raw.seeds ?? [],
     bracket: raw.bracket ?? [],
@@ -94,10 +100,8 @@ export function titleShotCut(title: LeagueTitle | null): string | null {
   return title.seeds[title.seeds.length - 1].userId;
 }
 
-/** What the C slot says under the name. */
-export function champLine(title: LeagueTitle): string {
-  const champ = title.champion;
-  if (!champ) return "DECIDED ON THE TITLE FIGHT, CARD 11";
+/** What the C slot says under the Champion's name. */
+export function champLine(champ: { defenses: number }): string {
   if (champ.defenses === 0) return "CHAMPION";
   return `CHAMPION · ${champ.defenses} ${champ.defenses === 1 ? "DEFENSE" : "DEFENSES"}`;
 }

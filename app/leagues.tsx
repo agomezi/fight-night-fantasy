@@ -437,6 +437,7 @@ export default function Leagues() {
                   streak={streaks[row.userId]}
                   animate={animateStandings}
                   crowned={showTitle && !!title.champion}
+                  interim={title?.interim?.userId === row.userId}
                   onPress={() => setViewing(row.userId)}
                 />
                 {cut === row.userId && i < standings.rows.length - 1 && <TitleShotLine />}

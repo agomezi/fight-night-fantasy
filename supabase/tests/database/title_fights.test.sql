@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(59);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-00000000c1' || lpad(n::text, 2, '0'))::uuid
@@ -256,7 +256,7 @@ select is((select array_agg(a.user_id) from public.drop_awards a join public.awa
           'and the table''s #1 Top Seed');
 select is((select count(*)::int from public.drop_awards a join public.award_drops d on d.id = a.drop_id
            where d.label = 'S1 review' and a.award in ('champ', 'interim_champ', 'top_seed')),
-          0, 'a review in a season names no Champ, Interim Champ or Top Seed');
+          0, 'a review while there''s a Champion names no Champ, Interim Champ or Top Seed');
 delete from public.award_drops where season_id = pg_temp.sn(1);
 
 -------------------------------------------------------------------------------
@@ -295,6 +295,31 @@ select is((select holder from public.league_title_state(pg_temp.lg('00b6'), pg_t
 select pg_temp.result('00b6', 2, 5, 4, 1, 4);
 select is((select holder from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(2), 5)), null,
           'and it stays vacant');
+
+-- A review with the belt vacant names the table's #1 Interim Champ.
+insert into public.fighters (name, ufc_fighter_id) values ('Red 2', 'tf-red2'), ('Blue 2', 'tf-blue2');
+insert into public.bouts (event_id, fight_order, card_segment, red_fighter_id, blue_fighter_id)
+select pg_temp.ev('2-1'), 1, 'main', (select id from public.fighters where ufc_fighter_id = 'tf-red2'),
+       (select id from public.fighters where ufc_fighter_id = 'tf-blue2');
+insert into public.results (bout_id, status, winner_fighter_id, method, round, source)
+select b.id, 'final', b.red_fighter_id, 'KO', 2, 'ufc_live' from public.bouts b where b.event_id = pg_temp.ev('2-1');
+set local session_replication_role = replica;
+insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
+select pg_temp.u(n), b.id, b.version, b.red_fighter_id, 'ANY'::public.finish_kind
+from public.bouts b, generate_series(1, 6) n where b.event_id = pg_temp.ev('2-1');
+insert into public.scores (user_id, bout_id, season_id, points, casual_points, breakdown, correct, counts_for_accuracy)
+select pg_temp.u(n), b.id, pg_temp.sn(2), 10, 10, jsonb_build_object('fighter', 50, 'method', 0, 'round', 0), true, true
+from public.bouts b, generate_series(1, 6) n where b.event_id = pg_temp.ev('2-1');
+set local session_replication_role = origin;
+insert into public.award_drops (label, kind, season_id, published_at) values ('S2 review', 'midseason', pg_temp.sn(2), now());
+select public.compute_award_drop(id) from public.award_drops where label = 'S2 review';
+select set_config('fnf.interim', coalesce((
+  select a.user_id::text from public.drop_awards a join public.award_drops d on d.id = a.drop_id
+  where d.label = 'S2 review' and a.scope = pg_temp.lg('00b6')::text and a.award = 'interim_champ'), ''), true);
+select is(current_setting('fnf.interim'),
+          (select ds.user_id::text from public.drop_stats ds join public.award_drops d on d.id = ds.drop_id
+           where d.label = 'S2 review' and ds.scope = pg_temp.lg('00b6')::text and (ds.stats->>'rank')::int = 1),
+          'a review with the belt vacant names the table''s #1 Interim Champ');
 
 -------------------------------------------------------------------------------
 -- An odd league: the Champion skips the extra matchup
@@ -356,6 +381,8 @@ set local role authenticated;
 select pg_temp.act(2);
 select is((public.league_title(pg_temp.lg('00b6'))->'champion'), 'null'::jsonb,
           'a member reads the title: vacant');
+select is((public.league_title(pg_temp.lg('00b6'))->'interim'->>'userId'), nullif(current_setting('fnf.interim'), ''),
+          'with the Interim Champ named at the review');
 select is((public.league_title(pg_temp.lg('00b6'))->>'seedsFinal')::boolean, false,
           'with Season 2''s field projected, not set');
 select is((select count(*)::int from public.league_seeds where league_id = pg_temp.lg('00b6')), 5,
@@ -371,6 +398,18 @@ select pg_temp.act(3);
 select is((select count(*)::int from public.inbox_items_v5() where kind = 'title'), 2, 'the new inbox shows title news');
 select is((select count(*)::int from public.inbox_items_v4() where kind = 'title'), 0, 'older builds'' inbox doesn''t');
 select is(public.inbox_unread_count_v4() < public.inbox_unread_count_v5(), true, 'nor counts it');
+
+-- An Interim Champ who loses a matchup after the review loses the label.
+reset role;
+insert into public.league_results (league_id, season_id, week, event_id, user_a, user_b, points_a, points_b, winner)
+select pg_temp.lg('00b6'), pg_temp.sn(2), 6, pg_temp.ev('2-6'), x.me, x.opp, 5, 10, x.opp
+from (select current_setting('fnf.interim')::uuid as me,
+             (select m.user_id from public.league_members m
+              where m.league_id = pg_temp.lg('00b6') and m.user_id::text <> current_setting('fnf.interim') limit 1) as opp) x;
+set local role authenticated;
+select pg_temp.act(2);
+select is((public.league_title(pg_temp.lg('00b6'))->'interim'), 'null'::jsonb,
+          'an Interim Champ who loses a matchup after the review is no longer one');
 
 select * from finish();
 rollback;

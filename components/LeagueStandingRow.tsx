@@ -25,6 +25,7 @@ export default function LeagueStandingRow({
   animate = true,
   crowned,
   seed,
+  interim,
   onPress,
 }: {
   row: LeagueStanding;
@@ -38,11 +39,16 @@ export default function LeagueStandingRow({
   crowned?: boolean;
   /** Their seed for the title shot, once the field is set. */
   seed?: number;
+  /** The Interim Champ, named at the midseason review while the belt is vacant. */
+  interim?: boolean;
   onPress?: () => void;
 }) {
   const { c } = useTheme();
   const styles = useThemedStyles(makeLeaguesStyles);
-  const note = STATUS_NOTE[row.status] ?? (seed != null ? `TITLE SHOT · #${seed} SEED` : undefined);
+  const titleNote = [interim ? "INTERIM CHAMP" : null, seed != null ? `TITLE SHOT · #${seed} SEED` : null]
+    .filter(Boolean)
+    .join(" · ");
+  const note = STATUS_NOTE[row.status] ?? (titleNote || undefined);
   const ranked = row.rank != null;
   const streakColor = streak?.startsWith("W") ? c.green : streak?.startsWith("L") ? c.red : c.textFaint;
 
