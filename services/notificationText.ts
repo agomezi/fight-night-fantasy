@@ -16,7 +16,8 @@ export type NotificationKind =
   | "poll"
   | "name_restored"
   | "name_kept"
-  | "tier";
+  | "tier"
+  | "title";
 
 /** `section` is "main" for the reminder before the main card locks, which
  * also counts the main card fights you haven't picked, and "changed" when
@@ -389,6 +390,97 @@ function tier(p: TierPayload): Message {
   return { title: `${p.league} is now ${name}`, body: TIER_RULES[p.tier] ?? "", data };
 }
 
+/** Title news in a league. Before a card ("tonight"): a bracket round, or the
+ * Champion's matchup (`stage` "defense" for the Champion, "challenge" for
+ * their opponent). After one: the Champion lost ("lost_title", and
+ * "beat_champ" for whoever beat them) or defended, a bracket round won, or
+ * the title fight won ("champion", or "retained" by the Champion). */
+export type TitlePayload = {
+  type: "tonight" | "lost_title" | "beat_champ" | "defended" | "advanced" | "champion" | "retained";
+  league: string;
+  leagueId: string;
+  opponent: string | null;
+  opponentId?: string;
+  /** After a card, "field": the Champion finished outside the field, and
+   * "walkover": the title fight wasn't played because a finalist had left. */
+  stage: "play_in" | "semi" | "title" | "defense" | "challenge" | "field" | "walkover" | null;
+  defenses: number | null;
+  /** A drawn bracket round or title fight, won on seed. */
+  drawn?: boolean;
+};
+
+const ROUND_NAME: Record<string, string> = { play_in: "play-in", semi: "semifinal", title: "title fight" };
+
+function titleNews(p: TitlePayload): Message {
+  const data = { screen: "league-standings", leagueId: p.leagueId };
+  const vs = p.opponent ?? "your opponent";
+  switch (p.type) {
+    case "tonight":
+      if (p.stage === "defense") {
+        return { title: `Title fight: you defend the ${p.league} belt`, body: `Against ${vs}. Lose and the title goes vacant.`, data };
+      }
+      if (p.stage === "challenge") {
+        return { title: `You face the ${p.league} Champion`, body: `Beat ${vs} and the title goes vacant.`, data };
+      }
+      if (p.stage === "title") {
+        return { title: `Title fight: the ${p.league} belt is on the line`, body: `You against ${vs}. Win and you're Champion.`, data };
+      }
+      return {
+        title: `Title shot: your ${ROUND_NAME[p.stage ?? ""] ?? "title shot"} in ${p.league}`,
+        body: `Against ${vs}. Win to go through.`,
+        data,
+      };
+    case "lost_title":
+      if (p.stage === "field") {
+        return { title: `You lost the ${p.league} belt`, body: "You finished outside the title picture. The title is vacant until the title fight.", data };
+      }
+      if (p.stage === "walkover") {
+        return { title: `You lost the ${p.league} belt`, body: `${vs} is the new Champion: their title fight opponent left the league.`, data };
+      }
+      if (p.drawn) {
+        return { title: `You lost the ${p.league} belt`, body: `You drew with ${vs}, who goes through as the better seed. The title is vacant until the title fight.`, data };
+      }
+      if (p.stage === "title" && !p.opponent) {
+        return { title: `You lost the ${p.league} belt`, body: "The title is vacant until the next title fight.", data };
+      }
+      if (p.stage === "title") {
+        return { title: `You lost the ${p.league} belt`, body: `${vs} won the title fight and is the new Champion.`, data };
+      }
+      return { title: `You lost the ${p.league} belt`, body: `${vs} beat you. The title is vacant until the next title fight.`, data };
+    case "beat_champ":
+      return { title: `You beat the ${p.league} Champion`, body: `${vs} loses the belt. The title is vacant until the next title fight.`, data };
+    case "defended": {
+      const n = p.defenses ?? 1;
+      return { title: `Defended. You keep the ${p.league} belt`, body: `${n} ${n === 1 ? "defense" : "defenses"} and counting.`, data };
+    }
+    case "advanced": {
+      const how = p.drawn ? `You drew with ${vs} and go through as the better seed.` : `You beat ${vs}.`;
+      return {
+        title: `You're through in ${p.league}`,
+        body: `${how} Next: ${p.stage === "semi" ? "the title fight" : "the semifinals"}.`,
+        data,
+      };
+    }
+    case "retained":
+      return {
+        title: `Still Champion. You keep the ${p.league} belt`,
+        body: p.drawn ? `The title fight with ${vs} was a draw, and the better seed keeps it.` : `You beat ${vs} in the title fight.`,
+        data,
+      };
+    default:
+      if (p.stage === "walkover") {
+        return { title: `New Champion. You won the ${p.league} belt`, body: "Your title fight opponent left the league, so the belt is yours. Defend it every card.", data };
+      }
+      return {
+        title: `New Champion. You won the ${p.league} belt`,
+        body: p.drawn
+          ? `The title fight with ${vs} was a draw, and the better seed takes it. Defend it every card.`
+          : `You beat ${vs} in the title fight. Defend it every card.`,
+        data,
+      };
+  }
+}
+
 function leagueJoin(p: LeagueJoinPayload): Message {
   return {
     title: `${p.member} joined ${p.league}`,
@@ -478,6 +570,7 @@ export function notificationText(kind: NotificationKind, payload: unknown): Mess
   if (kind === "name_restored") return nameRestored(payload as NameRestoredPayload);
   if (kind === "name_kept") return nameKept(payload as NameKeptPayload);
   if (kind === "tier") return tier(payload as TierPayload);
+  if (kind === "title") return titleNews(payload as TitlePayload);
   // A kind from a newer server than this build.
   return { title: "Fight Night Fantasy", body: "You have a new notification.", data: { screen: "history" } };
 }
