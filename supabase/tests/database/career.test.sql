@@ -5,7 +5,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(38);
+select plan(40);
 
 -------------------------------------------------------------------------------
 -- Fixtures
@@ -177,6 +177,28 @@ select results_eq($$select career_points, rank, next_rank, next_at, streak from 
   'five career points is Contender; the newest card sets the streak');
 reset role;
 delete from public.card_results where event_id = pg_temp.ev('cr4');
+
+select results_eq($$select public.career_rank_for(p) from unnest(array[34, 35, 74, 75, 154, 155]) p$$,
+  $$values ('Ranked'), ('Title Challenger'), ('Title Challenger'), ('Champion'), ('Champion'), ('Legend')$$,
+  'each rank takes twice the points of the one before');
+
+-- Player 1 wins 36 more cards: 76 points, Champion, with Legend at 155.
+with climb as (
+  insert into public.events (ufc_event_id, name, starts_at, locks_at, status)
+  select 'climb' || g, 'Climb ' || g, now() - (400 - g) * interval '1 day', now() - (400 - g) * interval '1 day', 'complete'
+  from generate_series(1, 36) g
+  returning id
+)
+insert into public.card_results (event_id, user_id, points, main_event_points, field, result)
+select c.id, pg_temp.u(1), 0, 0, 3, 'W' from climb c;
+select pg_temp.act(1);
+set local role authenticated;
+select results_eq($$select career_points, rank, next_rank, next_at from public.my_career()$$,
+  $$values (76, 'Champion', 'Legend', 155)$$,
+  'Champion starts at 75 and Legend at 155');
+reset role;
+delete from public.card_results where event_id in (select id from public.events where ufc_event_id like 'climb%');
+delete from public.events where ufc_event_id like 'climb%';
 
 select throws_ok($$select * from public.my_career()$$, '42501', null, 'anon can''t read careers')
   from (select set_config('role', 'anon', true)) r;

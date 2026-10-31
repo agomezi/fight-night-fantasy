@@ -13,6 +13,13 @@ describe("the belt", () => {
     expect(beltFor(15)).toEqual({ rank: "Ranked", stripes: 0 });
   });
 
+  test("turns black at 75 points and red at 155, like the belt others see", () => {
+    expect(beltFor(74)).toEqual({ rank: "Title Challenger", stripes: 4 });
+    expect(beltFor(75)).toEqual({ rank: "Champion", stripes: 0 });
+    expect(beltFor(154)).toEqual({ rank: "Champion", stripes: 4 });
+    expect(beltFor(155)).toEqual({ rank: "Legend", stripes: 0 });
+  });
+
   test("is red with no stripes at Legend", () => {
     expect(beltFor(400)).toEqual({ rank: "Legend", stripes: 0 });
   });
