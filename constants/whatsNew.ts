@@ -17,6 +17,23 @@ export type WhatsNewEntry = {
 
 export const WHATS_NEW: WhatsNewEntry[] = [
   {
+    id: "2026-10-league-page-tidy",
+    date: "2026-10-28T12:00:00Z",
+    title: "A tidier league page",
+    items: [
+      {
+        icon: "book",
+        title: "Rules live in Settings",
+        body: "Your league's rules now open League Settings: its size, doubleheaders and the minimum picks.",
+      },
+      {
+        icon: "trophy",
+        title: "Awards step aside after a week",
+        body: "A new set of awards stays on the league page for a week, or until the next card locks. After that, this season's awards are under Past awards at the bottom of the standings.",
+      },
+    ],
+  },
+  {
     id: "2026-10-title-fights",
     date: "2026-10-29T12:00:00Z",
     title: "Title fights",

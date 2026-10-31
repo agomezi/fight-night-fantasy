@@ -5,6 +5,7 @@ import { Alert, ScrollView, Share, Text, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
 import EmptyState from "../components/EmptyState";
+import LeagueRuleRows from "../components/LeagueRuleRows";
 import MemberProfileSheet from "../components/MemberProfileSheet";
 import PickRuleSetting from "../components/PickRuleSetting";
 import PressableScale from "../components/PressableScale";
@@ -26,6 +27,7 @@ import {
 } from "../services/leagues";
 import { makeCommonStyles } from "../styles/common";
 import ScreenSkeleton from "../components/ScreenSkeleton";
+import { rulesSheet } from "../services/leagueOnboarding";
 
 const MEMBER_NOTE: Partial<Record<LeagueStanding["status"], string>> = {
   queued: "Joins next season",
@@ -152,7 +154,11 @@ export default function LeagueSettings() {
           </Text>
         </Animated.View>
 
-        {/* Invite code leads, because getting people in is the whole job of
+        {/* The rules first: what everyone in the league plays by. */}
+        <Text style={sectionLabel}>LEAGUE RULES</Text>
+        <LeagueRuleRows rows={rulesSheet(league, false).rows} />
+
+        {/* Then the invite code, because getting people in is the job of
             this screen for a new league. */}
         <Text style={sectionLabel}>INVITE</Text>
         <Animated.View entering={appear(1)} style={{ backgroundColor: c.inset, borderRadius: 12, padding: 16, marginTop: 4 }}>

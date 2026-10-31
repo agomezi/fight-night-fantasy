@@ -16,7 +16,6 @@ import PressableScale from "../components/PressableScale";
 import ProgressRing from "../components/ProgressRing";
 import LeagueAwards from "../components/LeagueAwards";
 import LeagueChecklist from "../components/LeagueChecklist";
-import LeagueRulesSheet from "../components/LeagueRulesSheet";
 import LeaguePicksCard from "../components/LeaguePicksCard";
 import LeaguePickStatus from "../components/LeaguePickStatus";
 import SwipeableCards from "../components/SwipeableCards";
@@ -30,7 +29,6 @@ import { useLeague } from "../hooks/useLeague";
 import { readCache, writeCache } from "../services/screenCache";
 import { loadLeagueCommunityCard, toCommunityView, type RawCommunityCard } from "../services/community";
 import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
-import { rulesSheet } from "../services/leagueOnboarding";
 import {
   currentWeek,
   inviteMessage,
@@ -63,7 +61,6 @@ export default function Leagues() {
   const [viewing, setViewing] = useState<string | null>(null);
   // A global top-five player whose profile is open; they may not share a league.
   const [viewingGlobal, setViewingGlobal] = useState<string | null>(null);
-  const [showRules, setShowRules] = useState(false);
 
   // The global table: the top five and, if you're further down, you.
   const [board, setBoard] = useState<Leaderboard | null>(() => readCache<Leaderboard>("leaderboard:5") ?? null);
@@ -392,10 +389,6 @@ export default function Leagues() {
           <Ionicons name="person-add-outline" size={15} color={c.text} />
           <Text style={styles.actionButtonText}>INVITE</Text>
         </PressableScale>
-        <PressableScale style={styles.actionButton} onPress={() => setShowRules(true)}>
-          <Ionicons name="book-outline" size={15} color={c.text} />
-          <Text style={styles.actionButtonText}>RULES</Text>
-        </PressableScale>
         <PressableScale style={styles.actionButton} onPress={() => router.push(`/league-settings?id=${league.id}`)}>
           <Ionicons name="settings-outline" size={15} color={c.text} />
           <Text style={styles.actionButtonText}>SETTINGS</Text>
@@ -405,7 +398,7 @@ export default function Leagues() {
       {/* An owner's setup steps, until the first card locks. */}
       <LeagueChecklist key={league.id} league={league} userId={session?.user.id ?? null} weeks={weeks} onInvite={invite} />
 
-      {/* The latest award drop, revealed once and then a tap away. */}
+      {/* The latest award drop, revealed once and then a tap away for a week. */}
       <LeagueAwards leagueId={league.id} leagueName={league.name} />
 
       {/* The fights this league needs from you on the next card. */}
@@ -455,12 +448,6 @@ export default function Leagues() {
 
       {globalCard}
       <MemberProfileSheet leagueId={league.id} userId={viewing} onClose={() => setViewing(null)} />
-      <LeagueRulesSheet
-        sheet={showRules ? rulesSheet(league, false) : null}
-        actionLabel="GOT IT"
-        onConfirm={() => setShowRules(false)}
-        onClose={() => setShowRules(false)}
-      />
     </>
   );
 }

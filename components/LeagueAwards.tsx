@@ -6,14 +6,15 @@ import { Text, View } from "react-native";
 import { awardsSeenKey } from "../constants/storage";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { loadLatestDrop, loadLeagueDrop, type LeagueDrop } from "../services/awards";
+import { loadLatestDrop, loadLeagueDrop, showsOnLeaguePage, type LeagueDrop } from "../services/awards";
 import { useModalsFree } from "../services/modalGate";
 import AwardsReveal from "./AwardsReveal";
 import PressableScale from "./PressableScale";
 
 /** The league's latest award drop: revealed, with a celebration, the first
  * time you open the league after it's published (once nothing else is on
- * screen), and a button to see it again. Nothing until there's a drop. */
+ * screen), and a button to see it again. Nothing until there's a drop, and
+ * nothing once its week is up; it stays under the standings. */
 export default function LeagueAwards({ leagueId, leagueName }: { leagueId: string; leagueName: string }) {
   const { c } = useTheme();
   const { session } = useAuth();
@@ -29,7 +30,11 @@ export default function LeagueAwards({ leagueId, leagueName }: { leagueId: strin
       let current = true;
       (async () => {
         const latest = await loadLatestDrop();
-        if (!latest || !current) return;
+        if (!current) return;
+        if (!latest || !showsOnLeaguePage(latest, new Date())) {
+          setDrop(null);
+          return;
+        }
         const d = await loadLeagueDrop(leagueId, latest.id).catch(() => null);
         // A league made after the drop, or with nobody qualifying, has nothing to celebrate.
         if (!d || !current || (!d.awards.length && !d.table.length)) return;

@@ -143,7 +143,7 @@ export async function saveChecklistTicks(userId: string, leagueId: string, ticks
 }
 
 // --------------------------------------------------------------------------
-// The rules sheet, before joining and from the league page
+// The rules sheet before joining, and the rules in League Settings
 // --------------------------------------------------------------------------
 
 export type LeaguePreview = {
@@ -222,7 +222,7 @@ export function rulesSheet(
     eyebrow: `${TIER_LABEL[league.tier].toUpperCase()} LEAGUE`,
     title: joining ? "Before you join" : "League rules",
     intro: joining
-      ? `The rules in ${league.name}. You can read them again from the league page.`
+      ? `The rules in ${league.name}. You can read them again in League Settings.`
       : `How ${league.name} plays.`,
     rows,
   };
