@@ -236,8 +236,9 @@ revoke execute on function public.notify_league_tier(uuid, public.league_tier, t
 
 -- Moves the league up to `tier` and returns the season number it starts
 -- from: 0 in the pre-season, where it applies at once, otherwise the season
--- after the one being played. Asking again before then replaces the tier
--- asked for.
+-- after the one being played, or the one after that when its first card
+-- locks within two days (its picks are already being made under the old
+-- rules). Asking again before then replaces the tier asked for.
 create function public.schedule_tier_upgrade(league uuid, tier public.league_tier)
 returns integer
 language plpgsql
@@ -260,6 +261,13 @@ begin
   end if;
 
   at := case when public.current_season() is null then 0 else public.season_in_play() + 1 end;
+  if at > 0 and exists (
+    select 1 from public.events e
+    where e.status <> 'cancelled' and e.locks_at > now() and e.locks_at <= now() + interval '2 days'
+      and public.card_season_number(e.id) = at
+  ) then
+    at := at + 1;
+  end if;
   was := public.league_tier_at(l.id, greatest(at - 1, 0));
   if tier <= was then
     raise exception 'A league can only move up a tier.' using errcode = 'P0001', hint = 'not_higher';
@@ -1367,8 +1375,9 @@ as $$
   order by m.joined_at;
 $$;
 
--- As before, with the tier the next card plays, so someone joining just
--- before a move up reads the rules they'll play.
+-- As before, with the tier the joiner first plays: the next card's, or for
+-- someone who waits for the next season, that season's, so a move up that
+-- hasn't started shows.
 create or replace function public.league_preview(code text)
 returns table (
   name           text,
@@ -1408,7 +1417,9 @@ begin
     order by e.locks_at limit 1
   ),
   lg as (
-    select l.id, l.name, coalesce(public.league_tier_for(l.id, (select c.id from card c)), l.tier) as tier
+    select l.id, l.name,
+           case when season is not null then public.league_tier_at(l.id, public.season_in_play() + 1)
+                else coalesce(public.league_tier_for(l.id, (select c.id from card c)), l.tier) end as tier
     from public.leagues l
     where l.invite_code = lower(btrim(coalesce(code, '')))
   )
