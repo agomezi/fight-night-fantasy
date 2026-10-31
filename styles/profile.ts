@@ -53,6 +53,14 @@ export const makeProfileStyles = (c: Palette) =>
       width: 140,
       marginTop: 10,
     },
+    medalRow: {
+      alignSelf: "stretch",
+      alignItems: "center",
+      marginTop: 14,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
     seasonList: {
       paddingHorizontal: 16,
       paddingBottom: 14,
