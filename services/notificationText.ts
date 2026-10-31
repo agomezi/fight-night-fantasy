@@ -401,7 +401,9 @@ export type TitlePayload = {
   leagueId: string;
   opponent: string | null;
   opponentId?: string;
-  stage: "play_in" | "semi" | "title" | "defense" | "challenge" | null;
+  /** After a card, "field": the Champion finished outside the field, and
+   * "walkover": the title fight wasn't played because a finalist had left. */
+  stage: "play_in" | "semi" | "title" | "defense" | "challenge" | "field" | "walkover" | null;
   defenses: number | null;
   /** A drawn bracket round or title fight, won on seed. */
   drawn?: boolean;
@@ -424,11 +426,17 @@ function titleNews(p: TitlePayload): Message {
         return { title: `Title fight: the ${p.league} belt is on the line`, body: `You against ${vs}. Win and you're Champion.`, data };
       }
       return {
-        title: `Title shot: your ${ROUND_NAME[p.stage ?? ""] ?? "playoff"} in ${p.league}`,
+        title: `Title shot: your ${ROUND_NAME[p.stage ?? ""] ?? "title shot"} in ${p.league}`,
         body: `Against ${vs}. Win to go through.`,
         data,
       };
     case "lost_title":
+      if (p.stage === "field") {
+        return { title: `You lost the ${p.league} belt`, body: "You finished outside the title picture. The title is vacant until the title fight.", data };
+      }
+      if (p.stage === "title" && !p.opponent) {
+        return { title: `You lost the ${p.league} belt`, body: "The title is vacant until the next title fight.", data };
+      }
       if (p.stage === "title") {
         return { title: `You lost the ${p.league} belt`, body: `${vs} won the title fight and is the new Champion.`, data };
       }
@@ -454,6 +462,9 @@ function titleNews(p: TitlePayload): Message {
         data,
       };
     default:
+      if (p.stage === "walkover") {
+        return { title: `New Champion. You won the ${p.league} belt`, body: "Your title fight opponent left the league, so the belt is yours. Defend it every card.", data };
+      }
       return {
         title: `New Champion. You won the ${p.league} belt`,
         body: p.drawn

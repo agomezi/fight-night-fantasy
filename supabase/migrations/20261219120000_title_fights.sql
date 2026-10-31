@@ -1,6 +1,6 @@
 -- Title fights.
 --
--- A season ends in a playoff for the league's belt. After card 8 the table's
+-- A season ends in Title Fights for the league's belt. After card 8 the table's
 -- top five are seeded (top four in a league of four or five): card 9 is the
 -- play-in, #4 vs #5; card 10 the semifinals, #1 vs the play-in winner and #2
 -- vs #3; card 11 the title fight between the winners. A tie goes to the
@@ -77,6 +77,10 @@ declare
   crowned uuid;
   -- The card of the last defense: a doubleheader counts once.
   defended uuid;
+  -- A title fight that wasn't played because a finalist had left: the
+  -- finalist who played card 11 takes the belt once that week is done.
+  walked  uuid;
+  walkover uuid;
 begin
   if target is null then
     return query select null::uuid, 0, null::uuid;
@@ -100,6 +104,28 @@ begin
     -- The title fight last in its week, so it settles the belt.
     order by sn.number, lr.week, lw.stage = 'title' nulls first, lr.user_a, lr.user_b
   loop
+    if walkover is not null and r.season_id is distinct from walked then
+      champ := walkover; wins := 0; since := null; defended := null;
+      walkover := null;
+    end if;
+
+    if r.week = 11 and walked is distinct from r.season_id then
+      walked := r.season_id;
+      if not exists (select 1 from public.league_weeks lw
+                     where lw.league_id = league and lw.season_id = r.season_id and lw.stage = 'title') then
+        select max(f.f::text)::uuid into walkover
+        from (
+          select public.bracket_advance(league, r.season_id, 'semi', lw.user_a, lw.user_b) as f
+          from public.league_weeks lw
+          where lw.league_id = league and lw.season_id = r.season_id and lw.stage = 'semi'
+        ) f
+        where exists (select 1 from public.league_weeks w11
+                      where w11.league_id = league and w11.event_id = r.event_id
+                        and f.f in (w11.user_a, w11.user_b))
+        having count(*) = 1;
+      end if;
+    end if;
+
     -- A Champion outside the field gives the title up when it's set.
     if r.week >= 9 and checked is distinct from r.season_id then
       checked := r.season_id;
@@ -134,6 +160,10 @@ begin
       end if;
     end if;
   end loop;
+
+  if walkover is not null then
+    champ := walkover; wins := 0; since := null;
+  end if;
 
   -- Going into card 9 the field is set (or, until card 9 locks, as the table
   -- stands): a Champion outside it has given the title up.
@@ -453,8 +483,15 @@ begin
         seeds := array(select sd.user_id from public.league_season_seeds(league, season) sd order by sd.seed);
         k := cardinality(seeds);
         if k >= 4 then
-          semi_one := case when k = 5
-                           then public.bracket_advance(league, season, 'play_in', seeds[4], seeds[5])
+          -- Once the semifinals are saved, #1's opponent is whoever played
+          -- them, so a rescored play-in can't change who met.
+          semi_one := case when k = 5 then coalesce(
+                            (select x.u from public.league_weeks lw
+                             cross join lateral unnest(array[lw.user_a, lw.user_b]) x(u)
+                             where lw.league_id = league and lw.season_id = season and lw.stage = 'semi'
+                               and x.u in (seeds[4], seeds[5])
+                             limit 1),
+                            public.bracket_advance(league, season, 'play_in', seeds[4], seeds[5]))
                            else seeds[4] end;
           if c.w = 9 and k = 5 then
             fx_a := array[seeds[4]]; fx_b := array[seeds[5]]; fx_s := array['play_in'];
@@ -655,12 +692,14 @@ begin
                               'seedsFinal', false, 'bracket', '[]'::jsonb);
   end if;
 
-  select * into champ from public.league_title_state(league, season, 11);
+  played := (select coalesce(max(e.season_index), 0) from public.events e where e.season_id = season);
+  -- As of the cards played so far: a Champion low in the table early on
+  -- keeps the belt until the field is set after card 8.
+  select * into champ from public.league_title_state(league, season, least(played, 11));
   seeds := coalesce((
     select jsonb_agg(jsonb_build_object('seed', sd.seed, 'userId', sd.user_id) order by sd.seed)
     from public.league_season_seeds(league, season) sd
   ), '[]'::jsonb);
-  played := (select coalesce(max(e.season_index), 0) from public.events e where e.season_id = season);
 
   return jsonb_build_object(
     'season', season,
@@ -745,12 +784,20 @@ as $$
     cross join lateral (values (g.user_a, g.user_b), (g.user_b, g.user_a)) x(me, opp)
   ),
   news as (
-    -- The Champion lost a matchup, the title fight included.
-    select s.me as uid, s.league_id, s.league_name, 'lost_title' as type, s.opp as about,
-           s.stage, null::integer as defenses, false as drawn
+    -- The belt left the Champion: they lost a matchup (the title fight
+    -- included), someone else won the title fight, or they finished outside
+    -- the field. A loss that week says who beat them.
+    select s.me as uid, s.league_id, s.league_name, 'lost_title' as type,
+           case when s.winner = s.opp then s.opp else s.after end as about,
+           case when s.winner = s.opp and s.stage is distinct from 'title' then s.stage
+                when s.after is not null then 'title'
+                else 'field' end as stage,
+           null::integer as defenses, false as drawn
     from sided s
     where s.me = s.before and s.after is distinct from s.me
-      and (s.winner = s.opp or (s.stage = 'title' and s.after = s.opp))
+      and (s.winner = s.opp or (s.stage = 'title' and s.after = s.opp)
+           or not exists (select 1 from sided z
+                          where z.league_id = s.league_id and z.me = s.me and z.winner = z.opp))
     union all
     select s.me, s.league_id, s.league_name, 'beat_champ', s.opp, null, null, false
     from sided s
@@ -770,6 +817,12 @@ as $$
            s.opp, 'title', s.defenses, s.winner is null
     from sided s
     where s.stage = 'title' and s.me = s.after
+    union all
+    -- The other finalist had left, so the title fight wasn't played.
+    select s.me, s.league_id, s.league_name, 'champion', null, 'walkover', 0, false
+    from sided s
+    where s.week = 11 and s.me = s.after and s.me is distinct from s.before
+      and not exists (select 1 from sided z where z.league_id = s.league_id and z.stage = 'title')
   ),
   candidates as (
     select distinct on (n.uid, n.league_id, n.type)
@@ -1024,7 +1077,7 @@ grant execute on function public.inbox_items_v5(integer), public.inbox_unread_co
 -- Season awards
 -------------------------------------------------------------------------------
 
--- As before (20261213), with the title: see the league titles step.
+-- As before (20261218), with the title: see the league titles step.
 create or replace function public.compute_award_drop(drop uuid)
 returns void
 language plpgsql

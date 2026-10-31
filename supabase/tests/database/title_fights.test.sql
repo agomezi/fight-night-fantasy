@@ -7,7 +7,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(50);
+select plan(56);
 
 create function pg_temp.u(n int) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-00000000c1' || lpad(n::text, 2, '0'))::uuid
@@ -162,6 +162,13 @@ select pg_temp.result('00b6', 1, 10, 2, 3, 3);
 select is(pg_temp.week(pg_temp.lg('00b6'), pg_temp.sn(1), 11), '01-03:title,02-06,04-05',
           'card 11: the title fight between the winners, a draw going to the better seed');
 
+-- A rescore that flips the play-in after the semifinals are saved doesn't
+-- change who met in them.
+select pg_temp.win('00b6', 1, 9, 4, 5, 4);
+select is(pg_temp.week(pg_temp.lg('00b6'), pg_temp.sn(1), 11), '01-03:title,02-06,04-05',
+          'a play-in rescored after the semifinals still leaves the title fight');
+select pg_temp.win('00b6', 1, 9, 4, 5, 5);
+
 select is((select holder from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(1), 10)), null,
           'the title is vacant in Season 1 until the title fight');
 
@@ -184,6 +191,25 @@ select is((select right(holder::text, 2) from public.league_title_state(pg_temp.
 update public.league_results set winner = pg_temp.u(3)
 where league_id = pg_temp.lg('00b6') and event_id = pg_temp.ev('1-11') and user_a = pg_temp.u(1);
 
+-- A finalist who left isn't in card 11's matchups, so there's no title fight:
+-- the finalist who played takes the belt, even after losing to an outsider.
+create temp table b6_title as
+  select * from public.league_weeks where league_id = pg_temp.lg('00b6') and event_id = pg_temp.ev('1-11') and stage = 'title';
+create temp table b6_final as
+  select r.* from public.league_results r join b6_title t using (league_id, event_id, user_a, user_b);
+delete from public.league_results r using b6_title t
+where r.league_id = t.league_id and r.event_id = t.event_id and r.user_a = t.user_a and r.user_b = t.user_b;
+delete from public.league_weeks where league_id = pg_temp.lg('00b6') and event_id = pg_temp.ev('1-11') and stage = 'title';
+insert into public.league_weeks (league_id, season_id, event_id, user_a, user_b, doubleheader)
+values (pg_temp.lg('00b6'), pg_temp.sn(1), pg_temp.ev('1-11'), pg_temp.u(3), pg_temp.u(99), false);
+select pg_temp.result('00b6', 1, 11, 3, 99, 99);
+select is((select right(holder::text, 2) from public.league_title_state(pg_temp.lg('00b6'), pg_temp.sn(1), 11)),
+          '03', 'a title fight with a finalist gone goes to the finalist who played');
+delete from public.league_results where league_id = pg_temp.lg('00b6') and event_id = pg_temp.ev('1-11') and pg_temp.u(99) in (user_a, user_b);
+delete from public.league_weeks where league_id = pg_temp.lg('00b6') and event_id = pg_temp.ev('1-11') and pg_temp.u(99) in (user_a, user_b);
+insert into public.league_weeks select * from b6_title;
+insert into public.league_results select * from b6_final;
+
 -------------------------------------------------------------------------------
 -- Pushes
 -------------------------------------------------------------------------------
@@ -197,6 +223,41 @@ select is((select count(*)::int from public.claim_title_notifications(pg_temp.ev
           'once');
 select is((select payload->>'type' from public.claim_title_notifications(pg_temp.ev('1-9')) where user_id = pg_temp.u(5)),
           'advanced', 'the play-in winner hears they''re through');
+
+-------------------------------------------------------------------------------
+-- Season awards
+-------------------------------------------------------------------------------
+
+-- Everyone in league b6 picked a fight on card 1, so each is in the drop.
+create or replace function public.settle_event(event uuid) returns void language sql set search_path = '' as $$ select $$;
+insert into public.fighters (name, ufc_fighter_id) values ('Red', 'tf-red'), ('Blue', 'tf-blue');
+insert into public.bouts (event_id, fight_order, card_segment, red_fighter_id, blue_fighter_id)
+select pg_temp.ev('1-1'), 1, 'main', (select id from public.fighters where ufc_fighter_id = 'tf-red'),
+       (select id from public.fighters where ufc_fighter_id = 'tf-blue');
+insert into public.results (bout_id, status, winner_fighter_id, method, round, source)
+select b.id, 'final', b.red_fighter_id, 'KO', 2, 'ufc_live' from public.bouts b where b.event_id = pg_temp.ev('1-1');
+set local session_replication_role = replica;
+insert into public.picks (user_id, bout_id, bout_version, picked_fighter_id, finish)
+select pg_temp.u(n), b.id, b.version, b.red_fighter_id, 'ANY'::public.finish_kind
+from public.bouts b, generate_series(1, 6) n where b.event_id = pg_temp.ev('1-1');
+insert into public.scores (user_id, bout_id, season_id, points, casual_points, breakdown, correct, counts_for_accuracy)
+select pg_temp.u(n), b.id, pg_temp.sn(1), 10, 10, jsonb_build_object('fighter', 50, 'method', 0, 'round', 0), true, true
+from public.bouts b, generate_series(1, 6) n where b.event_id = pg_temp.ev('1-1');
+set local session_replication_role = origin;
+insert into public.award_drops (label, kind, season_id) values ('S1 final', 'final', pg_temp.sn(1)), ('S1 review', 'midseason', pg_temp.sn(1));
+select public.compute_award_drop(id) from public.award_drops where season_id = pg_temp.sn(1);
+select is((select right(user_id::text, 2) || '/' || value from public.drop_awards a join public.award_drops d on d.id = a.drop_id
+           where d.label = 'S1 final' and a.scope = pg_temp.lg('00b6')::text and a.award = 'champ'),
+          '03/0', 'a season''s final drop names the belt holder Champ, with their defenses');
+select is((select array_agg(a.user_id) from public.drop_awards a join public.award_drops d on d.id = a.drop_id
+           where d.label = 'S1 final' and a.scope = pg_temp.lg('00b6')::text and a.award = 'top_seed'),
+          (select array_agg(ds.user_id) from public.drop_stats ds join public.award_drops d on d.id = ds.drop_id
+           where d.label = 'S1 final' and ds.scope = pg_temp.lg('00b6')::text and (ds.stats->>'rank')::int = 1),
+          'and the table''s #1 Top Seed');
+select is((select count(*)::int from public.drop_awards a join public.award_drops d on d.id = a.drop_id
+           where d.label = 'S1 review' and a.award in ('champ', 'interim_champ', 'top_seed')),
+          0, 'a review in a season names no Champ, Interim Champ or Top Seed');
+delete from public.award_drops where season_id = pg_temp.sn(1);
 
 -------------------------------------------------------------------------------
 -- Season 2: defenses, a forfeit, a loss
@@ -265,6 +326,11 @@ select is((select right(holder::text, 2) from public.league_title_state(pg_temp.
           'a Champion outside the field holds the belt until the field is set');
 select is((select holder from public.league_title_state(pg_temp.lg('00b5'), pg_temp.sn(2), 8)), null,
           'and gives it up going into card 9');
+set local role authenticated;
+select pg_temp.act(11);
+select is((public.league_title(pg_temp.lg('00b5'))->'champion'->>'userId'), pg_temp.u(11)::text,
+          'the league reads the Champion as holding it with five cards played');
+reset role;
 delete from public.league_seeds where league_id = pg_temp.lg('00b5') and season_id = pg_temp.sn(2);
 
 -------------------------------------------------------------------------------

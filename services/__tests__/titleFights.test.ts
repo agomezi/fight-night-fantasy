@@ -132,4 +132,12 @@ describe("title pushes", () => {
       "You beat Tam Orrin. Next: the semifinals.",
     );
   });
+  it("says why the belt went when the Champion didn't lose", () => {
+    expect(notificationText("title", { ...p, type: "lost_title", stage: "field", opponent: null }).body).toBe(
+      "You finished outside the title picture. The title is vacant until the title fight.",
+    );
+    expect(notificationText("title", { ...p, type: "champion", stage: "walkover", opponent: null }).body).toBe(
+      "Your title fight opponent left the league, so the belt is yours. Defend it every card.",
+    );
+  });
 });
