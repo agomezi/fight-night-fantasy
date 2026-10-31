@@ -558,14 +558,23 @@ export function higherTiers(tier: LeagueTier): OpenTier[] {
 }
 
 /** What the owner confirms. In the pre-season the move is at once; in a
- * season it waits for the next one, since a season plays at one tier. */
+ * season it waits for the next one, since a season plays at one tier, or the
+ * one after when the next one's first card is about to lock. */
 export function tierUpgradeConfirm(league: string, tier: OpenTier, preseason: boolean): { title: string; body: string } {
   return {
     title: `Move ${league} up to ${TIER_LABEL[tier]} ${preseason ? "now" : "from next season"}?`,
     body: `${TIER_BLURB[tier]} ${
-      preseason ? "Pre-season cards are scored again at the new tier." : "This season's cards stay as they are."
+      preseason
+        ? "Pre-season cards are scored again at the new tier."
+        : "This season's cards stay as they are. If next season's first card locks within two days, it starts the season after."
     } You can't move back down.`,
   };
+}
+
+/** Said once the move up is saved: the season it starts from. Nothing for
+ * the pre-season, where it's at once. */
+export function tierUpgradeDone(league: string, tier: OpenTier, season: number): string | null {
+  return season > 0 ? `${league} moves up to ${TIER_LABEL[tier]} from Season ${season}.` : null;
 }
 
 /** The tier row in league settings: "Casual · Pro from Season 2". */
