@@ -81,6 +81,8 @@ declare
   -- finalist who played card 11 takes the belt once that week is done.
   walked  uuid;
   walkover uuid;
+  walk_on uuid;
+  adv     uuid;
 begin
   if target is null then
     return query select null::uuid, 0, null::uuid;
@@ -105,12 +107,15 @@ begin
     order by sn.number, lr.week, lw.stage = 'title' nulls first, lr.user_a, lr.user_b
   loop
     if walkover is not null and r.season_id is distinct from walked then
-      champ := walkover; wins := 0; since := null; defended := null;
+      if champ is distinct from walkover then
+        champ := walkover; wins := 0; since := walk_on; defended := null;
+      end if;
       walkover := null;
     end if;
 
     if r.week = 11 and walked is distinct from r.season_id then
       walked := r.season_id;
+      walk_on := r.event_id;
       if not exists (select 1 from public.league_weeks lw
                      where lw.league_id = league and lw.season_id = r.season_id and lw.stage = 'title') then
         select max(f.f::text)::uuid into walkover
@@ -148,6 +153,12 @@ begin
       else
         champ := null; wins := 0; since := null;
       end if;
+    elsif champ is not null and champ in (r.user_a, r.user_b) and r.stage in ('play_in', 'semi') then
+      -- A drawn round the Champion goes out of on seed loses the belt too.
+      adv := public.bracket_advance(league, r.season_id, r.stage, r.user_a, r.user_b);
+      if adv is distinct from champ then
+        champ := null; wins := 0; since := null;
+      end if;
     end if;
 
     if r.stage = 'title' then
@@ -161,15 +172,17 @@ begin
     end if;
   end loop;
 
-  if walkover is not null then
-    champ := walkover; wins := 0; since := null;
+  if walkover is not null and champ is distinct from walkover then
+    champ := walkover; wins := 0; since := walk_on;
   end if;
 
-  -- Going into card 9 the field is set (or, until card 9 locks, as the table
-  -- stands): a Champion outside it has given the title up.
+  -- Once the field is saved, as card 9 locks, a Champion outside it has
+  -- given the title up. Not before, so a live or rescored card 8 can't take
+  -- the belt.
   if through >= 8 and champ is not null
-     and exists (select 1 from public.league_season_seeds(league, season))
-     and not exists (select 1 from public.league_season_seeds(league, season) sd where sd.user_id = champ) then
+     and exists (select 1 from public.league_seeds ls where ls.league_id = league and ls.season_id = season)
+     and not exists (select 1 from public.league_seeds ls
+                     where ls.league_id = league and ls.season_id = season and ls.user_id = champ) then
     champ := null;
   end if;
 
@@ -788,11 +801,16 @@ as $$
     -- included), someone else won the title fight, or they finished outside
     -- the field. A loss that week says who beat them.
     select s.me as uid, s.league_id, s.league_name, 'lost_title' as type,
-           case when s.winner = s.opp then s.opp else s.after end as about,
+           case when s.winner = s.opp or (s.winner is null and s.stage in ('play_in', 'semi')) then s.opp
+                else s.after end as about,
            case when s.winner = s.opp and s.stage is distinct from 'title' then s.stage
+                when s.winner is null and s.stage in ('play_in', 'semi') then s.stage
+                when s.after is not null and s.week = 11
+                     and not exists (select 1 from sided z where z.league_id = s.league_id and z.stage = 'title')
+                  then 'walkover'
                 when s.after is not null then 'title'
                 else 'field' end as stage,
-           null::integer as defenses, false as drawn
+           null::integer as defenses, s.winner is null and s.stage in ('play_in', 'semi') as drawn
     from sided s
     where s.me = s.before and s.after is distinct from s.me
       and (s.winner = s.opp or (s.stage = 'title' and s.after = s.opp)
@@ -802,6 +820,7 @@ as $$
     select s.me, s.league_id, s.league_name, 'beat_champ', s.opp, null, null, false
     from sided s
     where s.opp = s.before and s.winner = s.me and s.stage is distinct from 'title'
+      and s.after is distinct from s.before
     union all
     select s.me, s.league_id, s.league_name, 'defended', s.opp, null, s.defenses, false
     from sided s

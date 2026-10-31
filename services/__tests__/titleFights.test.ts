@@ -136,6 +136,12 @@ describe("title pushes", () => {
     expect(notificationText("title", { ...p, type: "lost_title", stage: "field", opponent: null }).body).toBe(
       "You finished outside the title picture. The title is vacant until the title fight.",
     );
+    expect(notificationText("title", { ...p, type: "lost_title", stage: "walkover" }).body).toBe(
+      "Tam Orrin is the new Champion: their title fight opponent left the league.",
+    );
+    expect(notificationText("title", { ...p, type: "lost_title", stage: "semi", drawn: true }).body).toBe(
+      "You drew with Tam Orrin, who goes through as the better seed. The title is vacant until the title fight.",
+    );
     expect(notificationText("title", { ...p, type: "champion", stage: "walkover", opponent: null }).body).toBe(
       "Your title fight opponent left the league, so the belt is yours. Defend it every card.",
     );

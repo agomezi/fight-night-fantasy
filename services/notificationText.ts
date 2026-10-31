@@ -434,6 +434,12 @@ function titleNews(p: TitlePayload): Message {
       if (p.stage === "field") {
         return { title: `You lost the ${p.league} belt`, body: "You finished outside the title picture. The title is vacant until the title fight.", data };
       }
+      if (p.stage === "walkover") {
+        return { title: `You lost the ${p.league} belt`, body: `${vs} is the new Champion: their title fight opponent left the league.`, data };
+      }
+      if (p.drawn) {
+        return { title: `You lost the ${p.league} belt`, body: `You drew with ${vs}, who goes through as the better seed. The title is vacant until the title fight.`, data };
+      }
       if (p.stage === "title" && !p.opponent) {
         return { title: `You lost the ${p.league} belt`, body: "The title is vacant until the next title fight.", data };
       }
