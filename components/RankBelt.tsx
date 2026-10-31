@@ -15,10 +15,12 @@ const BELTS: Record<CareerRank, { body: string; tip: string }> = {
 /** Your career rank as a belt; the stripes on its tip show how close the next
  * rank is. Scales with `width`. */
 export default function RankBelt({ rank, stripes, width = 140 }: { rank: CareerRank; stripes: number; width?: number }) {
-  const { c } = useTheme();
+  const { c, mode } = useTheme();
   const k = width / 140;
   const belt = BELTS[rank];
   const height = Math.max(6, Math.round(12 * k));
+  // A black tip or belt sinks into a dark card; outline it so it still reads.
+  const outline = mode === "dark" ? "rgba(255,255,255,0.35)" : c.borderStrong;
   return (
     <View
       accessibilityLabel={`${rank} belt${stripes ? `, ${stripes} stripe${stripes === 1 ? "" : "s"}` : ""}`}
@@ -29,11 +31,22 @@ export default function RankBelt({ rank, stripes, width = 140 }: { rank: CareerR
         backgroundColor: belt.body,
         // The white and black belts need an edge to show on a matching card.
         borderWidth: rank === "Prospect" || rank === "Champion" ? 1 : 0,
-        borderColor: c.borderStrong,
+        borderColor: outline,
         overflow: "hidden",
       }}
     >
-      <View style={{ position: "absolute", right: 10 * k, top: 0, bottom: 0, width: 34 * k, backgroundColor: belt.tip }}>
+      <View
+        style={{
+          position: "absolute",
+          right: 10 * k,
+          top: 0,
+          bottom: 0,
+          width: 34 * k,
+          backgroundColor: belt.tip,
+          borderWidth: mode === "dark" && belt.tip === "#111111" ? 1 : 0,
+          borderColor: outline,
+        }}
+      >
         {Array.from({ length: stripes }, (_, i) => (
           <View
             key={i}

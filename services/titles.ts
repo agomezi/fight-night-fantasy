@@ -58,11 +58,22 @@ async function db() {
   return (await import("./supabase")).supabase;
 }
 
+// The last title read for each player this session, so a profile opened again
+// shows it straight away while a fresh copy loads.
+const lastRead = new Map<string, AwardId | null>();
+
+/** The title last read for a player, or undefined if it hasn't been. */
+export function cachedTitle(userId: string): AwardId | null | undefined {
+  return lastRead.get(userId);
+}
+
 /** The award a player wears as their title; null with none, or before the server has titles. */
 export async function loadTitle(userId: string): Promise<AwardId | null> {
   const { data, error } = await (await db()).rpc("player_title", { member: userId });
-  if (error || typeof data !== "string" || !(data in AWARDS)) return null;
-  return data as AwardId;
+  if (error) return null;
+  const title = typeof data === "string" && data in AWARDS ? (data as AwardId) : null;
+  lastRead.set(userId, title);
+  return title;
 }
 
 /** Wear an award you've won; null takes the title off. */
