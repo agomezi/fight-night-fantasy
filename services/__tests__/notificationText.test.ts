@@ -307,3 +307,28 @@ describe("poll", () => {
     });
   });
 });
+
+describe("tier", () => {
+  const league = { league: "The Alpha League", leagueId: "l1" };
+
+  it("says when the league moves up and what the tier means", () => {
+    expect(notificationText("tier", { ...league, tier: "pro", phase: "scheduled", season: 2 })).toEqual({
+      title: "The Alpha League moves up to Pro from Season 2",
+      body: "The whole card counts, with full deductions and no floor, and the owner sets the minimum picks.",
+      data: { screen: "league-standings", leagueId: "l1" },
+    });
+  });
+
+  it("announces the move when it starts", () => {
+    expect(notificationText("tier", { ...league, tier: "amateur", phase: "started", season: 0 }).title).toBe(
+      "The Alpha League is now Amateur"
+    );
+  });
+
+  it("says the league stays put when it's called off", () => {
+    expect(notificationText("tier", { ...league, tier: "casual", phase: "cancelled", season: 2 })).toMatchObject({
+      title: "The Alpha League stays Casual",
+      body: "The owner called off moving up a tier.",
+    });
+  });
+});

@@ -205,7 +205,7 @@ export default function LeagueJoin() {
               ))}
               <Text style={{ color: c.text2, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>{TIER_MINIMUM_LINE[tier]}</Text>
               <Text style={{ color: c.textFaint, fontSize: 12, lineHeight: 18, marginTop: 2 }}>
-                The tier is set for good once the league is made.
+                You can move up a tier later, but never down.
               </Text>
             </>
           ) : (
