@@ -231,10 +231,10 @@ export function showsOnLeaguePage(drop: DropInfo, now: Date): boolean {
   return until == null || now.getTime() < until.getTime();
 }
 
-/** The drops for the list under the standings: all but the newest while
- * it's still on the league page. */
-export function pastDrops(drops: DropInfo[], now: Date): DropInfo[] {
-  return drops[0] && showsOnLeaguePage(drops[0], now) ? drops.slice(1) : drops;
+/** The drops for the list under the standings: all but the one the league
+ * page shows (the latest drop, while it's still up there). */
+export function pastDrops(drops: DropInfo[], latest: DropInfo | null, now: Date): DropInfo[] {
+  return latest && showsOnLeaguePage(latest, now) ? drops.filter((d) => d.id !== latest.id) : drops;
 }
 
 type RawDrop = {

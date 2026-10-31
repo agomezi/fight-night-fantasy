@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Alert, Text, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
-import { dropDate, loadLeagueDrop, loadLeagueDrops, pastDrops, type DropInfo, type LeagueDrop } from "../services/awards";
+import { dropDate, loadLatestDrop, loadLeagueDrop, loadLeagueDrops, pastDrops, type DropInfo, type LeagueDrop } from "../services/awards";
 import AwardsReveal from "./AwardsReveal";
 import PressableScale from "./PressableScale";
 
@@ -14,15 +14,16 @@ export default function PastAwards({ leagueId, leagueName }: { leagueId: string;
   const { c } = useTheme();
   const { session } = useAuth();
   const myId = session?.user.id ?? null;
-  const [list, setList] = useState<{ leagueId: string; drops: DropInfo[] } | null>(null);
+  const [list, setList] = useState<{ leagueId: string; drops: DropInfo[]; latest: DropInfo | null } | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
   const [open, setOpen] = useState<LeagueDrop | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let current = true;
-      loadLeagueDrops(leagueId)
-        .then((drops) => current && setList({ leagueId, drops }))
+      // The league page shows the latest drop, so that's the one to leave out.
+      Promise.all([loadLeagueDrops(leagueId), loadLatestDrop()])
+        .then(([drops, latest]) => current && setList({ leagueId, drops, latest }))
         .catch(() => {});
       return () => {
         current = false;
@@ -31,7 +32,7 @@ export default function PastAwards({ leagueId, leagueName }: { leagueId: string;
   );
 
   // Never another league's, while switching.
-  const drops = list?.leagueId === leagueId ? pastDrops(list.drops, new Date()) : [];
+  const drops = list?.leagueId === leagueId ? pastDrops(list.drops, list.latest, new Date()) : [];
   if (!drops.length) return null;
 
   const show = (drop: DropInfo) => {

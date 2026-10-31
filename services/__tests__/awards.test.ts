@@ -123,7 +123,17 @@ test("past awards leave out the newest while it's still on the league page", () 
   const drop = (id: string, published: string) =>
     toDropInfo({ id, label: id, kind: "checkin", ran_at: published, published_at: published, next_lock_at: null });
   const drops = [drop("new", "2026-10-21T18:00:00Z"), drop("old", "2026-10-01T18:00:00Z")];
-  expect(pastDrops(drops, new Date("2026-10-23T00:00:00Z")).map((d) => d.id)).toEqual(["old"]);
-  expect(pastDrops(drops, new Date("2026-10-29T00:00:00Z")).map((d) => d.id)).toEqual(["new", "old"]);
-  expect(pastDrops([], new Date())).toEqual([]);
+  expect(pastDrops(drops, drops[0], new Date("2026-10-23T00:00:00Z")).map((d) => d.id)).toEqual(["old"]);
+  expect(pastDrops(drops, drops[0], new Date("2026-10-29T00:00:00Z")).map((d) => d.id)).toEqual(["new", "old"]);
+  expect(pastDrops([], null, new Date())).toEqual([]);
+});
+
+test("past awards leave out the drop the league page shows, even when it isn't the league's newest", () => {
+  const drop = (id: string, published: string) =>
+    toDropInfo({ id, label: id, kind: "checkin", ran_at: published, published_at: published, next_lock_at: null });
+  const mine = [drop("d1", "2026-10-20T18:00:00Z"), drop("old", "2026-10-01T18:00:00Z")];
+  // The latest drop skipped this league, so the league page shows nothing and d1 stays listed.
+  expect(pastDrops(mine, drop("d2", "2026-10-25T18:00:00Z"), new Date("2026-10-26T00:00:00Z")).map((d) => d.id)).toEqual(["d1", "old"]);
+  // Published out of order: the one the page shows comes out, wherever it sits.
+  expect(pastDrops(mine, mine[1], new Date("2026-10-03T00:00:00Z")).map((d) => d.id)).toEqual(["d1"]);
 });
