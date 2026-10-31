@@ -184,7 +184,7 @@ export default function Onboarding() {
     if (!canFinish) return;
     setSaving(true);
     try {
-      if (division) updateProfile({ title: profile.title, favDivision: division, bio: profile.bio });
+      if (division) updateProfile({ favDivision: division, bio: profile.bio });
       await setUsername(name);
       router.replace("/home");
     } catch (e) {
