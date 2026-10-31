@@ -10,6 +10,7 @@ import {
   toMemberProfile,
   tierLine,
   tierUpgradeConfirm,
+  tierUpgradeDone,
   toMyLeagues,
   toStandings,
   toWeeks,
@@ -316,6 +317,9 @@ describe("moving up a tier", () => {
     const pre = tierUpgradeConfirm("The Alpha League", "amateur", true);
     expect(pre.title).toBe("Move The Alpha League up to Amateur now?");
     expect(pre.body).toContain("Pre-season cards are scored again at the new tier.");
+    expect(season.body).toContain("it starts the season after");
+    expect(tierUpgradeDone("The Alpha League", "pro", 3)).toBe("The Alpha League moves up to Pro from Season 3.");
+    expect(tierUpgradeDone("The Alpha League", "pro", 0)).toBeNull();
   });
 
   it("shows the tier, and the move up waiting", () => {

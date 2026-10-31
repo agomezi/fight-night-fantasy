@@ -266,6 +266,11 @@ begin
     where e.status <> 'cancelled' and e.locks_at > now() and e.locks_at <= now() + interval '2 days'
       and public.card_season_number(e.id) = at
   ) then
+    -- A move up already waiting for that season stays as it is.
+    if exists (select 1 from public.league_tiers t where t.league_id = l.id and t.from_season = at) then
+      raise exception 'Season % starts in under two days, so its tier is set. Try again once it has.', at
+        using errcode = 'P0001', hint = 'too_close';
+    end if;
     at := at + 1;
   end if;
   was := public.league_tier_at(l.id, greatest(at - 1, 0));
@@ -315,17 +320,22 @@ declare
   me     uuid := public.require_named_player();
   l      public.leagues%rowtype;
   now_at integer := public.season_in_play();
+  from_at integer;
 begin
   select * into l from public.leagues x where x.id = cancel_tier_upgrade.league for update;
   if not found or l.owner_id is distinct from me then
     raise exception 'Only the league''s owner can change its tier.' using errcode = 'P0001', hint = 'not_owner';
   end if;
 
-  delete from public.league_tiers t where t.league_id = l.id and t.from_season > now_at;
-  if found then
+  with gone as (
+    delete from public.league_tiers t where t.league_id = l.id and t.from_season > now_at
+    returning t.from_season
+  )
+  select min(g.from_season) into from_at from gone g;
+  if from_at is not null then
     perform public.sync_league_tier(l.id);
     perform public.notify_league_tier(
-      l.id, public.league_tier_at(l.id, now_at), 'cancelled', now_at + 1,
+      l.id, public.league_tier_at(l.id, now_at), 'cancelled', from_at,
       l.id || ':cancelled:' || floor(extract(epoch from clock_timestamp()) * 1000)::bigint, me
     );
     perform public.invoke_activity_push();
@@ -1418,7 +1428,8 @@ begin
   ),
   lg as (
     select l.id, l.name,
-           case when season is not null then public.league_tier_at(l.id, public.season_in_play() + 1)
+           case when season is not null
+                then public.league_tier_at(l.id, (select s.number from public.seasons s where s.id = season) + 1)
                 else coalesce(public.league_tier_for(l.id, (select c.id from card c)), l.tier) end as tier
     from public.leagues l
     where l.invite_code = lower(btrim(coalesce(code, '')))

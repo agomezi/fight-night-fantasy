@@ -8,6 +8,7 @@ import {
   TIER_LABEL,
   tierLine,
   tierUpgradeConfirm,
+  tierUpgradeDone,
   type MyLeague,
   type OpenTier,
 } from "../services/leagues";
@@ -47,7 +48,14 @@ export default function TierUpgradeSetting({
     const { title, body } = tierUpgradeConfirm(league.name, tier, preseason);
     Alert.alert(title, body, [
       { text: "Cancel", style: "cancel" },
-      { text: `Move up to ${TIER_LABEL[tier]}`, onPress: () => run(() => scheduleTierUpgrade(league.id, tier), "Couldn't change the tier") },
+      {
+        text: `Move up to ${TIER_LABEL[tier]}`,
+        onPress: () =>
+          run(async () => {
+            const done = tierUpgradeDone(league.name, tier, await scheduleTierUpgrade(league.id, tier));
+            if (done) Alert.alert("Moving up", done);
+          }, "Couldn't change the tier"),
+      },
     ]);
   };
 
