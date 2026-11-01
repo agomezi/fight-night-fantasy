@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { holdModal, modalsFree, useModalsFree } from "../services/modalGate";
@@ -9,8 +10,8 @@ import { makeSettingsStyles } from "../styles/settings";
 import ClearableInput from "./ClearableInput";
 import PressableScale from "./PressableScale";
 
-/** Over the whole app while your name is removed: pick a new one to keep
- * playing. It can't be dismissed. It waits for any open card, then holds the
+/** A full screen over the whole app while your name is removed: pick a new
+ * one to keep playing. It can't be dismissed. It waits for any open card, then holds the
  * gate so no other card opens on top of it. */
 export default function NameRemovedSheet({
   removed,
@@ -63,22 +64,29 @@ export default function NameRemovedSheet({
   };
 
   return (
-    <Modal visible={open} transparent animationType="slide" statusBarTranslucent onRequestClose={() => {}}>
-      <KeyboardAvoidingView style={{ flex: 1, justifyContent: "flex-end" }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <View style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: c.overlay }} />
-        <View
-          accessibilityViewIsModal
-          style={{
-            backgroundColor: c.card,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            borderTopWidth: 1,
-            borderColor: c.borderStrong,
-            paddingHorizontal: 20,
-            paddingTop: 24,
-            paddingBottom: 20 + insets.bottom,
-          }}
+    <Modal visible={open} animationType="fade" statusBarTranslucent onRequestClose={() => {}}>
+      <KeyboardAvoidingView
+        accessibilityViewIsModal
+        style={{ flex: 1, backgroundColor: c.bg }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: insets.top + 56, paddingBottom: 24 }}
         >
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: c.redTint,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+            }}
+          >
+            <Ionicons name="person-remove" size={26} color={c.red} />
+          </View>
           <Text style={{ color: c.red, fontSize: 11, fontWeight: "800", letterSpacing: 1.4 }}>{copy.eyebrow}</Text>
           <Text accessibilityRole="header" style={{ color: c.text, fontSize: 24, fontWeight: "800", marginTop: 4 }}>
             {copy.title}
@@ -108,13 +116,15 @@ export default function NameRemovedSheet({
           {error ? (
             <Text style={{ color: c.red, fontSize: 13.5, fontWeight: "700", marginTop: 12, textAlign: "center" }}>{error}</Text>
           ) : null}
+        </ScrollView>
 
+        {/* Pinned to the bottom, above the keyboard while typing. */}
+        <View style={{ paddingHorizontal: 24, paddingTop: 12, paddingBottom: 16 + insets.bottom }}>
           <PressableScale
             onPress={save}
             disabled={!canSave}
             accessibilityRole="button"
             style={{
-              marginTop: 20,
               height: 54,
               borderRadius: 14,
               backgroundColor: c.red,
