@@ -42,7 +42,7 @@ export default function MatchupCard({
       <View style={[styles.versusAvatar, me && styles.versusAvatarMe]}>
         <Text style={styles.avatarText}>{getInitials(s.name)}</Text>
       </View>
-      <Text style={styles.versusName} numberOfLines={1}>
+      <Text style={[styles.versusName, { maxWidth: "100%", paddingHorizontal: 4 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
         {me ? "You" : s.name}
       </Text>
       <Text style={[styles.versusScore, lead && styles.versusScoreLead]}>

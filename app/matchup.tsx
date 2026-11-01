@@ -207,7 +207,9 @@ export default function MatchupScreen() {
                     }}
                   >
                     <CardBackdrop variant="octagon" />
-                    <View style={{ width: "74%", alignSelf: "center" }}>
+                    {/* Centred in the space left of the octagon, so a long
+                        name on the right doesn't run into it. */}
+                    <View style={{ width: "74%", marginLeft: "4%" }}>
                       <MatchupCard matchup={m} onPressPlayer={setViewing} bare />
                     </View>
                   </View>

@@ -95,11 +95,22 @@ async function db() {
   return (await import("./supabase")).supabase;
 }
 
+// The last locker read for each player this session, so a profile opened
+// again shows its belt straight away while a fresh copy loads.
+const lastRead = new Map<string, Locker | null>();
+
+/** The locker last read for a player, or undefined if it hasn't been. */
+export function cachedLocker(userId: string): Locker | null | undefined {
+  return lastRead.get(userId);
+}
+
 /** A player's locker; null for one you can't see. Throws when it couldn't be read. */
 export async function loadLocker(userId: string): Promise<Locker | null> {
   const { data, error } = await (await db()).rpc("player_locker_v2", { member: userId });
   if (error) throw new Error(error.message);
-  return toLocker((data ?? null) as RawLocker | null);
+  const locker = toLocker((data ?? null) as RawLocker | null);
+  lastRead.set(userId, locker);
+  return locker;
 }
 
 export async function setLockerItem(item: LockerItem, show: boolean): Promise<void> {

@@ -18,8 +18,8 @@ import { loadPinnedCalls, type PinnedCall } from "../services/pins";
 import PinnedCalls from "./PinnedCalls";
 import BadgeMedals from "./BadgeMedals";
 import RankBelt from "./RankBelt";
-import { loadLocker, shown, type Locker } from "../services/locker";
-import { loadTitle, titleName } from "../services/titles";
+import { cachedLocker, loadLocker, shown, type Locker } from "../services/locker";
+import { cachedTitle, loadTitle, titleName } from "../services/titles";
 import PressableScale from "./PressableScale";
 import { StatBox, StatBoxRow } from "./StatBox";
 import ScreenSkeleton from "./ScreenSkeleton";
@@ -52,8 +52,10 @@ export default function MemberProfileSheet({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pins, setPins] = useState<PinnedCall[]>([]);
-  const [locker, setLocker] = useState<Locker | null>(null);
-  const [title, setTitle] = useState<string | null>(null);
+  // Undefined while loading: the card waits for the belt and title so they
+  // don't pop in after it.
+  const [locker, setLocker] = useState<Locker | null | undefined>(undefined);
+  const [title, setTitle] = useState<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!userId) return;
@@ -72,14 +74,15 @@ export default function MemberProfileSheet({
     loadPinnedCalls(userId)
       .then((v) => current && setPins(v))
       .catch(() => {});
-    setLocker(null);
+    setLocker(cachedLocker(userId));
     loadLocker(userId)
       .then((v) => current && setLocker(v))
-      .catch(() => {});
-    setTitle(null);
+      .catch(() => current && setLocker((l) => l ?? null));
+    const known = cachedTitle(userId);
+    setTitle(known === undefined ? undefined : titleName(known));
     loadTitle(userId)
       .then((v) => current && setTitle(titleName(v)))
-      .catch(() => {});
+      .catch(() => current && setTitle(null));
     return () => {
       current = false;
     };
@@ -144,7 +147,7 @@ export default function MemberProfileSheet({
     if (failed || profile === null) {
       return <Text style={[muted, { textAlign: "center", paddingVertical: 24 }]}>Couldn&apos;t load this profile.</Text>;
     }
-    if (!profile) return <ScreenSkeleton variant="sheet" />;
+    if (!profile || locker === undefined || title === undefined) return <ScreenSkeleton variant="sheet" />;
     // Your own comes with what you've hidden; the card shows what others see.
     const onCard = profile.isMe ? shown(locker) : locker;
 
