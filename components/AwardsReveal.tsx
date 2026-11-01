@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useMemo } from "react";
 import { holdModal } from "../services/modalGate";
-import { Dimensions, Modal, ScrollView, Share, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, Share, Text, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -70,7 +70,13 @@ export default function AwardsReveal({
 
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: c.overlay, justifyContent: "center", padding: 18 }}>
+      <View style={{ flex: 1, justifyContent: "center", padding: 18 }}>
+        {/* Tapping outside the card closes it. */}
+        <Pressable
+          style={{ position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: c.overlay }}
+          onPress={onClose}
+          accessibilityLabel="Close"
+        />
         {Array.from({ length: CONFETTI }, (_, i) => (
           <Piece key={i} i={i} color={colors[i % colors.length]} />
         ))}
@@ -79,7 +85,7 @@ export default function AwardsReveal({
           style={{ backgroundColor: c.card, borderRadius: 22, borderWidth: 1, borderColor: c.border, maxHeight: "88%", overflow: "hidden" }}
         >
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 22, gap: 14 }}>
-            <View>
+            <View style={{ paddingRight: 28 }}>
               <Text style={{ color: c.red, fontSize: 11, fontWeight: "800", letterSpacing: 1.4 }}>
                 {dropHeading(drop.drop)} · {leagueName.toUpperCase()}
               </Text>
@@ -193,6 +199,27 @@ export default function AwardsReveal({
               </PressableScale>
             </View>
           </ScrollView>
+          {/* The card can be taller than the screen, so a close stays in reach
+              without scrolling to the bottom. */}
+          <PressableScale
+            onPress={onClose}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={{
+              position: "absolute",
+              top: 14,
+              right: 14,
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              backgroundColor: c.inset,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="close" size={18} color={c.textMuted} />
+          </PressableScale>
         </Animated.View>
       </View>
     </Modal>
