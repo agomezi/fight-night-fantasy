@@ -2,14 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import LeaderboardRow from "../components/LeaderboardRow";
 import MemberProfileSheet from "../components/MemberProfileSheet";
 import PressableScale from "../components/PressableScale";
 import Skeleton from "../components/Skeleton";
+import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
-import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { loadLeaderboard, type Leaderboard } from "../services/leaderboard";
 import { makeCommonStyles } from "../styles/common";
 
@@ -24,7 +25,6 @@ export default function LeaderboardScreen() {
   const { c } = useTheme();
   const commonStyles = useThemedStyles(makeCommonStyles);
   const [board, setBoard] = useState<Leaderboard | null>(null);
-  const animate = useEntranceOnce(!!board);
   const [failed, setFailed] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
 
@@ -81,16 +81,16 @@ export default function LeaderboardScreen() {
             <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 4, marginBottom: 10 }}>
               Ranked by edge: points above the average player on the same fights. Only cards where you picked the whole main card count.
             </Text>
-            {top.map((row, i) => (
-              <LeaderboardRow
-                key={row.userId}
-                row={row}
-                index={i}
-                last={i === top.length - 1}
-                animate={animate}
-                onPress={() => setViewing(row.userId)}
-              />
-            ))}
+            <Animated.View entering={appear(1)}>
+              {top.map((row, i) => (
+                <LeaderboardRow
+                  key={row.userId}
+                  row={row}
+                  last={i === top.length - 1}
+                  onPress={() => setViewing(row.userId)}
+                />
+              ))}
+            </Animated.View>
             {/* How far you are from the next place up. */}
             {board.me?.rank != null && board.me.edge != null && board.me.rank > 1 && (() => {
               const meAt = board.rows.findIndex((r) => r.isMe);

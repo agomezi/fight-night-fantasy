@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import EmptyState from "../components/EmptyState";
 import LeagueStandingRow from "../components/LeagueStandingRow";
@@ -11,8 +12,8 @@ import PressableScale from "../components/PressableScale";
 import { EmptyScorecard } from "../components/Scorecard";
 import { ChampRow, TitleShotLine } from "../components/TitleRows";
 import { useAuth } from "../context/AuthContext";
+import { appear } from "../constants/motion";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
-import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { useLeague } from "../hooks/useLeague";
 import { inviteMessage, matchupStreaks, TIER_LABEL } from "../services/leagues";
 import { hasTitle, titleShotCut } from "../services/titleFights";
@@ -36,7 +37,6 @@ export default function LeagueStandings() {
   const unranked = rows.filter((r) => r.rank == null);
   const weeks = state.status === "ready" ? state.weeks : null;
   const streaks = useMemo(() => (weeks ? matchupStreaks(weeks) : {}), [weeks]);
-  const animate = useEntranceOnce(state.status === "ready");
   const { session } = useAuth();
   const title = state.status === "ready" ? state.title ?? null : null;
   const showTitle = hasTitle(title) && !!standings?.ranked;
@@ -104,22 +104,22 @@ export default function LeagueStandings() {
                   <Text style={styles.columnLabel}>W-L</Text>
                 </View>
                 {showTitle && <ChampRow title={title} myId={session?.user.id} onPress={setViewing} />}
-                {rows.map((row, i) => (
-                  <View key={row.userId}>
-                    <LeagueStandingRow
-                      row={row}
-                      index={i}
-                      move={state.moves[row.userId]}
-                      streak={streaks[row.userId]}
-                      animate={animate}
-                      crowned={showTitle && !!title.champion}
-                      seed={seedOf(row.userId)}
-                      interim={!!standings?.ranked && title?.interim?.userId === row.userId}
-                      onPress={() => setViewing(row.userId)}
-                    />
-                    {cut === row.userId && i < rows.length - 1 && <TitleShotLine />}
-                  </View>
-                ))}
+                <Animated.View entering={appear(1)}>
+                  {rows.map((row, i) => (
+                    <View key={row.userId}>
+                      <LeagueStandingRow
+                        row={row}
+                        move={state.moves[row.userId]}
+                        streak={streaks[row.userId]}
+                        crowned={showTitle && !!title.champion}
+                        seed={seedOf(row.userId)}
+                        interim={!!standings?.ranked && title?.interim?.userId === row.userId}
+                        onPress={() => setViewing(row.userId)}
+                      />
+                      {cut === row.userId && i < rows.length - 1 && <TitleShotLine />}
+                    </View>
+                  ))}
+                </Animated.View>
               </>
             )}
 
