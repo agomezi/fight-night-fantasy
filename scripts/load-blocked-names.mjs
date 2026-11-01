@@ -21,7 +21,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const FILE = ".env.blocked-names";
-const MODES = new Set(["contains", "word", "name", "group", "hostile"]);
+const MODES = new Set(["contains", "word", "name", "group", "hostile", "root", "allow"]);
 const args = process.argv.slice(2);
 const unknown = args.filter((a) => !["--linked", "--dry-run", "--yes"].includes(a));
 if (unknown.length) {
@@ -36,8 +36,19 @@ const confirmed = args.includes("--yes") && !dryRun;
 // letters kept, runs of one letter squeezed.
 const normalize = (term) =>
   term
-    .replace(/[0-9]/g, (d) => ({ 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 6: "g", 7: "t", 8: "b" })[d] ?? d)
+    .replace(/[0-9]/g, (d) => ({ 0: "o", 1: "i", 2: "z", 3: "e", 4: "a", 5: "s", 6: "g", 7: "t", 8: "b", 9: "g" })[d])
     .replace(/[^a-z]/g, "")
+    .replace(/(.)\1+/g, "$1");
+
+// The database's normalize_handle_loose: the same, with lookalike letters
+// folded together before squeezing.
+const normalizeLoose = (term) =>
+  term
+    .replace(/[0-9]/g, (d) => ({ 0: "o", 1: "i", 2: "z", 3: "e", 4: "a", 5: "s", 6: "g", 7: "t", 8: "b", 9: "g" })[d])
+    .replace(/[^a-z]/g, "")
+    .replace(/ph/g, "f")
+    .replace(/vv/g, "w")
+    .replace(/[jlycqzv]/g, (ch) => ({ j: "i", l: "i", y: "i", c: "k", q: "k", z: "s", v: "u" })[ch])
     .replace(/(.)\1+/g, "$1");
 
 let text;
@@ -54,7 +65,7 @@ text.split(/\r?\n/).forEach((raw, i) => {
   if (!line || line.startsWith("#")) return;
   const [mode, term, extra] = line.split(/\s+/);
   if (!MODES.has(mode) || !term || extra !== undefined || !/^[a-z0-9]+$/.test(term)) {
-    console.error(`${FILE}:${i + 1}: expected "<contains|word|name|group|hostile> <lowercase letters and digits>"`);
+    console.error(`${FILE}:${i + 1}: expected "<contains|word|name|group|hostile|root|allow> <lowercase letters and digits>"`);
     process.exit(1);
   }
   // A term that is all 2s and 9s reads as nothing, and nothing is in every name.
@@ -90,6 +101,38 @@ for (const g of ofMode("group")) {
 }
 if (!ofMode("group").length !== !ofMode("hostile").length) {
   console.warn(`${FILE}: group and hostile terms only work in pairs; one of the two lists is empty.`);
+}
+
+// An allowed word is blanked out before roots are matched, in both spellings
+// a root is matched in (lookalikes folded only for roots of 4 letters or
+// more). One that sits inside a root, or reads the same, would unblock it;
+// one that overlaps a root's start or end hides part of it; one with no root
+// in it does nothing.
+const spellings = (root) => {
+  const loose = normalizeLoose(root);
+  return loose.length >= 4 ? [[normalize(root), normalize], [loose, normalizeLoose]] : [[normalize(root), normalize]];
+};
+for (const a of ofMode("allow")) {
+  let hasRoot = false;
+  for (const r of ofMode("root")) {
+    for (const [root, read] of spellings(r)) {
+      const word = read(a);
+      if (root.includes(word)) {
+        console.error(`${FILE}: allow "${a}" sits inside root "${r}", so it would unblock it.`);
+        process.exit(1);
+      }
+      if (word.includes(root)) hasRoot = true;
+      else if (overlap(word, root)) console.warn(`${FILE}: allow "${a}" overlaps the start or end of root "${r}", which hides part of it.`);
+    }
+  }
+  if (!hasRoot) {
+    const kept = ofMode("contains").find((t) => normalize(a).includes(normalize(t)));
+    console.warn(
+      kept
+        ? `${FILE}: allow "${a}" has contains "${kept}" in it, which still blocks it; list "${kept}" as a root instead.`
+        : `${FILE}: allow "${a}" has no root in it, so it does nothing.`
+    );
+  }
 }
 
 // Terms are validated as [a-z0-9]+ above, so the JSON is safe to quote
