@@ -12,15 +12,17 @@ const BELTS: Record<CareerRank, { body: string; tip: string }> = {
   Legend: { body: "#E8003D", tip: "#111111" },
 };
 
+/** On a dark card black sinks in, so it lifts to charcoal there. */
+const DARK_LIFT: Record<string, string> = { "#111111": "#2e2e2e", "#1b1b1b": "#262626" };
+
 /** Your career rank as a belt; the stripes on its tip show how close the next
  * rank is. Scales with `width`. */
 export default function RankBelt({ rank, stripes, width = 140 }: { rank: CareerRank; stripes: number; width?: number }) {
   const { c, mode } = useTheme();
   const k = width / 140;
-  const belt = BELTS[rank];
+  const { body, tip } = BELTS[rank];
+  const shade = (colour: string) => (mode === "dark" ? DARK_LIFT[colour] ?? colour : colour);
   const height = Math.max(6, Math.round(12 * k));
-  // A black tip or belt sinks into a dark card; outline it so it still reads.
-  const outline = mode === "dark" ? "rgba(255,255,255,0.35)" : c.borderStrong;
   return (
     <View
       accessibilityLabel={`${rank} belt${stripes ? `, ${stripes} stripe${stripes === 1 ? "" : "s"}` : ""}`}
@@ -28,25 +30,14 @@ export default function RankBelt({ rank, stripes, width = 140 }: { rank: CareerR
         width,
         height,
         borderRadius: 2,
-        backgroundColor: belt.body,
+        backgroundColor: shade(body),
         // The white and black belts need an edge to show on a matching card.
         borderWidth: rank === "Prospect" || rank === "Champion" ? 1 : 0,
-        borderColor: outline,
+        borderColor: c.borderStrong,
         overflow: "hidden",
       }}
     >
-      <View
-        style={{
-          position: "absolute",
-          right: 10 * k,
-          top: 0,
-          bottom: 0,
-          width: 34 * k,
-          backgroundColor: belt.tip,
-          borderWidth: mode === "dark" && belt.tip === "#111111" ? 1 : 0,
-          borderColor: outline,
-        }}
-      >
+      <View style={{ position: "absolute", right: 10 * k, top: 0, bottom: 0, width: 34 * k, backgroundColor: shade(tip) }}>
         {Array.from({ length: stripes }, (_, i) => (
           <View
             key={i}
