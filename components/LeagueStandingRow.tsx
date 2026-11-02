@@ -1,6 +1,4 @@
 import { Text, View } from "react-native";
-import Animated from "react-native-reanimated";
-import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
 import { rankLabel, type LeagueStanding } from "../services/leagues";
@@ -16,25 +14,22 @@ const STATUS_NOTE: Partial<Record<LeagueStanding["status"], string>> = {
 /** One member of a league table: rank and record, with the current streak
  * under it. Points still break ties but aren't shown: the table is about the
  * record. Unranked members (queued for next season) show no record. `move` is
- * places climbed since before the last card, for the arrow from 4th down. */
+ * places climbed since before the last card, for the arrow from 4th down. Not
+ * animated on its own: a refresh reorders the rows, and an entrance on a
+ * moved row can leave it invisible, so the table animates in as a whole. */
 export default function LeagueStandingRow({
   row,
-  index = 0,
   move,
   streak,
-  animate = true,
   crowned,
   seed,
   interim,
   onPress,
 }: {
   row: LeagueStanding;
-  index?: number;
   move?: number;
   /** "W2", "L1" or "D1"; none before a matchup has finished. */
   streak?: string;
-  /** False once the table has shown: a refresh must not replay the entrance. */
-  animate?: boolean;
   /** A Champion holds the belt above the table: 1st takes a gold medal. */
   crowned?: boolean;
   /** Their seed for the title shot, once the field is set. */
@@ -53,7 +48,7 @@ export default function LeagueStandingRow({
   const streakColor = streak?.startsWith("W") ? c.green : streak?.startsWith("L") ? c.red : c.textFaint;
 
   return (
-    <Animated.View entering={animate ? appear(Math.min(index, 8)) : undefined}>
+    <View>
       <PressableScale
         onPress={onPress}
         disabled={!onPress}
@@ -85,6 +80,6 @@ export default function LeagueStandingRow({
           {ranked && streak ? <Text style={[styles.pointsUnit, { color: streakColor }]}>{streak}</Text> : null}
         </View>
       </PressableScale>
-    </Animated.View>
+    </View>
   );
 }

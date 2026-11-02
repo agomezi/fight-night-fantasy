@@ -1,6 +1,4 @@
 import { Text, View } from "react-native";
-import Animated from "react-native-reanimated";
-import { appear } from "../constants/motion";
 import { getInitials } from "../context/ProfileContext";
 import { useTheme } from "../context/ThemeContext";
 import type { LeaderboardRow as Row } from "../services/leaderboard";
@@ -13,24 +11,21 @@ function total(points: number): string {
 }
 
 /** One player on the global leaderboard. Your own row is tinted; tapping a
- * row opens that player's card. */
+ * row opens that player's card. Not animated on its own: a live refresh
+ * reorders the rows, and an entrance on a moved row can leave it invisible,
+ * so the list animates in as a whole instead. */
 export default function LeaderboardRow({
   row,
-  index = 0,
   last = false,
-  animate = true,
   onPress,
 }: {
   row: Row;
-  index?: number;
   last?: boolean;
-  /** False once the board has shown: a live refresh must not replay the entrance. */
-  animate?: boolean;
   onPress?: () => void;
 }) {
   const { c } = useTheme();
   return (
-    <Animated.View entering={animate ? appear(Math.min(index, 8)) : undefined}>
+    <View>
       <PressableScale
         onPress={onPress}
         disabled={!onPress}
@@ -93,6 +88,6 @@ export default function LeaderboardRow({
           <Text style={{ color: c.textFaint, fontSize: 9.5, fontWeight: "800", letterSpacing: 1 }}>EDGE</Text>
         </View>
       </PressableScale>
-    </Animated.View>
+    </View>
   );
 }

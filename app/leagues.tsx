@@ -24,7 +24,6 @@ import { ChampRow, TitleShotLine, TITLE_GOLD } from "../components/TitleRows";
 import { appear } from "../constants/motion";
 import { useAuth } from "../context/AuthContext";
 import { useTheme, useThemedStyles } from "../context/ThemeContext";
-import { useEntranceOnce } from "../hooks/useEntranceOnce";
 import { useLeague } from "../hooks/useLeague";
 import { readCache, writeCache } from "../services/screenCache";
 import { loadLeagueCommunityCard, toCommunityView, type RawCommunityCard } from "../services/community";
@@ -64,8 +63,6 @@ export default function Leagues() {
 
   // The global table: the top five and, if you're further down, you.
   const [board, setBoard] = useState<Leaderboard | null>(() => readCache<Leaderboard>("leaderboard:5") ?? null);
-  const animateBoard = useEntranceOnce(!!board);
-  const animateStandings = useEntranceOnce(state.status === "ready");
   const readyWeeks = state.status === "ready" ? state.weeks : null;
   const streaks = useMemo(() => (readyWeeks ? matchupStreaks(readyWeeks) : {}), [readyWeeks]);
   useFocusEffect(
@@ -107,9 +104,7 @@ export default function Leagues() {
         <LeaderboardRow
           key={row.userId}
           row={row}
-          index={i}
           last={i === board.rows.length - 1}
-          animate={animateBoard}
           onPress={() => setViewingGlobal(row.userId)}
         />
       ))}
@@ -421,21 +416,21 @@ export default function Leagues() {
               <Text style={styles.columnLabel}>W-L</Text>
             </View>
             {showTitle && <ChampRow title={title} myId={session?.user.id} onPress={setViewing} />}
-            {standings.rows.slice(0, 4).map((row, i) => (
-              <View key={row.userId}>
-                <LeagueStandingRow
-                  row={row}
-                  index={i}
-                  move={state.moves[row.userId]}
-                  streak={streaks[row.userId]}
-                  animate={animateStandings}
-                  crowned={showTitle && !!title.champion}
-                  interim={title?.interim?.userId === row.userId}
-                  onPress={() => setViewing(row.userId)}
-                />
-                {cut === row.userId && i < standings.rows.length - 1 && <TitleShotLine />}
-              </View>
-            ))}
+            <Animated.View entering={appear(1)}>
+              {standings.rows.slice(0, 4).map((row, i) => (
+                <View key={row.userId}>
+                  <LeagueStandingRow
+                    row={row}
+                    move={state.moves[row.userId]}
+                    streak={streaks[row.userId]}
+                    crowned={showTitle && !!title.champion}
+                    interim={title?.interim?.userId === row.userId}
+                    onPress={() => setViewing(row.userId)}
+                  />
+                  {cut === row.userId && i < standings.rows.length - 1 && <TitleShotLine />}
+                </View>
+              ))}
+            </Animated.View>
           </>
         ) : (
           <EmptyState compact icon="podium-outline" title="No standings yet" message="The table fills in once the season starts." />
