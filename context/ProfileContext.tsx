@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { LEGACY_PROFILE_KEY, profileStorageKey } from "../constants/storage";
 import { renameUnderReview as saveRenameUnderReview } from "../services/nameReview";
-import { fetchDisplayName, nextNameChange, saveDisplayName, saveFavDivision } from "../services/profile";
+import { fetchDisplayName, fetchNameRemoved, nextNameChange, saveDisplayName, saveFavDivision } from "../services/profile";
 import type { AwardId } from "../services/awards";
 import { loadTitle, saveTitle } from "../services/titles";
 import { useAuth } from "./AuthContext";
@@ -46,6 +46,8 @@ type ProfileContextValue = {
   ready: boolean;
   /** Signed in with no handle yet: onboarding comes first. */
   needsOnboarding: boolean;
+  /** Your handle was removed: the app asks for a new one instead of onboarding. */
+  nameRemoved: boolean;
 };
 
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
@@ -57,6 +59,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [username, setUsernameState] = useState<string | null>(null);
   const [nameChangedAt, setNameChangedAt] = useState<Date | null>(null);
   const [title, setTitleState] = useState<AwardId | null>(null);
+  const [nameRemoved, setNameRemoved] = useState(false);
   const [ready, setReady] = useState(false);
 
   // Reload whenever the signed-in account changes, so one account's profile
@@ -67,6 +70,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setUsernameState(null);
     setNameChangedAt(null);
     setTitleState(null);
+    setNameRemoved(false);
     if (!userId) {
       setReady(true);
       return;
@@ -83,11 +87,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return stored;
       })
       .catch(() => null);
-    const name = fetchDisplayName(userId)
-      .then((server) => {
+    const name = Promise.all([fetchDisplayName(userId), fetchNameRemoved(userId)])
+      .then(([server, removed]) => {
         if (!current) return null;
         setUsernameState(server.name);
         setNameChangedAt(server.changedAt);
+        setNameRemoved(server.name === null && removed);
         return server;
       })
       // Offline at launch: let them in rather than trapping them in
@@ -132,6 +137,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       await saveDisplayName(userId, name);
       setUsernameState(name);
       setNameChangedAt(new Date());
+      setNameRemoved(false);
     },
     [userId]
   );
@@ -187,9 +193,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       refreshName,
       nameChangeableAt: nextNameChange(nameChangedAt),
       ready,
-      needsOnboarding: !!userId && ready && username === null,
+      needsOnboarding: !!userId && ready && username === null && !nameRemoved,
+      nameRemoved: !!userId && ready && username === null && nameRemoved,
     }),
-    [local, username, title, nameChangedAt, updateProfile, setTitle, refreshTitle, setUsername, renameUnderReview, refreshName, ready, userId]
+    [local, username, title, nameChangedAt, nameRemoved, updateProfile, setTitle, refreshTitle, setUsername, renameUnderReview, refreshName, ready, userId]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

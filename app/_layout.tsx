@@ -7,6 +7,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import BootSplash from "../components/BootSplash";
+import NameRemovedSheet from "../components/NameRemovedSheet";
 import WhatsNew from "../components/WhatsNew";
 import { holdModal } from "../services/modalGate";
 import { AuthProvider, useAuth } from "../context/AuthContext";
@@ -21,7 +22,7 @@ SplashScreen.preventAutoHideAsync();
 function ThemedApp() {
   const { c } = useTheme();
   const { session, ready: authReady } = useAuth();
-  const { ready: profileReady, needsOnboarding } = useProfile();
+  const { ready: profileReady, needsOnboarding, nameRemoved, setUsername } = useProfile();
   const ready = authReady && profileReady;
   // The boot animation covers a cold start until it finishes its combo.
   const [booting, setBooting] = useState(true);
@@ -101,6 +102,9 @@ function ThemedApp() {
           accountSeenId={session.user.user_metadata?.whats_new_seen}
         />
       )}
+      {/* A removed name is replaced here, over whatever screen is open,
+          rather than by going through onboarding again. */}
+      {!!session && ready && <NameRemovedSheet removed={nameRemoved} onSave={setUsername} />}
       {booting && <BootSplash ready={ready} onDone={bootDone} />}
     </>
   );

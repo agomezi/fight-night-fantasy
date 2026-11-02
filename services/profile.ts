@@ -53,6 +53,16 @@ export async function fetchDisplayName(
   };
 }
 
+/** Whether your name was removed (by the blocked-name list or a moderator)
+ * and you haven't picked a new one. False when it couldn't be read, so a
+ * missed read falls back to onboarding as before. */
+export async function fetchNameRemoved(userId: string): Promise<boolean> {
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.from("profiles").select("name_removed_at").eq("id", userId).maybeSingle();
+  if (error) return false;
+  return !!data?.name_removed_at;
+}
+
 /** Saves the favorite division league mates see on your profile. */
 export async function saveFavDivision(userId: string, division: string): Promise<void> {
   const { supabase } = await import("./supabase");

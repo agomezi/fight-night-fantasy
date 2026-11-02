@@ -224,7 +224,7 @@ export default function Home() {
   const { session } = useAuth();
   const userId = session?.user.id;
   // Reports have hidden your name: offer a new one on the spot.
-  const { profile, renameUnderReview, refreshName } = useProfile();
+  const { profile, renameUnderReview, refreshName, nameRemoved } = useProfile();
   const nameReview = useNameReview(userId, refreshName);
   const modalsFree = useModalsFree();
   const picksKey = userId && event ? `picks:${userId}:${event.id}` : null;
@@ -1310,7 +1310,7 @@ export default function Home() {
       </View>
 
       <NameReviewSheet
-        visible={nameReview.offer && modalsFree}
+        visible={nameReview.offer && modalsFree && !nameRemoved}
         alias={nameReview.alias}
         currentName={profile.username}
         onRename={async (name) => {
